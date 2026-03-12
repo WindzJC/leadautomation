@@ -1,0 +1,9 @@
+# Explicit URL fragments/classes that should never reach candidate output.
+/watch?v=
+/playlist
+/channel/
+/shorts/
+/video/
+/videos/
+/archive/
+/archives/

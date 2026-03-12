@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+candidates.csv
+validated.csv
+final_prospects.csv

@@ -1,0 +1,17 @@
+# Explicit junk / blocked hosts for candidate intake and validation.
+archive-it.org
+app.thestorygraph.com
+thestorygraph.com
+bookbrainz.org
+betterworldbooks.com
+forexfactory.com
+youtu.be
+youtube.com
+amazon.co.uk
+amzn.to
+photobucket.com
+imgbb.com
+wordpress.com
+blogspot.com
+people.com
+bollywoodhungama.com

@@ -1,0 +1,2379 @@
+#!/usr/bin/env python3
+"""
+Batch loop runner:
+repeats the pipeline in small runs, accumulates unique leads, and stops at a target total.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import datetime as dt
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from collections import Counter, defaultdict
+from pathlib import Path
+from statistics import mean
+from typing import Any, Callable, Dict, Iterable, List, Tuple
+from urllib.parse import urlparse
+
+from lead_utils import canonical_listing_key, normalize_person_name, registrable_domain
+from prospect_dedupe import OUTPUT_COLUMNS, dedupe
+from prospect_validate import (
+    NEAR_MISS_LOCATION_COLUMNS,
+    STRICT_MASTER_TITLE_METHODS,
+    US_STATE_CODES,
+    US_STATE_NAMES,
+    is_plausible_author_name,
+    is_us_location,
+    normalize_url,
+)
+
+ASTRA_OUTBOUND_PROFILE = "astra_outbound"
+VERIFIED_NO_US_PROFILE = "verified_no_us"
+STRICT_INTERACTIVE_PROFILE = "strict_interactive"
+STRICT_FULL_PROFILE = "strict_full"
+STRICT_VERIFIED_PROFILES = {
+    "fully_verified",
+    ASTRA_OUTBOUND_PROFILE,
+    VERIFIED_NO_US_PROFILE,
+    STRICT_INTERACTIVE_PROFILE,
+    STRICT_FULL_PROFILE,
+}
+US_STRICT_PROFILES = {"fully_verified", ASTRA_OUTBOUND_PROFILE, STRICT_INTERACTIVE_PROFILE, STRICT_FULL_PROFILE}
+
+MINIMAL_COLUMNS = ["Email", "AuthorName", "BookTitle", "EmailSourceURL", "AuthorNameSourceURL", "BookTitleSourceURL"]
+VERIFIED_OUTPUT_COLUMNS = ["AuthorName", "BookTitle", "AuthorEmail", "SourceURL"]
+CONTACT_QUEUE_COLUMNS = [
+    "AuthorName",
+    "BookTitle",
+    "BookTitleMethod",
+    "BookTitleScore",
+    "BookTitleConfidence",
+    "BookTitleStatus",
+    "BookTitleRejectReason",
+    "BookTitleTopCandidates",
+    "AuthorEmail",
+    "AuthorWebsite",
+    "ContactPageURL",
+    "SubscribeURL",
+    "PressKitURL",
+    "MediaURL",
+    "ContactURL",
+    "ContactURLMethod",
+    "Location",
+    "LocationProofURL",
+    "LocationProofSnippet",
+    "LocationMethod",
+    "SourceURL",
+    "SourceTitle",
+    "SourceSnippet",
+    "IndieProofURL",
+    "IndieProofSnippet",
+    "IndieProofStrength",
+    "ListingURL",
+    "ListingStatus",
+    "ListingFailReason",
+    "ListingEnrichedFromURL",
+    "ListingEnrichmentMethod",
+    "RecencyProofURL",
+    "RecencyProofSnippet",
+    "RecencyStatus",
+    "RecencyFailReason",
+    "AuthorEmailSourceURL",
+    "AuthorEmailProofSnippet",
+    "EmailQuality",
+    "AuthorNameSourceURL",
+    "BookTitleSourceURL",
+]
+
+QUERY_GENRES = [
+    "fantasy",
+    "science fiction",
+    "romance",
+    "thriller",
+    "mystery",
+    "horror",
+    "historical fiction",
+    "young adult",
+    "urban fantasy",
+    "cozy mystery",
+    "paranormal romance",
+    "space opera",
+    "epic fantasy",
+    "dark fantasy",
+    "cyberpunk",
+    "dystopian",
+]
+
+QUERY_TEMPLATES = [
+    '"{genre}" "indie author" "official website"',
+    '"{genre}" "self-published author" "contact"',
+    '"{genre}" "independent author" "newsletter"',
+    '"{genre}" "official author website" "contact"',
+    '"{genre}" "author newsletter"',
+    '"{year}" "{genre}" "indie author" "official website"',
+]
+
+CANDIDATE_COLUMNS = [
+    "CandidateURL",
+    "SourceType",
+    "SourceQuery",
+    "SourceURL",
+    "SourceTitle",
+    "SourceSnippet",
+    "DiscoveredAtUTC",
+]
+AUTHOR_PATH_RE = re.compile(r"/(?:author|authors|about|bio)/([^/?#]+)", flags=re.IGNORECASE)
+SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
+ROLE_EMAIL_LOCALS = {"admin", "contact", "hello", "help", "hi", "info", "mail", "office", "sales", "support", "team"}
+NON_US_HINTS = (
+    "australia",
+    "canada",
+    "england",
+    "ireland",
+    "new zealand",
+    "ontario",
+    "scotland",
+    "united kingdom",
+    "uk",
+    "victoria",
+    "wales",
+)
+NON_US_TLDS = (".au", ".ca", ".co.nz", ".co.uk", ".de", ".ie", ".in", ".net.au", ".org.au", ".uk")
+INDIE_HINTS = (
+    "indie author",
+    "independent author",
+    "self-published",
+    "independently published",
+    "kdp",
+    "kindle direct publishing",
+    "draft2digital",
+    "ingramspark",
+    "barnes & noble press",
+    "barnes and noble press",
+    "bookbaby",
+    "lulu",
+)
+TITLE_HINTS = (
+    "author of",
+    "series",
+    "book one",
+    "book 1",
+    "novel",
+    "novels",
+    "saga",
+    "trilogy",
+    "chronicles",
+)
+LISTING_HINTS = ("amazon", "barnes", "noble", "buy", "books", "titles", "works", "bibliography", "series")
+INTAKE_SCORE_HIGH_THRESHOLD = 40
+INTAKE_SCORE_LOW_THRESHOLD = 15
+INTAKE_SCORE_BANDS: List[Tuple[str, int | None]] = [
+    ("80_plus", 80),
+    ("60_79", 60),
+    ("40_59", 40),
+    ("20_39", 20),
+    ("0_19", 0),
+    ("lt_0", None),
+]
+VISIBLE_EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+VISIBLE_OBFUSCATED_EMAIL_RE = re.compile(
+    r"\b([A-Z0-9._%+-]+)\s*(?:\(|\[)?at(?:\)|\])?\s*([A-Z0-9.-]+)\s*(?:\(|\[)?dot(?:\)|\])?\s*([A-Z]{2,})\b",
+    re.IGNORECASE,
+)
+US_STATE_NAME_PATTERN = "|".join(re.escape(name) for name in sorted(US_STATE_NAMES, key=len, reverse=True))
+US_STATE_CODE_PATTERN = "|".join(sorted(US_STATE_CODES))
+AUTHOR_US_LOCATION_PATTERNS = [
+    re.compile(
+        rf"\b(?:based in|author from|lives in|resides in|living in|novelist in|writer in)\s+([A-Z][A-Za-z.\-']+(?:\s+[A-Z][A-Za-z.\-']+){{0,3}}(?:,\s*(?:{US_STATE_NAME_PATTERN}|{US_STATE_CODE_PATTERN}))?)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"\b[A-Z][A-Za-z.\-']+(?:\s+[A-Z][A-Za-z.\-']+){{0,3}},\s*(?:{US_STATE_NAME_PATTERN}|{US_STATE_CODE_PATTERN})\b"
+    ),
+    re.compile(rf"\b(?:{US_STATE_NAME_PATTERN}),\s*USA\b", re.IGNORECASE),
+]
+
+
+def normalize_validation_profile(value: str) -> str:
+    return str(value or "default").strip().lower()
+
+
+def is_fully_verified_profile(value: str) -> bool:
+    return normalize_validation_profile(value) in STRICT_VERIFIED_PROFILES
+
+
+def profile_requires_us_location(value: str) -> bool:
+    return normalize_validation_profile(value) in US_STRICT_PROFILES
+
+
+def candidate_identity_key(
+    candidate_url: str,
+    source_type: str = "",
+    source_query: str = "",
+    source_url: str = "",
+) -> str:
+    return "||".join(
+        [
+            normalize_url(candidate_url) or (candidate_url or "").strip(),
+            (source_type or "").strip().lower(),
+            (source_query or "").strip().lower(),
+            normalize_url(source_url) or (source_url or "").strip(),
+        ]
+    )
+
+
+def candidate_identity_from_row(row: Dict[str, str]) -> str:
+    return candidate_identity_key(
+        row.get("CandidateURL", ""),
+        row.get("SourceType", ""),
+        row.get("SourceQuery", ""),
+        row.get("SourceURL", ""),
+    )
+
+
+def candidate_identity_from_outcome(record: Dict[str, object]) -> str:
+    return candidate_identity_key(
+        str(record.get("candidate_url", "") or ""),
+        str(record.get("source_type", "") or ""),
+        str(record.get("source_query", "") or ""),
+        str(record.get("source_url", "") or ""),
+    )
+
+
+def candidate_score_band(score: int) -> str:
+    for label, floor in INTAKE_SCORE_BANDS:
+        if floor is None or score >= floor:
+            return label
+    return "lt_0"
+
+
+def looks_like_non_us_domain(candidate_url: str) -> bool:
+    domain = registrable_domain(candidate_url).lower()
+    return any(domain.endswith(tld) for tld in NON_US_TLDS)
+
+
+def extract_visible_email_hints(text: str) -> Tuple[int, int]:
+    personal = 0
+    generic = 0
+    seen: set[str] = set()
+    for match in VISIBLE_EMAIL_RE.findall(text or ""):
+        email = str(match).strip().lower()
+        if email in seen:
+            continue
+        seen.add(email)
+        local = email.split("@", 1)[0]
+        if local in ROLE_EMAIL_LOCALS:
+            generic += 1
+        else:
+            personal += 1
+    for local, domain, tld in VISIBLE_OBFUSCATED_EMAIL_RE.findall(text or ""):
+        email = f"{local}@{domain}.{tld}".strip().lower()
+        if email in seen:
+            continue
+        seen.add(email)
+        if local.lower() in ROLE_EMAIL_LOCALS:
+            generic += 1
+        else:
+            personal += 1
+    return personal, generic
+
+
+def has_author_tied_us_location_hint(text: str, *, source_title: str = "") -> str:
+    combined = " ".join(part for part in (source_title, text) if part).strip()
+    if not combined:
+        return ""
+    lowered = combined.lower()
+    if not any(token in lowered for token in ("author", "writer", "novelist", "lives in", "based in", "resides in", "living in")):
+        if not is_plausible_author_name(re.sub(r"^\s*author\s+", "", source_title or "", flags=re.IGNORECASE).strip()):
+            return ""
+    for pattern in AUTHOR_US_LOCATION_PATTERNS:
+        match = pattern.search(combined)
+        if not match:
+            continue
+        snippet = match.group(0).strip()
+        if is_us_location(snippet):
+            return snippet
+    return ""
+
+
+def has_non_us_hint(text: str, candidate_url: str, *, require_us_location: bool) -> bool:
+    if not require_us_location:
+        return False
+    lowered = (text or "").lower()
+    if any(hint in lowered for hint in NON_US_HINTS):
+        return True
+    return looks_like_non_us_domain(candidate_url)
+
+
+def looks_like_plausible_author_identity(source_title: str, candidate_url: str) -> bool:
+    cleaned = re.sub(r"^\s*author\s+", "", (source_title or "").strip(), flags=re.IGNORECASE)
+    if cleaned and is_plausible_author_name(cleaned):
+        return True
+    domain = registrable_domain(candidate_url)
+    domain_slug = re.sub(r"\.(?:com|net|org|info|co)$", "", domain, flags=re.IGNORECASE).replace("-", " ")
+    return bool(domain_slug and is_plausible_author_name(domain_slug))
+
+
+def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> Dict[str, object]:
+    require_us_location = profile_requires_us_location(validation_profile)
+    strict_verified = is_fully_verified_profile(validation_profile)
+    candidate_url = row.get("CandidateURL", "") or ""
+    source_type = (row.get("SourceType", "") or "").strip().lower()
+    source_title = (row.get("SourceTitle", "") or "").strip()
+    source_snippet = (row.get("SourceSnippet", "") or "").strip()
+    source_url = row.get("SourceURL", "") or ""
+    combined = " ".join(part for part in (source_title, source_snippet) if part).strip()
+    lowered = combined.lower()
+    parsed = urlparse(candidate_url)
+    path = (parsed.path or "/").lower()
+    score = 0
+    components: Dict[str, int] = {}
+
+    def add_component(name: str, value: int) -> None:
+        nonlocal score
+        if value == 0:
+            return
+        components[name] = components.get(name, 0) + value
+        score += value
+
+    if path in {"", "/"}:
+        add_component("root_author_site", 4)
+    elif any(path.startswith(prefix) for prefix in ("/about", "/about-author", "/author", "/bio", "/contact")):
+        add_component("author_page_entry", 6)
+    elif any(token in path for token in ("/shop", "/store", "/product", "/cart")):
+        add_component("storefront_entry", -10)
+
+    if source_type == "epic_directory":
+        add_component("rich_directory_source", 2)
+    elif source_type == "iabx_directory":
+        add_component("thin_directory_source", -4)
+
+    if "author directory | independent authors book experience" in lowered:
+        add_component("generic_directory_snippet", -12)
+
+    personal_email_count, generic_email_count = extract_visible_email_hints(combined)
+    if personal_email_count:
+        add_component("visible_personal_email_hint", 55)
+    elif generic_email_count:
+        add_component("visible_role_email_hint", 10)
+    elif strict_verified:
+        add_component("no_visible_email_hint", -8)
+
+    location_hint = has_author_tied_us_location_hint(source_snippet, source_title=source_title)
+    if location_hint:
+        add_component("author_us_location_hint", 36)
+    elif require_us_location and "usa" in lowered:
+        add_component("generic_usa_hint", 2)
+    elif require_us_location:
+        add_component("missing_us_location_hint", -10)
+
+    if has_non_us_hint(combined, candidate_url, require_us_location=require_us_location):
+        add_component("non_us_hint", -45)
+
+    if any(hint in lowered for hint in INDIE_HINTS):
+        add_component("indie_hint", 8)
+
+    if any(hint in lowered for hint in TITLE_HINTS):
+        add_component("title_hint", 10)
+
+    if any(hint in lowered for hint in LISTING_HINTS) or any(hint in path for hint in ("/books", "/titles", "/works", "/series", "/bibliography", "/buy")):
+        add_component("listing_path_hint", 8)
+
+    if looks_like_plausible_author_identity(source_title, candidate_url):
+        add_component("plausible_author_identity", 5)
+    else:
+        add_component("weak_author_identity", -18)
+
+    if any(hint in lowered for hint in ("wikipedia", "new york times bestseller", "usa today bestseller", "wall street journal bestseller")):
+        add_component("obvious_dead_end_signal", -20)
+
+    positive_features = [
+        {"feature": name, "contribution": value}
+        for name, value in sorted(((name, value) for name, value in components.items() if value > 0), key=lambda item: item[1], reverse=True)
+    ]
+    negative_features = [
+        {"feature": name, "contribution": value}
+        for name, value in sorted(((name, value) for name, value in components.items() if value < 0), key=lambda item: item[1])
+    ]
+
+    return {
+        "identity": candidate_identity_from_row(row),
+        "candidate_url": normalize_url(candidate_url) or candidate_url,
+        "source_type": source_type,
+        "source_query": (row.get("SourceQuery", "") or "").strip().lower(),
+        "source_url": normalize_url(source_url) or source_url,
+        "score": int(score),
+        "band": candidate_score_band(int(score)),
+        "components": dict(sorted(components.items(), key=lambda item: item[0])),
+        "reasons": list(components.keys()),
+        "top_positive_features": positive_features[:5],
+        "top_negative_features": negative_features[:5],
+    }
+
+
+def order_candidates_for_strict_validation(
+    candidate_rows: List[Dict[str, str]],
+    *,
+    validation_profile: str,
+) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
+    scored_rows: List[Tuple[int, int, Dict[str, str], Dict[str, object]]] = []
+    score_map: Dict[str, Dict[str, object]] = {}
+    score_map_by_url: Dict[str, Dict[str, object]] = {}
+    distribution: Counter[str] = Counter()
+    raw_scores: List[int] = []
+    enabled = is_fully_verified_profile(validation_profile)
+
+    for index, row in enumerate(candidate_rows):
+        scored = score_candidate_intake(row, validation_profile=validation_profile)
+        score = int(scored["score"])
+        scored_rows.append((score, index, row, scored))
+        score_map[str(scored["identity"])] = scored
+        candidate_url = str(scored.get("candidate_url", "") or "")
+        existing = score_map_by_url.get(candidate_url)
+        if existing is None or int(existing.get("score", -10_000) or -10_000) < score:
+            score_map_by_url[candidate_url] = scored
+        distribution[str(scored["band"])] += 1
+        raw_scores.append(score)
+
+    if enabled:
+        scored_rows.sort(key=lambda item: (-item[0], item[1]))
+
+    ordered_rows = [item[2] for item in scored_rows]
+    ordered_scores = [item[3] for item in scored_rows]
+    return ordered_rows, {
+        "enabled": enabled,
+        "distribution": dict(distribution),
+        "avg_score": round(mean(raw_scores), 2) if raw_scores else 0.0,
+        "max_score": max(raw_scores) if raw_scores else 0,
+        "min_score": min(raw_scores) if raw_scores else 0,
+        "score_records": ordered_scores,
+        "score_map": score_map,
+        "score_map_by_url": score_map_by_url,
+        "high_score_threshold": INTAKE_SCORE_HIGH_THRESHOLD,
+        "low_score_threshold": INTAKE_SCORE_LOW_THRESHOLD,
+        "top_candidates": [
+            {
+                "candidate_url": record["candidate_url"],
+                "score": record["score"],
+                "band": record["band"],
+                "top_positive_features": list(record["top_positive_features"])[:3],
+                "top_negative_features": list(record["top_negative_features"])[:3],
+            }
+            for record in ordered_scores[:10]
+        ],
+    }
+
+
+def summarize_candidate_intake_scores(
+    *,
+    ordered_candidate_rows: List[Dict[str, str]],
+    scoring_context: Dict[str, object],
+    candidate_outcome_records: List[Dict[str, object]],
+    orchestration_stats: Dict[str, object],
+) -> Dict[str, object]:
+    score_map = dict(scoring_context.get("score_map", {}) or {})
+    score_map_by_url = dict(scoring_context.get("score_map_by_url", {}) or {})
+    high_threshold = int(scoring_context.get("high_score_threshold", INTAKE_SCORE_HIGH_THRESHOLD) or INTAKE_SCORE_HIGH_THRESHOLD)
+    low_threshold = int(scoring_context.get("low_score_threshold", INTAKE_SCORE_LOW_THRESHOLD) or INTAKE_SCORE_LOW_THRESHOLD)
+    first_slice_candidate_count = 0
+    slice_summaries = list(orchestration_stats.get("slice_summaries", []) or [])
+    if slice_summaries:
+        first_slice_candidate_count = int(slice_summaries[0].get("candidate_count", 0) or 0)
+    processed_candidates = int(orchestration_stats.get("processed_candidates", 0) or 0)
+
+    scores_by_outcome: Dict[str, List[int]] = {"verified": [], "dead_end": [], "failed": []}
+    high_score_failures: Counter[str] = Counter()
+    feature_contrib_sums: Dict[str, Counter[str]] = {
+        "verified": Counter(),
+        "dead_end": Counter(),
+        "failed": Counter(),
+    }
+    feature_contrib_counts: Dict[str, Counter[str]] = {
+        "verified": Counter(),
+        "dead_end": Counter(),
+        "failed": Counter(),
+    }
+    false_positive_feature_sums: Counter[str] = Counter()
+    false_positive_feature_counts: Counter[str] = Counter()
+    dead_end_negative_feature_sums: Counter[str] = Counter()
+    dead_end_negative_feature_counts: Counter[str] = Counter()
+    score_buckets_by_outcome: Dict[str, Counter[str]] = defaultdict(Counter)
+    outcome_records_by_identity: Dict[str, Dict[str, object]] = {}
+    for record in candidate_outcome_records:
+        identity = candidate_identity_from_outcome(record)
+        scored = score_map.get(identity)
+        if scored is None:
+            scored = score_map_by_url.get(normalize_url(str(record.get("candidate_url", "") or "")) or str(record.get("candidate_url", "") or ""))
+        if not scored:
+            continue
+        outcome_records_by_identity[identity] = record
+        score = int(scored.get("score", 0) or 0)
+        kept = bool(record.get("kept", False))
+        current_state = str(record.get("current_state", "") or "")
+        reject_reason = str(record.get("reject_reason", "") or "")
+        if kept or (current_state == "verified" and reject_reason in {"", "kept"}):
+            outcome = "verified"
+        elif current_state == "dead_end":
+            outcome = "dead_end"
+        else:
+            outcome = "failed"
+        scores_by_outcome[outcome].append(score)
+        score_buckets_by_outcome[candidate_score_band(score)][outcome] += 1
+        for feature_name, contribution in dict(scored.get("components", {}) or {}).items():
+            feature_contrib_sums[outcome][feature_name] += int(contribution or 0)
+            feature_contrib_counts[outcome][feature_name] += 1
+            if outcome != "verified" and int(contribution or 0) > 0:
+                false_positive_feature_sums[feature_name] += int(contribution or 0)
+                false_positive_feature_counts[feature_name] += 1
+            if outcome == "dead_end" and int(contribution or 0) < 0:
+                dead_end_negative_feature_sums[feature_name] += abs(int(contribution or 0))
+                dead_end_negative_feature_counts[feature_name] += 1
+        if score >= high_threshold and reject_reason and outcome != "verified":
+            high_score_failures[reject_reason] += 1
+
+    low_score_total = 0
+    low_score_skipped = 0
+    low_score_delayed = 0
+    candidate_score_records: List[Dict[str, object]] = []
+    for index, row in enumerate(ordered_candidate_rows):
+        scored = score_map.get(candidate_identity_from_row(row))
+        if not scored:
+            continue
+        score = int(scored.get("score", 0) or 0)
+        outcome_record = outcome_records_by_identity.get(str(scored.get("identity", "") or ""))
+        candidate_score_records.append(
+            {
+                "candidate_url": scored.get("candidate_url", ""),
+                "source_type": scored.get("source_type", ""),
+                "source_query": scored.get("source_query", ""),
+                "source_url": scored.get("source_url", ""),
+                "score": score,
+                "band": scored.get("band", ""),
+                "components": dict(scored.get("components", {}) or {}),
+                "top_positive_features": list(scored.get("top_positive_features", []) or []),
+                "top_negative_features": list(scored.get("top_negative_features", []) or []),
+                "processed": index < processed_candidates,
+                "outcome_state": str((outcome_record or {}).get("current_state", "") or ""),
+                "reject_reason": str((outcome_record or {}).get("reject_reason", "") or ""),
+                "kept": bool((outcome_record or {}).get("kept", False)),
+            }
+        )
+        if score >= low_threshold:
+            continue
+        low_score_total += 1
+        if index >= processed_candidates:
+            low_score_skipped += 1
+        elif first_slice_candidate_count and index >= first_slice_candidate_count:
+            low_score_delayed += 1
+
+    avg_feature_contributions_by_outcome = {
+        outcome: {
+            feature: round(
+                feature_contrib_sums[outcome][feature] / max(1, feature_contrib_counts[outcome][feature]),
+                2,
+            )
+            for feature in sorted(feature_contrib_sums[outcome])
+        }
+        for outcome in ("verified", "dead_end", "failed")
+    }
+    top_false_positive_features = [
+        {
+            "feature": feature,
+            "avg_contribution": round(false_positive_feature_sums[feature] / max(1, false_positive_feature_counts[feature]), 2),
+            "count": int(false_positive_feature_counts[feature]),
+        }
+        for feature, _ in sorted(
+            false_positive_feature_sums.items(),
+            key=lambda item: (item[1], false_positive_feature_counts[item[0]]),
+            reverse=True,
+        )[:10]
+    ]
+    strongest_negative_predictors = [
+        {
+            "feature": feature,
+            "avg_contribution": round(
+                -dead_end_negative_feature_sums[feature] / max(1, dead_end_negative_feature_counts[feature]),
+                2,
+            ),
+            "count": int(dead_end_negative_feature_counts[feature]),
+        }
+        for feature, _ in sorted(
+            dead_end_negative_feature_sums.items(),
+            key=lambda item: (item[1], dead_end_negative_feature_counts[item[0]]),
+            reverse=True,
+        )[:10]
+    ]
+
+    return {
+        "enabled": bool(scoring_context.get("enabled", False)),
+        "prevalidate_candidate_score_distribution": dict(scoring_context.get("distribution", {}) or {}),
+        "prevalidate_candidate_score_summary": {
+            "avg_score": float(scoring_context.get("avg_score", 0.0) or 0.0),
+            "max_score": int(scoring_context.get("max_score", 0) or 0),
+            "min_score": int(scoring_context.get("min_score", 0) or 0),
+            "high_score_threshold": high_threshold,
+            "low_score_threshold": low_threshold,
+        },
+        "average_candidate_score_by_outcome": {
+            key: round(mean(values), 2) if values else 0.0 for key, values in scores_by_outcome.items()
+        },
+        "average_feature_contributions_by_outcome": avg_feature_contributions_by_outcome,
+        "top_false_positive_score_features": top_false_positive_features,
+        "strongest_negative_predictors_dead_end": strongest_negative_predictors,
+        "top_high_score_failure_reasons": dict(high_score_failures.most_common(10)),
+        "score_buckets_by_outcome": {
+            bucket: dict(score_buckets_by_outcome.get(bucket, {})) for bucket, _ in INTAKE_SCORE_BANDS
+        },
+        "low_score_candidates_total": low_score_total,
+        "low_score_candidates_skipped": low_score_skipped,
+        "low_score_candidates_delayed": low_score_delayed,
+        "top_prevalidate_candidates": list(scoring_context.get("top_candidates", []) or []),
+        "candidate_intake_score_records": candidate_score_records,
+    }
+
+
+def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
+    profile = normalize_validation_profile(getattr(args, "validation_profile", "default"))
+    args.validation_profile = profile
+    if profile == STRICT_INTERACTIVE_PROFILE:
+        if int(getattr(args, "max_runs", 20) or 20) == 20:
+            args.max_runs = 20
+        if int(getattr(args, "max_stale_runs", 5) or 5) == 5:
+            args.max_stale_runs = 5
+        if int(getattr(args, "max_fetches_per_domain", 0) or 0) == 0:
+            args.max_fetches_per_domain = 10
+        if float(getattr(args, "max_seconds_per_domain", 25.0) or 0.0) == 25.0:
+            args.max_seconds_per_domain = 12.0
+        if float(getattr(args, "max_total_runtime", 900.0) or 0.0) == 900.0:
+            args.max_total_runtime = 120.0
+        return
+    if profile == STRICT_FULL_PROFILE:
+        if int(getattr(args, "max_fetches_per_domain", 0) or 0) == 0:
+            args.max_fetches_per_domain = 16
+        if float(getattr(args, "max_seconds_per_domain", 25.0) or 0.0) == 25.0:
+            args.max_seconds_per_domain = 25.0
+        if float(getattr(args, "max_total_runtime", 900.0) or 0.0) == 900.0:
+            args.max_total_runtime = 900.0
+        return
+    if profile != ASTRA_OUTBOUND_PROFILE:
+        return
+
+    if int(getattr(args, "goal_final", 0) or 0) == 0 and int(getattr(args, "goal_total", 100) or 100) == 100:
+        args.goal_final = 20
+    if int(getattr(args, "max_runs", 20) or 20) == 20:
+        args.max_runs = 50
+    if int(getattr(args, "max_stale_runs", 5) or 5) == 5:
+        args.max_stale_runs = max(int(getattr(args, "max_runs", 50) or 50), 50)
+    if int(getattr(args, "batch_min", 10) or 10) == 10:
+        args.batch_min = 20
+    if int(getattr(args, "batch_max", 20) or 20) == 20:
+        args.batch_max = 40
+    if int(getattr(args, "target", 40) or 40) == 40:
+        args.target = 80
+    args.min_candidates = max(80, int(getattr(args, "min_candidates", 80) or 80))
+    args.require_location_proof = True
+    args.us_only = True
+    args.listing_strict = True
+    args.merge_policy = "strict"
+
+
+def parse_args() -> argparse.Namespace:
+    max_year_default = dt.datetime.now(dt.UTC).year
+    min_year_default = max_year_default - 4
+    parser = argparse.ArgumentParser(description="Run lead finder in repeated small batches.")
+    parser.add_argument("--goal-total", type=int, default=100, help="Stop when total unique leads reaches this number.")
+    parser.add_argument(
+        "--goal-final",
+        type=int,
+        default=0,
+        help="Optional final kept-row target. When set, this overrides --goal-total for stop conditions.",
+    )
+    parser.add_argument("--max-runs", type=int, default=20, help="Maximum number of batch runs.")
+    parser.add_argument(
+        "--max-stale-runs",
+        type=int,
+        default=5,
+        help="Stop early if this many runs in a row add zero new leads.",
+    )
+    parser.add_argument("--sleep-seconds", type=float, default=3.0, help="Pause between runs.")
+    parser.add_argument("--batch-min", type=int, default=10, help="Per-run minimum final leads (warning threshold).")
+    parser.add_argument("--batch-max", type=int, default=20, help="Per-run maximum final leads.")
+    parser.add_argument("--master-output", default="all_prospects.csv", help="Accumulated deduped output CSV.")
+    parser.add_argument(
+        "--minimal-output",
+        default="author_email_book.csv",
+        help="6-column export CSV (Email, AuthorName, BookTitle + source links).",
+    )
+    parser.add_argument(
+        "--no-minimal-output",
+        action="store_true",
+        help="Disable writing the minimal outreach export file.",
+    )
+    parser.add_argument(
+        "--minimal-with-header",
+        action="store_true",
+        help="Write header row in minimal export (default is no header).",
+    )
+    parser.add_argument(
+        "--verified-output",
+        default="fully_verified_leads.csv",
+        help="4-column no-header export for fully_verified mode.",
+    )
+    parser.add_argument(
+        "--no-verified-output",
+        action="store_true",
+        help="Disable writing the fully verified 4-column export.",
+    )
+    parser.add_argument(
+        "--contact-queue-output",
+        default="contact_queue.csv",
+        help="Contact-path queue CSV for leads without public emails.",
+    )
+    parser.add_argument(
+        "--no-contact-queue-output",
+        action="store_true",
+        help="Disable writing contact queue output.",
+    )
+    parser.add_argument(
+        "--near-miss-location-output",
+        default="near_miss_location.csv",
+        help="Aggregated CSV for strict rows that fail only on U.S. author location.",
+    )
+    parser.add_argument(
+        "--no-near-miss-location-output",
+        action="store_true",
+        help="Disable writing the aggregated near-miss location export.",
+    )
+    parser.add_argument("--runs-dir", default="runs", help="Directory for per-run output files.")
+
+    # Forwarded pipeline knobs.
+    parser.add_argument("--target", type=int, default=40, help="Harvest target candidates per run.")
+    parser.add_argument(
+        "--min-candidates",
+        type=int,
+        default=80,
+        help="Minimum harvested candidates to attempt before accepting a shortfall.",
+    )
+    parser.add_argument("--per-query", type=int, default=30, help="Harvest results per query.")
+    parser.add_argument("--goodreads-pages", type=int, default=3, help="Goodreads pages per seed.")
+    parser.add_argument(
+        "--max-goodreads-candidates",
+        type=int,
+        default=12,
+        help="Maximum candidates taken from Goodreads seeds before web queries.",
+    )
+    parser.add_argument(
+        "--goodreads-outbound-per-url",
+        type=int,
+        default=2,
+        help="Max outbound author/contact URLs to add per Goodreads page.",
+    )
+    parser.add_argument(
+        "--disable-goodreads-outbound",
+        action="store_true",
+        help="Disable extracting outbound author/contact links from Goodreads pages.",
+    )
+    parser.add_argument(
+        "--search-timeout",
+        type=float,
+        default=10.0,
+        help="Search request timeout seconds for harvest stage.",
+    )
+    parser.add_argument(
+        "--goodreads-timeout",
+        type=float,
+        default=12.0,
+        help="Goodreads seed request timeout seconds for harvest stage.",
+    )
+    parser.add_argument(
+        "--harvest-http-retries",
+        type=int,
+        default=1,
+        help="Transient retry count for harvest HTTP requests.",
+    )
+    parser.add_argument(
+        "--harvest-time-budget",
+        type=float,
+        default=90.0,
+        help="Approximate seconds to spend escalating harvest before accepting a shortfall.",
+    )
+    parser.add_argument("--max-per-domain", type=int, default=0, help="Harvest domain cap (0 disables).")
+    parser.add_argument("--pause-seconds", type=float, default=1.2, help="Harvest request pause.")
+    parser.add_argument("--max-candidates", type=int, default=80, help="Validator candidate cap per run.")
+    parser.add_argument(
+        "--max-support-pages",
+        type=int,
+        default=2,
+        help="Max supporting pages to fetch per candidate during validation.",
+    )
+    parser.add_argument(
+        "--max-pages-for-title",
+        type=int,
+        default=4,
+        help="Max sitemap/nav-discovered book pages to fetch per domain during validation.",
+    )
+    parser.add_argument(
+        "--max-pages-for-contact",
+        type=int,
+        default=6,
+        help="Max sitemap/nav-discovered contact/about/newsletter pages to fetch per domain during validation.",
+    )
+    parser.add_argument(
+        "--max-total-fetches-per-domain-per-run",
+        type=int,
+        default=14,
+        help="Hard cap on total fetches per domain during validation.",
+    )
+    parser.add_argument(
+        "--max-fetches-per-domain",
+        type=int,
+        default=0,
+        help="Preferred per-domain fetch cap. When unset, falls back to --max-total-fetches-per-domain-per-run.",
+    )
+    parser.add_argument(
+        "--max-seconds-per-domain",
+        type=float,
+        default=25.0,
+        help="Hard cap on total validator network seconds per domain.",
+    )
+    parser.add_argument(
+        "--max-timeouts-per-domain",
+        type=int,
+        default=2,
+        help="Stop fetching a domain after this many timeout failures.",
+    )
+    parser.add_argument(
+        "--max-total-runtime",
+        type=float,
+        default=900.0,
+        help="Hard cap on validator wall-clock runtime in seconds.",
+    )
+    parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="Stage B concurrency setting forwarded to the validator.",
+    )
+    parser.add_argument(
+        "--location-recovery-mode",
+        choices=("off", "same_domain"),
+        default="same_domain",
+        help="Targeted same-domain recovery mode for strict location near-misses.",
+    )
+    parser.add_argument(
+        "--location-recovery-pages",
+        type=int,
+        default=6,
+        help="Additional same-domain location-support pages to try before recording a strict location near-miss.",
+    )
+    parser.add_argument("--delay", type=float, default=0.3, help="Validator delay between requests.")
+    parser.add_argument("--timeout", type=float, default=12.0, help="HTTP timeout.")
+    parser.add_argument("--min-year", type=int, default=min_year_default, help="Recency minimum year.")
+    parser.add_argument("--max-year", type=int, default=max_year_default, help="Recency maximum year.")
+    parser.add_argument("--queries-file", default="", help="Optional custom queries file.")
+    parser.add_argument(
+        "--google-api-key",
+        default=os.getenv("GOOGLE_API_KEY", ""),
+        help="Optional Google CSE API key (or env GOOGLE_API_KEY).",
+    )
+    parser.add_argument(
+        "--google-cx",
+        default=os.getenv("GOOGLE_CSE_CX", ""),
+        help="Optional Google CSE engine ID (or env GOOGLE_CSE_CX).",
+    )
+    parser.add_argument(
+        "--brave-api-key",
+        default=os.getenv("BRAVE_SEARCH_API_KEY", ""),
+        help="Optional Brave Search API key (or env BRAVE_SEARCH_API_KEY).",
+    )
+    parser.add_argument(
+        "--disable-auto-queries",
+        action="store_true",
+        help="Disable per-run rotating queries when --queries-file is not provided.",
+    )
+    parser.add_argument("--require-email", action="store_true", help="Only keep leads with AuthorEmail.")
+    parser.add_argument(
+        "--require-location-proof",
+        action="store_true",
+        help="Only keep leads with explicit location text found during validation.",
+    )
+    parser.add_argument(
+        "--us-only",
+        action="store_true",
+        help="Only keep US-based leads (from detected location text).",
+    )
+    parser.add_argument(
+        "--require-contact-path",
+        action="store_true",
+        help="Only keep leads with non-homepage contact/subscribe paths.",
+    )
+    parser.add_argument(
+        "--ignore-robots",
+        action="store_true",
+        help="Ignore robots.txt checks during validation (not recommended).",
+    )
+    parser.add_argument(
+        "--robots-retry-seconds",
+        type=float,
+        default=300.0,
+        help="Retry window (seconds) for unreachable/5xx robots.txt states.",
+    )
+    parser.add_argument(
+        "--contact-path-strict",
+        action="store_true",
+        help="Require stronger contact path hints when using --require-contact-path.",
+    )
+    parser.add_argument(
+        "--listing-strict",
+        action="store_true",
+        help="Require format + price + purchase control on listing pages.",
+    )
+    parser.add_argument(
+        "--skip-email-verify",
+        action="store_true",
+        help="Skip verify_emails.py filtering before merge (not recommended).",
+    )
+    parser.add_argument(
+        "--email-gate",
+        choices=("strict", "balanced"),
+        default="balanced",
+        help="Email verification merge gate when --require-email is enabled.",
+    )
+    parser.add_argument(
+        "--require-location",
+        action="store_true",
+        help="Exclude rows where Location is empty or 'Unknown' when accumulating.",
+    )
+    parser.add_argument(
+        "--merge-policy",
+        choices=("strict", "balanced", "open"),
+        default="strict",
+        help="Master merge policy: strict=only proof-strong rows, balanced=allow title-strong rows, open=merge all.",
+    )
+    parser.add_argument(
+        "--validation-profile",
+        choices=(
+            "default",
+            "fully_verified",
+            ASTRA_OUTBOUND_PROFILE,
+            VERIFIED_NO_US_PROFILE,
+            STRICT_INTERACTIVE_PROFILE,
+            STRICT_FULL_PROFILE,
+        ),
+        default="default",
+        help="Validation profile: default keeps staged rows; fully_verified only keeps outbound-ready rows; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict outbound gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+    )
+    return parser.parse_args()
+
+
+def read_rows(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def write_rows(path: Path, rows: List[Dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS)
+        writer.writeheader()
+        writer.writerows([{col: row.get(col, "") for col in OUTPUT_COLUMNS} for row in rows])
+
+
+def read_candidate_rows(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def write_candidate_rows(path: Path, rows: List[Dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=CANDIDATE_COLUMNS)
+        writer.writeheader()
+        writer.writerows([{col: row.get(col, "") for col in CANDIDATE_COLUMNS} for row in rows])
+
+
+def write_minimal_rows(path: Path, rows: List[Dict[str, str]], with_header: bool) -> int:
+    unique = set()
+    out_rows: List[List[str]] = []
+    for row in rows:
+        email = (row.get("AuthorEmail", "") or "").strip().lower()
+        if not email:
+            continue
+        author = (row.get("AuthorName", "") or "").strip()
+        book = (row.get("BookTitle", "") or "").strip()
+        email_source = (row.get("AuthorEmailSourceURL", "") or "").strip()
+        if not email_source:
+            email_source = (row.get("ContactPageURL", "") or row.get("AuthorWebsite", "")).strip()
+        author_source = (row.get("AuthorNameSourceURL", "") or "").strip()
+        if not author_source:
+            author_source = (row.get("AuthorWebsite", "") or row.get("ContactPageURL", "")).strip()
+        book_source = (row.get("BookTitleSourceURL", "") or "").strip()
+        if not book_source:
+            book_source = (row.get("ListingURL", "") or "").strip()
+        key = (author.lower(), email, book.lower())
+        if key in unique:
+            continue
+        unique.add(key)
+        out_rows.append([email, author, book, email_source, author_source, book_source])
+
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        if with_header:
+            writer.writerow(MINIMAL_COLUMNS)
+        writer.writerows(out_rows)
+    return len(out_rows)
+
+
+def best_verified_source_url(row: Dict[str, str]) -> str:
+    for field in ("AuthorEmailSourceURL", "ContactPageURL", "AuthorWebsite", "SourceURL"):
+        value = (row.get(field, "") or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def write_verified_rows(path: Path, rows: List[Dict[str, str]]) -> int:
+    unique = set()
+    out_rows: List[List[str]] = []
+    for row in rows:
+        author = (row.get("AuthorName", "") or "").strip()
+        book = (row.get("BookTitle", "") or "").strip()
+        email = (row.get("AuthorEmail", "") or "").strip().lower()
+        source_url = best_verified_source_url(row)
+        if not (author and book and email and source_url):
+            continue
+        key = (author.lower(), book.lower(), email, source_url.lower())
+        if key in unique:
+            continue
+        unique.add(key)
+        out_rows.append([author, book, email, source_url])
+
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerows(out_rows)
+    return len(out_rows)
+
+
+def write_contact_queue_rows(path: Path, rows: List[Dict[str, str]], include_email_rows: bool = False) -> int:
+    unique = set()
+    out_rows: List[Dict[str, str]] = []
+    for row in rows:
+        email = (row.get("AuthorEmail", "") or "").strip()
+        if email and not include_email_rows:
+            continue
+        contact_url = (row.get("ContactURL", "") or "").strip()
+        contact = (row.get("ContactPageURL", "") or "").strip()
+        subscribe = (row.get("SubscribeURL", "") or "").strip()
+        website = (row.get("AuthorWebsite", "") or "").strip()
+        if not (contact_url or contact or subscribe or website):
+            continue
+        author = (row.get("AuthorName", "") or "").strip()
+        book = (row.get("BookTitle", "") or "").strip()
+        key = (author.lower(), book.lower(), (contact_url or contact or subscribe or website).lower())
+        if key in unique:
+            continue
+        unique.add(key)
+        out_rows.append({col: (row.get(col, "") or "").strip() for col in CONTACT_QUEUE_COLUMNS})
+
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=CONTACT_QUEUE_COLUMNS)
+        writer.writeheader()
+        writer.writerows(out_rows)
+    return len(out_rows)
+
+
+def write_near_miss_location_rows(path: Path, rows: List[Dict[str, str]]) -> int:
+    unique = set()
+    out_rows: List[Dict[str, str]] = []
+    for row in rows:
+        author = (row.get("AuthorName", "") or "").strip()
+        email = (row.get("AuthorEmail", "") or "").strip().lower()
+        source_url = (row.get("SourceURL", "") or "").strip().lower()
+        reject_reason = (row.get("RejectReason", "") or "").strip()
+        key = (author.lower(), email, source_url, reject_reason)
+        if key in unique:
+            continue
+        unique.add(key)
+        out_rows.append({col: (row.get(col, "") or "").strip() for col in NEAR_MISS_LOCATION_COLUMNS})
+
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=NEAR_MISS_LOCATION_COLUMNS)
+        writer.writeheader()
+        writer.writerows(out_rows)
+    return len(out_rows)
+
+
+def row_is_contactable(row: Dict[str, str]) -> bool:
+    return any((row.get(field, "") or "").strip() for field in ("ContactURL", "ContactPageURL", "SubscribeURL", "AuthorWebsite"))
+
+
+def row_has_clean_author_name(row: Dict[str, str]) -> bool:
+    author = (row.get("AuthorName", "") or "").strip()
+    lowered = author.lower()
+    return bool(author) and "@" not in author and "get in touch" not in lowered
+
+
+def row_is_fully_verified(row: Dict[str, str], require_us_location: bool = True) -> bool:
+    if not row_is_contactable(row):
+        return False
+    if not row_has_clean_author_name(row):
+        return False
+    if not (row.get("AuthorEmail", "") or "").strip():
+        return False
+    if (row.get("EmailQuality", "") or "").strip() not in {"same_domain", "labeled_off_domain"}:
+        return False
+    if not (row.get("AuthorEmailSourceURL", "") or "").strip():
+        return False
+    if require_us_location:
+        location = (row.get("Location", "") or "").strip()
+        if not location or location.lower() in {"unknown", "n/a", "na"} or not is_us_location(location):
+            return False
+    if (row.get("IndieProofStrength", "") or "").strip().lower() not in {"onsite", "both"}:
+        return False
+    if (row.get("ListingStatus", "") or "").strip().lower() != "verified":
+        return False
+    if (row.get("RecencyStatus", "") or "").strip().lower() != "verified":
+        return False
+    if (row.get("BookTitleStatus", "") or "").strip().lower() != "ok":
+        return False
+    if (row.get("BookTitleMethod", "") or "").strip() not in STRICT_MASTER_TITLE_METHODS:
+        return False
+    return bool((row.get("BookTitle", "") or "").strip() and best_verified_source_url(row))
+
+
+def count_goal_rows(rows: List[Dict[str, str]], validation_profile: str, policy: str) -> int:
+    if is_fully_verified_profile(validation_profile):
+        require_us_location = profile_requires_us_location(validation_profile)
+        return sum(1 for row in rows if row_is_fully_verified(row, require_us_location=require_us_location))
+    return len(rows)
+
+
+def row_qualifies_for_master(row: Dict[str, str], policy: str, validation_profile: str = "default") -> bool:
+    if is_fully_verified_profile(validation_profile):
+        return row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
+    if policy == "open":
+        return True
+    if not row_is_contactable(row):
+        return False
+    if not row_has_clean_author_name(row):
+        return False
+
+    book_ok = (row.get("BookTitleStatus", "ok") or "ok").strip().lower() == "ok"
+    recency_ok = (row.get("RecencyStatus", "verified") or "verified").strip().lower() == "verified"
+    title_method = (row.get("BookTitleMethod", "") or "").strip()
+    strong_title_method = title_method in STRICT_MASTER_TITLE_METHODS
+
+    if policy == "balanced":
+        return book_ok and strong_title_method
+    return book_ok and recency_ok and strong_title_method
+
+
+def split_rows_by_merge_policy(
+    rows: List[Dict[str, str]],
+    policy: str,
+    validation_profile: str = "default",
+) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+    master_rows: List[Dict[str, str]] = []
+    queue_only_rows: List[Dict[str, str]] = []
+    for row in rows:
+        if row_qualifies_for_master(row, policy=policy, validation_profile=validation_profile):
+            master_rows.append(row)
+            continue
+        if row_is_contactable(row):
+            queue_only_rows.append(row)
+    return master_rows, queue_only_rows
+
+
+def build_contact_queue_export_rows(
+    master_rows: List[Dict[str, str]],
+    queue_rows: List[Dict[str, str]],
+) -> List[Dict[str, str]]:
+    combined = list(queue_rows)
+    combined.extend(row for row in master_rows if not (row.get("AuthorEmail", "") or "").strip())
+    return dedupe(combined)
+
+
+def row_count(path: Path) -> int:
+    if not path.exists():
+        return 0
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return max(0, sum(1 for _ in fh) - 1)
+
+
+def analyze_candidates(path: Path) -> Dict[str, object]:
+    query_counts: Dict[str, int] = {}
+    domain_counts: Dict[str, int] = {}
+    source_counts: Dict[str, int] = {}
+    total = 0
+    if not path.exists():
+        return {"total": 0, "per_query": {}, "per_source": {}, "top_domains": []}
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            total += 1
+            query = (row.get("SourceQuery", "") or "").strip()
+            source = (row.get("SourceType", "") or "").strip()
+            if query:
+                query_counts[query] = query_counts.get(query, 0) + 1
+            if not source:
+                lowered = query.lower()
+                if lowered.startswith("goodreads:"):
+                    source = "goodreads"
+                elif lowered.startswith("openlibrary:"):
+                    source = "openlibrary"
+                else:
+                    source = "web_search"
+            source_counts[source] = source_counts.get(source, 0) + 1
+            url = (row.get("CandidateURL", "") or "").strip()
+            domain = ""
+            if "://" in url:
+                domain = url.split("://", 1)[1].split("/", 1)[0].lower()
+            if domain:
+                domain_counts[domain] = domain_counts.get(domain, 0) + 1
+    top_domains = sorted(domain_counts.items(), key=lambda kv: kv[1], reverse=True)[:15]
+    return {
+        "total": total,
+        "per_query": dict(sorted(query_counts.items(), key=lambda kv: kv[1], reverse=True)),
+        "per_source": dict(sorted(source_counts.items(), key=lambda kv: kv[1], reverse=True)),
+        "top_domains": [{"domain": domain, "count": count} for domain, count in top_domains],
+    }
+
+
+def load_json(path: Path) -> Dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def write_run_stats(path: Path, stats: Dict[str, object]) -> None:
+    path.write_text(json.dumps(stats, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
+def concatenate_jsonl_files(paths: Iterable[Path], output_path: Path) -> None:
+    wrote = False
+    with output_path.open("w", encoding="utf-8") as out_fh:
+        for path in paths:
+            if not path.exists():
+                continue
+            text = path.read_text(encoding="utf-8")
+            if not text.strip():
+                continue
+            out_fh.write(text.rstrip() + "\n")
+            wrote = True
+    if not wrote and output_path.exists():
+        output_path.write_text("", encoding="utf-8")
+
+
+def normalize_location(value: str) -> str:
+    return (value or "").strip().lower()
+
+
+def append_log_line(path: Path, line: str) -> None:
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line.rstrip() + "\n")
+
+
+def secret_values_from_cmd(cmd: List[str]) -> List[str]:
+    secrets: List[str] = []
+    for idx, token in enumerate(cmd[:-1]):
+        if token in SECRET_FLAGS:
+            value = cmd[idx + 1].strip()
+            if value:
+                secrets.append(value)
+    return secrets
+
+
+def format_logged_command(cmd: List[str]) -> str:
+    redacted: List[str] = []
+    skip_next = False
+    for idx, token in enumerate(cmd):
+        if skip_next:
+            skip_next = False
+            continue
+        if token in SECRET_FLAGS and idx + 1 < len(cmd):
+            redacted.extend([token, "<redacted>"])
+            skip_next = True
+            continue
+        redacted.append(token)
+    return " ".join(redacted)
+
+
+def sanitize_logged_text(text: str, secrets: List[str]) -> str:
+    sanitized = text or ""
+    for secret in secrets:
+        if secret:
+            sanitized = sanitized.replace(secret, "<redacted>")
+    return sanitized
+
+
+def infer_candidate_author_name(url: str) -> str:
+    path = urlparse(url).path
+    match = AUTHOR_PATH_RE.search(path)
+    if not match:
+        return ""
+    slug = match.group(1).replace("-", " ").replace("_", " ")
+    return normalize_person_name(slug)
+
+
+def listing_key_for_url(url: str) -> str:
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    path = parsed.path.lower()
+    if host == "amazon.com" or host.endswith(".amazon.com"):
+        if any(token in path for token in ("/dp/", "/gp/product/", "/kindle-dbs/product/")):
+            return canonical_listing_key(url)
+        return ""
+    if host == "barnesandnoble.com" or host.endswith(".barnesandnoble.com"):
+        if "/w/" in path or "/s/" in path:
+            return canonical_listing_key(url)
+        return ""
+    return ""
+
+
+def build_existing_indexes(master_rows: List[Dict[str, str]]) -> Tuple[set[str], set[str], set[str]]:
+    author_domains: set[str] = set()
+    listing_keys: set[str] = set()
+    author_names: set[str] = set()
+
+    for row in master_rows:
+        book_title_status = (row.get("BookTitleStatus", "ok") or "ok").strip().lower()
+        allow_revisit = book_title_status not in {"", "ok"}
+        for url_field in ("AuthorWebsite", "ContactPageURL", "SubscribeURL"):
+            domain = registrable_domain(row.get(url_field, ""))
+            if domain and not allow_revisit:
+                author_domains.add(domain)
+        listing_key = listing_key_for_url(row.get("ListingURL", ""))
+        if listing_key:
+            listing_keys.add(listing_key)
+        author_name = normalize_person_name(row.get("AuthorName", ""))
+        if author_name and not allow_revisit:
+            author_names.add(author_name)
+
+    return author_domains, listing_keys, author_names
+
+
+def suppress_pre_validate_candidates(
+    candidate_rows: List[Dict[str, str]],
+    master_rows: List[Dict[str, str]],
+) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
+    author_domains, listing_keys, author_names = build_existing_indexes(master_rows)
+    kept: List[Dict[str, str]] = []
+    reason_counts: Dict[str, int] = {}
+
+    for row in candidate_rows:
+        url = (row.get("CandidateURL", "") or "").strip()
+        if not url:
+            continue
+        listing_key = listing_key_for_url(url)
+        if listing_key and listing_key in listing_keys:
+            reason_counts["listing_key"] = reason_counts.get("listing_key", 0) + 1
+            continue
+
+        candidate_domain = registrable_domain(url)
+        if candidate_domain and candidate_domain in author_domains and not listing_key:
+            reason_counts["author_site_domain"] = reason_counts.get("author_site_domain", 0) + 1
+            continue
+
+        inferred_author = infer_candidate_author_name(url)
+        if inferred_author and inferred_author in author_names:
+            reason_counts["author_name"] = reason_counts.get("author_name", 0) + 1
+            continue
+
+        kept.append(row)
+
+    total = sum(reason_counts.values())
+    return kept, {
+        "suppressed_pre_validate_total": total,
+        "suppressed_pre_validate_by_reason": dict(sorted(reason_counts.items(), key=lambda kv: kv[1], reverse=True)),
+    }
+
+
+def run_logged_command(
+    cmd: List[str],
+    stdout_path: Path,
+    stderr_path: Path,
+    append: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    secrets = secret_values_from_cmd(cmd)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    stdout_text = sanitize_logged_text(result.stdout or "", secrets)
+    stderr_text = sanitize_logged_text(result.stderr or "", secrets)
+    mode = "a" if append else "w"
+    with stdout_path.open(mode, encoding="utf-8") as fh:
+        fh.write(stdout_text)
+    with stderr_path.open(mode, encoding="utf-8") as fh:
+        fh.write(stderr_text)
+    if stdout_text:
+        print(stdout_text, end="")
+    if stderr_text:
+        print(stderr_text, file=sys.stderr, end="")
+    return result
+
+
+def build_rotating_queries(run_idx: int) -> List[str]:
+    base_queries = [
+        '"indie author" "official website" "contact"',
+        '"self-published author" "official website"',
+        '"independently published author" "newsletter"',
+        '"author website" "new release" "indie author"',
+    ]
+    current_year = dt.datetime.now(dt.UTC).year
+    years = list(range(current_year - 4, current_year + 1))
+    window = 4
+    start = ((run_idx - 1) * window) % len(QUERY_GENRES)
+    rotated = [QUERY_GENRES[(start + i) % len(QUERY_GENRES)] for i in range(window)]
+    year = years[(run_idx - 1) % len(years)]
+
+    out = list(base_queries)
+    for genre in rotated:
+        for template in QUERY_TEMPLATES:
+            out.append(template.format(genre=genre, year=year))
+
+    # Keep order, remove duplicates.
+    seen = set()
+    deduped = []
+    for query in out:
+        if query in seen:
+            continue
+        seen.add(query)
+        deduped.append(query)
+    return deduped
+
+
+def write_queries_file(path: Path, queries: List[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for query in queries:
+            fh.write(query.strip() + "\n")
+
+
+def keep_verified_rows(rows: List[Dict[str, str]], gate: str) -> List[Dict[str, str]]:
+    kept: List[Dict[str, str]] = []
+    for row in rows:
+        status = (row.get("VerificationStatus", "") or "").strip().lower()
+        has_mx = (row.get("HasMX", "") or "").strip().lower() == "true"
+        if status == "blocked_role":
+            continue
+        if gate == "strict":
+            if status == "deliverable" and has_mx:
+                kept.append(row)
+            continue
+        # balanced
+        if status in {"deliverable", "risky"} and has_mx:
+            kept.append(row)
+    return kept
+
+
+def derive_validate_debug_path(stats_path: Path, suffix: str) -> Path:
+    return stats_path.with_name(f"{stats_path.stem}{suffix}")
+
+
+def merge_counter_dict(target: Counter[str], source: Dict[str, object]) -> None:
+    for key, value in (source or {}).items():
+        try:
+            target[str(key)] += int(value or 0)
+        except (TypeError, ValueError):
+            continue
+
+
+def compute_batch_target_count(
+    *,
+    batch_max: int,
+    goal_target: int,
+    current_total: int,
+) -> int:
+    remaining_goal = max(0, goal_target - current_total)
+    if remaining_goal <= 0:
+        return 0
+    return min(max(1, batch_max), remaining_goal)
+
+
+def orchestrate_candidate_replacements(
+    candidate_rows: List[Dict[str, str]],
+    *,
+    target_verified: int,
+    max_candidates_per_slice: int,
+    max_total_runtime: float,
+    validate_slice: Callable[[List[Dict[str, str]], int, float], Dict[str, object]],
+) -> Dict[str, object]:
+    aggregated_validated_rows: List[Dict[str, str]] = []
+    slice_summaries: List[Dict[str, object]] = []
+    candidate_state_counts: Counter[str] = Counter()
+    planned_action_counts: Counter[str] = Counter()
+    reject_reasons: Counter[str] = Counter()
+    dead_end_count = 0
+    runtime_used = 0.0
+    cursor = 0
+    slice_index = 0
+    runtime_exhausted = False
+
+    while cursor < len(candidate_rows):
+        verified_progress = len(dedupe(aggregated_validated_rows)[: max(1, target_verified)])
+        if verified_progress >= target_verified:
+            break
+        if max_total_runtime > 0 and runtime_used >= max_total_runtime:
+            runtime_exhausted = True
+            break
+
+        remaining_needed = max(1, target_verified - verified_progress)
+        slice_limit = max_candidates_per_slice if max_candidates_per_slice > 0 else remaining_needed
+        slice_size = min(len(candidate_rows) - cursor, max(1, min(slice_limit, remaining_needed)))
+        slice_rows = candidate_rows[cursor : cursor + slice_size]
+        slice_index += 1
+        remaining_runtime = max(0.0, max_total_runtime - runtime_used) if max_total_runtime > 0 else 0.0
+        slice_result = validate_slice(slice_rows, slice_index, remaining_runtime)
+        slice_stats = dict(slice_result.get("stats", {}) or {})
+        slice_validated_rows = list(slice_result.get("validated_rows", []) or [])
+
+        aggregated_validated_rows.extend(slice_validated_rows)
+        slice_summaries.append(
+            {
+                "slice_index": slice_index,
+                "candidate_count": len(slice_rows),
+                "kept_rows": len(slice_validated_rows),
+                "batch_runtime_exceeded": bool(slice_stats.get("batch_runtime_exceeded", False)),
+                "runtime_seconds": round(
+                    float((slice_stats.get("stage_timings", {}) or {}).get("prefilter_seconds", 0.0) or 0.0)
+                    + float((slice_stats.get("stage_timings", {}) or {}).get("verify_seconds", 0.0) or 0.0),
+                    4,
+                ),
+                "stats_path": str(slice_result.get("stats_path", "") or ""),
+            }
+        )
+
+        runtime_used += float((slice_stats.get("stage_timings", {}) or {}).get("prefilter_seconds", 0.0) or 0.0)
+        runtime_used += float((slice_stats.get("stage_timings", {}) or {}).get("verify_seconds", 0.0) or 0.0)
+        merge_counter_dict(candidate_state_counts, slice_stats.get("candidate_state_counts", {}))
+        merge_counter_dict(planned_action_counts, slice_stats.get("planned_action_counts", {}))
+        merge_counter_dict(reject_reasons, slice_stats.get("reject_reasons", {}))
+        dead_end_count += int((slice_stats.get("candidate_state_counts", {}) or {}).get("dead_end", 0) or 0)
+
+        cursor += len(slice_rows)
+        if bool(slice_stats.get("batch_runtime_exceeded", False)):
+            runtime_exhausted = True
+            break
+
+    verified_progress = len(dedupe(aggregated_validated_rows)[: max(1, target_verified)])
+    return {
+        "validated_rows": aggregated_validated_rows,
+        "slice_summaries": slice_summaries,
+        "processed_candidates": cursor,
+        "candidates_replaced": max(0, cursor - verified_progress),
+        "verified_target": target_verified,
+        "verified_progress": verified_progress,
+        "dead_end_count": dead_end_count,
+        "exhausted_before_target": cursor >= len(candidate_rows) and verified_progress < target_verified,
+        "runtime_exhausted": runtime_exhausted,
+        "candidate_state_counts": dict(candidate_state_counts),
+        "planned_action_counts": dict(planned_action_counts),
+        "reject_reasons": dict(reject_reasons),
+        "runtime_seconds": round(runtime_used, 4),
+    }
+
+
+def merge_per_domain_stats(target: Dict[str, Dict[str, object]], source: Dict[str, object]) -> None:
+    for domain, stats in (source or {}).items():
+        if not isinstance(stats, dict):
+            continue
+        merged = target.setdefault(
+            str(domain),
+            {
+                "fetch_count": 0,
+                "total_seconds": 0.0,
+                "timeout_count": 0,
+                "prefilter_seconds": 0.0,
+                "verify_seconds": 0.0,
+            },
+        )
+        merged["fetch_count"] = int(merged.get("fetch_count", 0) or 0) + int(stats.get("fetch_count", 0) or 0)
+        merged["timeout_count"] = int(merged.get("timeout_count", 0) or 0) + int(stats.get("timeout_count", 0) or 0)
+        merged["total_seconds"] = float(merged.get("total_seconds", 0.0) or 0.0) + float(
+            stats.get("total_seconds", 0.0) or 0.0
+        )
+        merged["prefilter_seconds"] = float(merged.get("prefilter_seconds", 0.0) or 0.0) + float(
+            stats.get("prefilter_seconds", 0.0) or 0.0
+        )
+        merged["verify_seconds"] = float(merged.get("verify_seconds", 0.0) or 0.0) + float(
+            stats.get("verify_seconds", 0.0) or 0.0
+        )
+
+
+def summarize_merged_domain_budget_burn(per_domain: Dict[str, Dict[str, object]], limit: int = 10) -> List[Dict[str, object]]:
+    rows: List[Dict[str, object]] = []
+    for domain, stats in per_domain.items():
+        prefilter_seconds = float(stats.get("prefilter_seconds", 0.0) or 0.0)
+        verify_seconds = float(stats.get("verify_seconds", 0.0) or 0.0)
+        rows.append(
+            {
+                "candidate_domain": domain,
+                "fetch_count": int(stats.get("fetch_count", 0) or 0),
+                "total_seconds": round(float(stats.get("total_seconds", 0.0) or 0.0), 4),
+                "timeout_count": int(stats.get("timeout_count", 0) or 0),
+                "prefilter_seconds": round(prefilter_seconds, 4),
+                "verify_seconds": round(verify_seconds, 4),
+                "dominant_phase": "prefilter" if prefilter_seconds >= verify_seconds else "verify",
+            }
+        )
+    rows.sort(key=lambda row: (float(row.get("total_seconds", 0.0) or 0.0), int(row.get("fetch_count", 0) or 0)), reverse=True)
+    return rows[:limit]
+
+
+def aggregate_validate_stats(
+    *,
+    slice_stats_list: List[Dict[str, object]],
+    validated_rows: List[Dict[str, str]],
+    validation_profile: str,
+    domain_cache_path: Path,
+    location_debug_path: Path,
+    listing_debug_path: Path,
+    near_miss_location_path: Path,
+    orchestration_stats: Dict[str, object],
+    ordered_candidate_rows: List[Dict[str, str]],
+    scoring_context: Dict[str, object],
+) -> Dict[str, object]:
+    reject_reasons: Counter[str] = Counter()
+    cache_hits: Counter[str] = Counter()
+    location_decision_counts: Counter[str] = Counter()
+    location_method_counts: Counter[str] = Counter()
+    listing_reject_reason_counts: Counter[str] = Counter()
+    candidate_state_counts: Counter[str] = Counter()
+    planned_action_counts: Counter[str] = Counter()
+    book_title_downgrade_reasons: Counter[str] = Counter()
+    per_domain: Dict[str, Dict[str, object]] = {}
+    top_candidate_budget_burn: List[Dict[str, object]] = []
+    location_debug_samples: List[Dict[str, object]] = []
+    listing_debug_samples: List[Dict[str, object]] = []
+    proof_ledger_samples: List[Dict[str, object]] = []
+    candidate_outcome_records: List[Dict[str, object]] = []
+    stage_prefilter = 0.0
+    stage_verify = 0.0
+    total_candidates = 0
+    prefilter_candidates = 0
+    verify_candidates = 0
+    batch_runtime_exceeded = bool(orchestration_stats.get("runtime_exhausted", False))
+
+    for stats in slice_stats_list:
+        merge_counter_dict(reject_reasons, stats.get("reject_reasons", {}))
+        merge_counter_dict(cache_hits, stats.get("cache_hits", {}))
+        merge_counter_dict(location_decision_counts, stats.get("location_decision_counts", {}))
+        merge_counter_dict(location_method_counts, stats.get("location_method_counts", {}))
+        merge_counter_dict(listing_reject_reason_counts, stats.get("listing_reject_reason_counts", {}))
+        merge_counter_dict(candidate_state_counts, stats.get("candidate_state_counts", {}))
+        merge_counter_dict(planned_action_counts, stats.get("planned_action_counts", {}))
+        merge_counter_dict(book_title_downgrade_reasons, stats.get("book_title_downgrade_reasons", {}))
+        merge_per_domain_stats(per_domain, stats.get("per_domain", {}))
+        stage_prefilter += float((stats.get("stage_timings", {}) or {}).get("prefilter_seconds", 0.0) or 0.0)
+        stage_verify += float((stats.get("stage_timings", {}) or {}).get("verify_seconds", 0.0) or 0.0)
+        total_candidates += int(stats.get("total_candidates", 0) or 0)
+        prefilter_candidates += int(stats.get("prefilter_candidates", 0) or 0)
+        verify_candidates += int(stats.get("verify_candidates", 0) or 0)
+        batch_runtime_exceeded = batch_runtime_exceeded or bool(stats.get("batch_runtime_exceeded", False))
+        top_candidate_budget_burn.extend(list(stats.get("top_candidate_budget_burn", []) or []))
+        if len(location_debug_samples) < 10:
+            location_debug_samples.extend(list(stats.get("location_debug_samples", []) or [])[: 10 - len(location_debug_samples)])
+        if len(listing_debug_samples) < 10:
+            listing_debug_samples.extend(list(stats.get("listing_debug_samples", []) or [])[: 10 - len(listing_debug_samples)])
+        if len(proof_ledger_samples) < 10:
+            proof_ledger_samples.extend(list(stats.get("proof_ledger_samples", []) or [])[: 10 - len(proof_ledger_samples)])
+        candidate_outcome_records.extend(list(stats.get("candidate_outcome_records", []) or []))
+
+    top_candidate_budget_burn.sort(
+        key=lambda row: (
+            float(row.get("total_seconds", 0.0) or 0.0),
+            int(row.get("fetch_count", 0) or 0),
+        ),
+        reverse=True,
+    )
+
+    listing_status_counts = Counter((row.get("ListingStatus", "") or "missing") for row in validated_rows)
+    book_title_method_counts = Counter((row.get("BookTitleMethod", "") or "fallback") for row in validated_rows)
+    book_title_confidence_counts = Counter((row.get("BookTitleConfidence", "") or "weak") for row in validated_rows)
+    book_title_status_counts = Counter((row.get("BookTitleStatus", "") or "ok") for row in validated_rows)
+    indie_proof_strength_counts = Counter((row.get("IndieProofStrength", "") or "missing") for row in validated_rows)
+    recency_status_counts = Counter((row.get("RecencyStatus", "") or "missing") for row in validated_rows)
+    email_quality_counts = Counter(
+        (row.get("EmailQuality", "") or "missing") for row in validated_rows if (row.get("AuthorEmail", "") or "").strip()
+    )
+
+    fully_verified_rows = sum(
+        1
+        for row in validated_rows
+        if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
+    )
+    kept_rows = len(validated_rows)
+    book_title_downgraded = sum(
+        1 for row in validated_rows if (row.get("BookTitleStatus", "") or "ok").strip().lower() != "ok"
+    )
+    intake_scoring = summarize_candidate_intake_scores(
+        ordered_candidate_rows=ordered_candidate_rows,
+        scoring_context=scoring_context,
+        candidate_outcome_records=candidate_outcome_records,
+        orchestration_stats=orchestration_stats,
+    )
+
+    return {
+        "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "validation_profile": validation_profile,
+        "total_candidates": total_candidates,
+        "kept_rows": kept_rows,
+        "reject_reasons": dict(reject_reasons),
+        "listing_status_counts": dict(listing_status_counts),
+        "book_title_method_counts": dict(book_title_method_counts),
+        "book_title_confidence_counts": dict(book_title_confidence_counts),
+        "book_title_status_counts": dict(book_title_status_counts),
+        "book_title_downgraded": book_title_downgraded,
+        "book_title_downgrade_reasons": dict(book_title_downgrade_reasons),
+        "indie_proof_strength_counts": dict(indie_proof_strength_counts),
+        "recency_status_counts": dict(recency_status_counts),
+        "email_quality_counts": dict(email_quality_counts),
+        "leads_with_author_email": sum(1 for row in validated_rows if (row.get("AuthorEmail", "") or "").strip()),
+        "fully_verified_rows": fully_verified_rows,
+        "stage_timings": {
+            "prefilter_seconds": round(stage_prefilter, 4),
+            "verify_seconds": round(stage_verify, 4),
+        },
+        "prefilter_candidates": prefilter_candidates,
+        "verify_candidates": verify_candidates,
+        "batch_runtime_exceeded": batch_runtime_exceeded,
+        "cache_hits": dict(cache_hits),
+        "domain_cache_path": str(domain_cache_path),
+        "location_debug_path": str(location_debug_path),
+        "listing_debug_path": str(listing_debug_path),
+        "near_miss_location_path": str(near_miss_location_path),
+        "near_miss_location_rows": row_count(near_miss_location_path),
+        "location_decision_counts": dict(location_decision_counts),
+        "location_method_counts": dict(location_method_counts),
+        "location_debug_samples": location_debug_samples[:10],
+        "listing_reject_reason_counts": dict(listing_reject_reason_counts),
+        "listing_debug_samples": listing_debug_samples[:10],
+        "candidate_state_counts": dict(candidate_state_counts),
+        "planned_action_counts": dict(planned_action_counts),
+        "proof_ledger_samples": proof_ledger_samples[:10],
+        "candidate_outcome_records_count": len(candidate_outcome_records),
+        "per_domain": per_domain,
+        "candidate_budget_burn_count": sum(int(stats.get("candidate_budget_burn_count", 0) or 0) for stats in slice_stats_list),
+        "top_domain_budget_burn": summarize_merged_domain_budget_burn(per_domain),
+        "top_candidate_budget_burn": top_candidate_budget_burn[:10],
+        "max_fetches_per_domain": max((int(stats.get("max_fetches_per_domain", 0) or 0) for stats in slice_stats_list), default=0),
+        "max_seconds_per_domain": max((float(stats.get("max_seconds_per_domain", 0.0) or 0.0) for stats in slice_stats_list), default=0.0),
+        "max_timeouts_per_domain": max((int(stats.get("max_timeouts_per_domain", 0) or 0) for stats in slice_stats_list), default=0),
+        "max_total_runtime": max((float(stats.get("max_total_runtime", 0.0) or 0.0) for stats in slice_stats_list), default=0.0),
+        "max_concurrency": max((int(stats.get("max_concurrency", 0) or 0) for stats in slice_stats_list), default=0),
+        "verified_target": int(orchestration_stats.get("verified_target", 0) or 0),
+        "verified_progress": int(orchestration_stats.get("verified_progress", 0) or 0),
+        "candidates_replaced": int(orchestration_stats.get("candidates_replaced", 0) or 0),
+        "dead_end_count": int(orchestration_stats.get("dead_end_count", 0) or 0),
+        "exhausted_before_target": bool(orchestration_stats.get("exhausted_before_target", False)),
+        "validator_slices": list(orchestration_stats.get("slice_summaries", []) or []),
+        "intake_scoring": intake_scoring,
+    }
+
+
+def main() -> int:
+    args = parse_args()
+    apply_validation_profile_defaults(args)
+    py = sys.executable
+    validation_profile = normalize_validation_profile(getattr(args, "validation_profile", "default"))
+    goal_target = max(1, int(args.goal_final or args.goal_total))
+    runs_dir = Path(args.runs_dir)
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
+    master_path = Path(args.master_output)
+    contact_queue_path = Path(args.contact_queue_output)
+    near_miss_location_path = Path(args.near_miss_location_output)
+    master_rows = dedupe(read_rows(master_path))
+    queue_rows = dedupe(read_rows(contact_queue_path)) if (not args.no_contact_queue_output and contact_queue_path.exists()) else []
+    near_miss_location_rows = (
+        read_rows(near_miss_location_path)
+        if (not args.no_near_miss_location_output and near_miss_location_path.exists())
+        else []
+    )
+    stale_runs = 0
+    if master_rows:
+        starting_total = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+        print(f"[INFO] starting with {starting_total} existing goal-qualified leads in {master_path}")
+
+    for run_idx in range(1, max(1, args.max_runs) + 1):
+        current_total = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+        if current_total >= goal_target:
+            break
+
+        run_tag = f"run_{run_idx:03d}"
+        candidates_path = runs_dir / f"{run_tag}_candidates.csv"
+        filtered_candidates_path = runs_dir / f"{run_tag}_candidates.filtered.csv"
+        validated_path = runs_dir / f"{run_tag}_validated.csv"
+        final_path = runs_dir / f"{run_tag}_final.csv"
+        verified_path = runs_dir / f"{run_tag}_verified.csv"
+        run_queries_file = runs_dir / f"{run_tag}_queries.txt"
+        harvest_stats_path = runs_dir / f"{run_tag}_harvest_stats.json"
+        validate_stats_path = runs_dir / f"{run_tag}_validate_stats.json"
+        validate_domain_cache_path = derive_validate_debug_path(validate_stats_path, "_domain_cache.jsonl")
+        validate_location_debug_path = derive_validate_debug_path(validate_stats_path, "_location_debug.jsonl")
+        validate_listing_debug_path = derive_validate_debug_path(validate_stats_path, "_listing_debug.jsonl")
+        run_stats_path = runs_dir / f"{run_tag}_stats.json"
+        pipeline_stdout_path = runs_dir / f"{run_tag}_pipeline.stdout.log"
+        pipeline_stderr_path = runs_dir / f"{run_tag}_pipeline.stderr.log"
+        verify_stdout_path = runs_dir / f"{run_tag}_verify.stdout.log"
+        verify_stderr_path = runs_dir / f"{run_tag}_verify.stderr.log"
+        run_near_miss_location_path = runs_dir / f"{run_tag}_near_miss_location.csv"
+
+        # Prevent stale per-run artifacts from being reused across invocations.
+        for path in (
+            candidates_path,
+            filtered_candidates_path,
+            validated_path,
+            final_path,
+            verified_path,
+            run_queries_file,
+            harvest_stats_path,
+            validate_stats_path,
+            validate_domain_cache_path,
+            validate_location_debug_path,
+            validate_listing_debug_path,
+            run_stats_path,
+            pipeline_stdout_path,
+            pipeline_stderr_path,
+            verify_stdout_path,
+            verify_stderr_path,
+            run_near_miss_location_path,
+        ):
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+
+        harvest_cmd = [
+            py,
+            "prospect_harvest.py",
+            "--target",
+            str(max(1, args.target)),
+            "--min-candidates",
+            str(max(1, args.min_candidates)),
+            "--per-query",
+            str(max(1, args.per_query)),
+            "--max-per-domain",
+            str(max(0, args.max_per_domain)),
+            "--pause-seconds",
+            str(max(0.0, args.pause_seconds)),
+            "--goodreads-pages",
+            str(max(1, args.goodreads_pages)),
+            "--max-goodreads-candidates",
+            str(max(0, args.max_goodreads_candidates)),
+            "--goodreads-outbound-per-url",
+            str(max(0, args.goodreads_outbound_per_url)),
+            "--goodreads-rotation-offset",
+            str(max(0, run_idx - 1)),
+            "--search-timeout",
+            str(max(1.0, args.search_timeout)),
+            "--goodreads-timeout",
+            str(max(1.0, args.goodreads_timeout)),
+            "--http-retries",
+            str(max(0, args.harvest_http_retries)),
+            "--harvest-time-budget",
+            str(max(10.0, args.harvest_time_budget)),
+            "--output",
+            str(candidates_path),
+            "--stats-output",
+            str(harvest_stats_path),
+        ]
+        validate_cmd_common = [
+            "--max-candidates",
+            "0",
+            "--max-support-pages",
+            str(max(0, args.max_support_pages)),
+            "--max-pages-for-title",
+            str(max(0, args.max_pages_for_title)),
+            "--max-pages-for-contact",
+            str(max(0, args.max_pages_for_contact)),
+            "--max-total-fetches-per-domain-per-run",
+            str(max(1, args.max_total_fetches_per_domain_per_run)),
+            "--max-fetches-per-domain",
+            str(max(0, args.max_fetches_per_domain)),
+            "--max-seconds-per-domain",
+            str(max(0.0, args.max_seconds_per_domain)),
+            "--max-timeouts-per-domain",
+            str(max(0, args.max_timeouts_per_domain)),
+            "--max-total-runtime",
+            str(max(0.0, args.max_total_runtime)),
+            "--max-concurrency",
+            str(max(1, args.max_concurrency)),
+            "--delay",
+            str(max(0.0, args.delay)),
+            "--timeout",
+            str(max(1.0, args.timeout)),
+            "--min-year",
+            str(args.min_year),
+            "--max-year",
+            str(args.max_year),
+            "--validation-profile",
+            validation_profile,
+            "--location-recovery-mode",
+            args.location_recovery_mode,
+            "--location-recovery-pages",
+            str(max(0, args.location_recovery_pages)),
+        ]
+        dedupe_cmd = [
+            py,
+            "prospect_dedupe.py",
+            "--min-final",
+            str(max(0, args.batch_min)),
+            "--max-final",
+            str(max(1, args.batch_max)),
+            "--input",
+            str(validated_path),
+            "--output",
+            str(final_path),
+        ]
+        effective_queries = args.queries_file
+        if not effective_queries and not args.disable_auto_queries:
+            rotated = build_rotating_queries(run_idx)
+            write_queries_file(run_queries_file, rotated)
+            effective_queries = str(run_queries_file)
+            print(f"[INFO] batch {run_idx}: using {len(rotated)} rotated queries")
+        if effective_queries:
+            harvest_cmd.extend(["--queries-file", effective_queries])
+        if args.brave_api_key:
+            harvest_cmd.extend(["--brave-api-key", args.brave_api_key])
+        if args.google_api_key:
+            harvest_cmd.extend(["--google-api-key", args.google_api_key])
+        if args.google_cx:
+            harvest_cmd.extend(["--google-cx", args.google_cx])
+        if args.disable_goodreads_outbound:
+            harvest_cmd.append("--disable-goodreads-outbound")
+        if args.require_email:
+            validate_cmd_common.append("--require-email")
+        if args.require_location_proof:
+            validate_cmd_common.append("--require-location-proof")
+        if args.us_only:
+            validate_cmd_common.append("--us-only")
+        effective_require_contact_path = args.require_contact_path and stale_runs < 3
+        if args.require_contact_path and not effective_require_contact_path:
+            print(f"[INFO] batch {run_idx}: auto-relaxing --require-contact-path after stale runs")
+        if effective_require_contact_path:
+            validate_cmd_common.append("--require-contact-path")
+        if args.ignore_robots:
+            validate_cmd_common.append("--ignore-robots")
+        if args.robots_retry_seconds != 300.0:
+            validate_cmd_common.extend(["--robots-retry-seconds", str(max(10.0, args.robots_retry_seconds))])
+        if args.contact_path_strict:
+            validate_cmd_common.append("--contact-path-strict")
+        if args.listing_strict:
+            validate_cmd_common.append("--listing-strict")
+
+        print(f"[INFO] batch {run_idx}/{args.max_runs}: running pipeline")
+        suppression_stats: Dict[str, object] = {
+            "suppressed_pre_validate_total": 0,
+            "suppressed_pre_validate_by_reason": {},
+        }
+        harvest_stats: Dict[str, object] = {}
+        append_log_line(pipeline_stdout_path, f"[RUN] {format_logged_command(harvest_cmd)}")
+        harvest_result = run_logged_command(
+            harvest_cmd,
+            stdout_path=pipeline_stdout_path,
+            stderr_path=pipeline_stderr_path,
+            append=True,
+        )
+        pipeline_exit_code = harvest_result.returncode
+        harvest_stats = load_json(harvest_stats_path)
+        validate_slice_stats_list: List[Dict[str, object]] = []
+        validation_orchestration_stats: Dict[str, object] = {
+            "validated_rows": [],
+            "slice_summaries": [],
+            "processed_candidates": 0,
+            "candidates_replaced": 0,
+            "verified_target": 0,
+            "verified_progress": 0,
+            "dead_end_count": 0,
+            "exhausted_before_target": False,
+            "runtime_exhausted": False,
+            "candidate_state_counts": {},
+            "planned_action_counts": {},
+            "reject_reasons": {},
+            "runtime_seconds": 0.0,
+        }
+        candidate_scoring_context: Dict[str, object] = {
+            "enabled": False,
+            "distribution": {},
+            "avg_score": 0.0,
+            "max_score": 0,
+            "min_score": 0,
+            "score_records": [],
+            "score_map": {},
+            "score_map_by_url": {},
+            "high_score_threshold": INTAKE_SCORE_HIGH_THRESHOLD,
+            "low_score_threshold": INTAKE_SCORE_LOW_THRESHOLD,
+            "top_candidates": [],
+        }
+        if pipeline_exit_code == 0:
+            harvested_candidate_rows = read_candidate_rows(candidates_path)
+            filtered_candidate_rows, suppression_stats = suppress_pre_validate_candidates(
+                harvested_candidate_rows,
+                master_rows,
+            )
+            filtered_candidate_rows, candidate_scoring_context = order_candidates_for_strict_validation(
+                filtered_candidate_rows,
+                validation_profile=validation_profile,
+            )
+            write_candidate_rows(filtered_candidates_path, filtered_candidate_rows)
+            suppression_message = (
+                f"[INFO] batch {run_idx}: suppressed {suppression_stats['suppressed_pre_validate_total']} "
+                f"pre-validate candidates, kept {len(filtered_candidate_rows)} of {len(harvested_candidate_rows)}"
+            )
+            print(suppression_message)
+            append_log_line(pipeline_stdout_path, suppression_message)
+            if candidate_scoring_context.get("enabled"):
+                scoring_message = (
+                    f"[INFO] batch {run_idx}: intake scoring avg {candidate_scoring_context['avg_score']}, "
+                    f"top band {candidate_scoring_context['distribution']}"
+                )
+                print(scoring_message)
+                append_log_line(pipeline_stdout_path, scoring_message)
+            batch_verified_target = compute_batch_target_count(
+                batch_max=max(1, args.batch_max),
+                goal_target=goal_target,
+                current_total=current_total,
+            )
+            slice_location_debug_paths: List[Path] = []
+            slice_listing_debug_paths: List[Path] = []
+            slice_near_miss_paths: List[Path] = []
+
+            def run_validate_slice(
+                slice_rows: List[Dict[str, str]],
+                slice_index: int,
+                remaining_runtime: float,
+            ) -> Dict[str, object]:
+                slice_tag = f"{run_tag}_validate_slice_{slice_index:03d}"
+                slice_candidates_path = runs_dir / f"{slice_tag}_candidates.csv"
+                slice_validated_path = runs_dir / f"{slice_tag}_validated.csv"
+                slice_stats_path = runs_dir / f"{slice_tag}_stats.json"
+                slice_near_miss_path = runs_dir / f"{slice_tag}_near_miss_location.csv"
+                slice_location_debug_path = derive_validate_debug_path(slice_stats_path, "_location_debug.jsonl")
+                slice_listing_debug_path = derive_validate_debug_path(slice_stats_path, "_listing_debug.jsonl")
+                for path in (
+                    slice_candidates_path,
+                    slice_validated_path,
+                    slice_stats_path,
+                    slice_near_miss_path,
+                    slice_location_debug_path,
+                    slice_listing_debug_path,
+                ):
+                    try:
+                        path.unlink()
+                    except FileNotFoundError:
+                        pass
+                write_candidate_rows(slice_candidates_path, slice_rows)
+                slice_validate_cmd = [
+                    py,
+                    "prospect_validate.py",
+                    "--input",
+                    str(slice_candidates_path),
+                    "--output",
+                    str(slice_validated_path),
+                    "--stats-output",
+                    str(slice_stats_path),
+                    "--domain-cache-path",
+                    str(validate_domain_cache_path),
+                    *validate_cmd_common,
+                    "--max-total-runtime",
+                    str(max(0.0, remaining_runtime)),
+                ]
+                if not args.no_near_miss_location_output:
+                    slice_validate_cmd.extend(["--near-miss-location-output", str(slice_near_miss_path)])
+                append_log_line(
+                    pipeline_stdout_path,
+                    f"[RUN] {format_logged_command(slice_validate_cmd)}",
+                )
+                validate_result = run_logged_command(
+                    slice_validate_cmd,
+                    stdout_path=pipeline_stdout_path,
+                    stderr_path=pipeline_stderr_path,
+                    append=True,
+                )
+                if validate_result.returncode != 0:
+                    raise subprocess.CalledProcessError(validate_result.returncode, slice_validate_cmd)
+                slice_stats = load_json(slice_stats_path)
+                validate_slice_stats_list.append(slice_stats)
+                if slice_location_debug_path.exists():
+                    slice_location_debug_paths.append(slice_location_debug_path)
+                if slice_listing_debug_path.exists():
+                    slice_listing_debug_paths.append(slice_listing_debug_path)
+                if not args.no_near_miss_location_output and slice_near_miss_path.exists():
+                    slice_near_miss_paths.append(slice_near_miss_path)
+                return {
+                    "validated_rows": read_rows(slice_validated_path),
+                    "stats": slice_stats,
+                    "stats_path": slice_stats_path,
+                }
+
+            try:
+                validation_orchestration_stats = orchestrate_candidate_replacements(
+                    filtered_candidate_rows,
+                    target_verified=max(1, batch_verified_target),
+                    max_candidates_per_slice=max(0, args.max_candidates),
+                    max_total_runtime=max(0.0, args.max_total_runtime),
+                    validate_slice=run_validate_slice,
+                )
+            except subprocess.CalledProcessError as exc:
+                pipeline_exit_code = exc.returncode
+            else:
+                aggregated_validated_rows = list(validation_orchestration_stats.get("validated_rows", []) or [])
+                write_rows(validated_path, aggregated_validated_rows)
+                concatenate_jsonl_files(slice_location_debug_paths, validate_location_debug_path)
+                concatenate_jsonl_files(slice_listing_debug_paths, validate_listing_debug_path)
+                if not args.no_near_miss_location_output:
+                    aggregated_near_miss_rows: List[Dict[str, str]] = []
+                    for slice_near_miss_path in slice_near_miss_paths:
+                        aggregated_near_miss_rows.extend(read_rows(slice_near_miss_path))
+                    write_near_miss_location_rows(run_near_miss_location_path, aggregated_near_miss_rows)
+                aggregate_stats = aggregate_validate_stats(
+                    slice_stats_list=validate_slice_stats_list,
+                    validated_rows=aggregated_validated_rows,
+                    validation_profile=validation_profile,
+                    domain_cache_path=validate_domain_cache_path,
+                    location_debug_path=validate_location_debug_path,
+                    listing_debug_path=validate_listing_debug_path,
+                    near_miss_location_path=run_near_miss_location_path,
+                    orchestration_stats=validation_orchestration_stats,
+                    ordered_candidate_rows=filtered_candidate_rows,
+                    scoring_context=candidate_scoring_context,
+                )
+                write_run_stats(validate_stats_path, aggregate_stats)
+                append_log_line(
+                    pipeline_stdout_path,
+                    (
+                        f"[INFO] validation orchestration: processed "
+                        f"{validation_orchestration_stats['processed_candidates']} candidates, "
+                        f"verified {validation_orchestration_stats['verified_progress']}/"
+                        f"{validation_orchestration_stats['verified_target']}, "
+                        f"replaced {validation_orchestration_stats['candidates_replaced']}, "
+                        f"dead_end {validation_orchestration_stats['dead_end_count']}"
+                    ),
+                )
+                append_log_line(pipeline_stdout_path, f"[RUN] {format_logged_command(dedupe_cmd)}")
+                dedupe_result = run_logged_command(
+                    dedupe_cmd,
+                    stdout_path=pipeline_stdout_path,
+                    stderr_path=pipeline_stderr_path,
+                    append=True,
+                )
+                pipeline_exit_code = dedupe_result.returncode
+
+        if pipeline_exit_code != 0:
+            print(f"[WARN] batch {run_idx} failed with exit code {pipeline_exit_code}")
+            run_stats = {
+                "run_tag": run_tag,
+                "batch_index": run_idx,
+                "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                "pipeline_exit_code": pipeline_exit_code,
+                "pipeline_stdout_log": str(pipeline_stdout_path),
+                "pipeline_stderr_log": str(pipeline_stderr_path),
+                "validation_profile": validation_profile,
+                "counts": {
+                    "harvested_candidates": row_count(candidates_path),
+                    "candidates": row_count(filtered_candidates_path),
+                    "suppressed_pre_validate_total": suppression_stats.get("suppressed_pre_validate_total", 0),
+                    "near_miss_location_rows": row_count(run_near_miss_location_path),
+                    "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
+                    "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
+                    "candidates_replaced": int(validation_orchestration_stats.get("candidates_replaced", 0) or 0),
+                    "dead_end_count": int(validation_orchestration_stats.get("dead_end_count", 0) or 0),
+                    "exhausted_before_target": bool(validation_orchestration_stats.get("exhausted_before_target", False)),
+                },
+                "near_miss_location_output": str(run_near_miss_location_path),
+                "harvested_candidates": analyze_candidates(candidates_path),
+                "candidates": analyze_candidates(filtered_candidates_path),
+                "harvest": harvest_stats,
+                "pre_validate_suppression": suppression_stats,
+                "validator": load_json(validate_stats_path),
+            }
+            if harvest_stats:
+                run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
+            write_run_stats(run_stats_path, run_stats)
+            continue
+
+        if not args.no_near_miss_location_output:
+            near_miss_location_rows.extend(read_rows(run_near_miss_location_path))
+
+        pre_verify_rows = read_rows(final_path)
+        batch_rows = list(pre_verify_rows)
+        if args.require_email and not args.skip_email_verify:
+            if not batch_rows:
+                print(f"[INFO] batch {run_idx}: no rows to verify; skipping email gate")
+            else:
+                verify_cmd = [
+                    py,
+                    "verify_emails.py",
+                    "--input",
+                    str(final_path),
+                    "--output",
+                    str(verified_path),
+                    "--timeout",
+                    str(max(1.0, args.timeout)),
+                ]
+                print(f"[INFO] batch {run_idx}: verifying email deliverability before merge")
+                verify_result = run_logged_command(
+                    verify_cmd,
+                    stdout_path=verify_stdout_path,
+                    stderr_path=verify_stderr_path,
+                )
+                if verify_result.returncode != 0:
+                    print(f"[WARN] email verification failed for batch {run_idx}; skipping batch merge")
+                    continue
+                verified_rows = read_rows(verified_path)
+                batch_rows = keep_verified_rows(verified_rows, gate=args.email_gate)
+        if args.require_location:
+            batch_rows = [
+                row
+                for row in batch_rows
+                if normalize_location(row.get("Location", "")) not in ("", "unknown", "n/a", "na")
+            ]
+        master_batch_rows, queue_only_batch_rows = split_rows_by_merge_policy(
+            batch_rows,
+            policy=args.merge_policy,
+            validation_profile=validation_profile,
+        )
+        before = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+        master_rows = dedupe(master_rows + master_batch_rows)
+        after = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+        added = after - before
+        queue_before = len(queue_rows)
+        queue_rows = dedupe(queue_rows + queue_only_batch_rows)
+        added_to_queue = len(queue_rows) - queue_before
+        if added == 0:
+            stale_runs += 1
+        else:
+            stale_runs = 0
+        write_rows(master_path, master_rows)
+        if not args.no_minimal_output:
+            minimal_count = write_minimal_rows(
+                Path(args.minimal_output),
+                master_rows,
+                with_header=args.minimal_with_header,
+            )
+            print(f"[INFO] wrote {minimal_count} rows -> {args.minimal_output}")
+        verified_output_count = 0
+        if is_fully_verified_profile(validation_profile) and not args.no_verified_output:
+            verified_rows = [
+                row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
+            ]
+            verified_output_count = write_verified_rows(Path(args.verified_output), verified_rows)
+            print(f"[INFO] wrote {verified_output_count} rows -> {args.verified_output}")
+        if not args.no_contact_queue_output:
+            contact_queue_count = write_contact_queue_rows(
+                contact_queue_path,
+                build_contact_queue_export_rows(master_rows, queue_rows),
+                include_email_rows=True,
+            )
+            print(f"[INFO] wrote {contact_queue_count} rows -> {args.contact_queue_output}")
+        if not args.no_near_miss_location_output:
+            near_miss_count = write_near_miss_location_rows(near_miss_location_path, near_miss_location_rows)
+            print(f"[INFO] wrote {near_miss_count} rows -> {args.near_miss_location_output}")
+        print(
+            f"[INFO] batch {run_idx}: got {len(batch_rows)} rows, "
+            f"merged {len(master_batch_rows)} to master, queued {len(queue_only_batch_rows)}, "
+            f"added {added} new, total {after}/{goal_target}"
+        )
+        run_stats = {
+            "run_tag": run_tag,
+            "batch_index": run_idx,
+            "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "pipeline_exit_code": 0,
+            "pipeline_stdout_log": str(pipeline_stdout_path),
+            "pipeline_stderr_log": str(pipeline_stderr_path),
+            "merge_policy": args.merge_policy,
+            "validation_profile": validation_profile,
+                "counts": {
+                    "harvested_candidates": row_count(candidates_path),
+                    "candidates": row_count(filtered_candidates_path),
+                    "validated": row_count(validated_path),
+                    "final": row_count(final_path),
+                "verified": row_count(verified_path),
+                "pre_verify_rows": len(pre_verify_rows),
+                "kept_rows_after_gate": len(batch_rows),
+                "master_merge_candidates": len(master_batch_rows),
+                "queue_only_candidates": len(queue_only_batch_rows),
+                "suppressed_pre_validate_total": suppression_stats.get("suppressed_pre_validate_total", 0),
+                "near_miss_location_rows": row_count(run_near_miss_location_path),
+                "added_to_master": added,
+                "added_to_queue": added_to_queue,
+                "master_total": len(master_rows),
+                "goal_qualified_total": after,
+                "queue_total": len(queue_rows),
+                    "verified_output_rows": verified_output_count,
+                    "near_miss_location_total": len(near_miss_location_rows),
+                    "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
+                    "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
+                    "candidates_replaced": int(validation_orchestration_stats.get("candidates_replaced", 0) or 0),
+                    "dead_end_count": int(validation_orchestration_stats.get("dead_end_count", 0) or 0),
+                    "exhausted_before_target": bool(validation_orchestration_stats.get("exhausted_before_target", False)),
+                },
+            "near_miss_location_output": str(run_near_miss_location_path),
+            "harvested_candidates": analyze_candidates(candidates_path),
+            "candidates": analyze_candidates(filtered_candidates_path),
+            "harvest": harvest_stats,
+            "pre_validate_suppression": suppression_stats,
+            "validator": load_json(validate_stats_path),
+        }
+        if harvest_stats:
+            run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
+        if verify_stdout_path.exists() or verify_stderr_path.exists():
+            run_stats["verify_stdout_log"] = str(verify_stdout_path)
+            run_stats["verify_stderr_log"] = str(verify_stderr_path)
+        write_run_stats(run_stats_path, run_stats)
+        if stale_runs >= max(1, args.max_stale_runs):
+            print(f"[INFO] stopping early after {stale_runs} stale runs (no new leads added).")
+            break
+
+        if after < goal_target:
+            time.sleep(max(0.0, args.sleep_seconds))
+
+    write_rows(master_path, master_rows)
+    if not args.no_minimal_output:
+        minimal_count = write_minimal_rows(
+            Path(args.minimal_output),
+            master_rows,
+            with_header=args.minimal_with_header,
+        )
+        print(f"[OK] wrote {minimal_count} rows -> {args.minimal_output}")
+    if is_fully_verified_profile(validation_profile) and not args.no_verified_output:
+        verified_rows = [
+            row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
+        ]
+        verified_output_count = write_verified_rows(Path(args.verified_output), verified_rows)
+        print(f"[OK] wrote {verified_output_count} rows -> {args.verified_output}")
+    if not args.no_contact_queue_output:
+        contact_queue_count = write_contact_queue_rows(
+            contact_queue_path,
+            build_contact_queue_export_rows(master_rows, queue_rows),
+            include_email_rows=True,
+        )
+        print(f"[OK] wrote {contact_queue_count} rows -> {args.contact_queue_output}")
+    if not args.no_near_miss_location_output:
+        near_miss_count = write_near_miss_location_rows(near_miss_location_path, near_miss_location_rows)
+        print(f"[OK] wrote {near_miss_count} rows -> {args.near_miss_location_output}")
+    final_total = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+    print(f"[OK] done: {final_total} goal-qualified leads -> {master_path}")
+    if final_total < goal_target:
+        print(f"[INFO] target not reached ({final_total}/{goal_target}). Increase --max-runs or broaden inputs.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

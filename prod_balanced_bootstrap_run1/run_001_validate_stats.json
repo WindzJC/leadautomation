@@ -1,0 +1,44 @@
+{
+  "generated_at_utc": "2026-03-10T14:35:29Z",
+  "total_candidates": 8,
+  "kept_rows": 6,
+  "reject_reasons": {
+    "page_fetch_failed_other": 1,
+    "page_fetch_failed_404": 1
+  },
+  "listing_status_counts": {
+    "verified": 2,
+    "missing": 4
+  },
+  "book_title_method_counts": {
+    "books_index_card": 1,
+    "fallback": 4,
+    "recency_snippet": 1
+  },
+  "book_title_confidence_counts": {
+    "strong": 1,
+    "weak": 5
+  },
+  "book_title_status_counts": {
+    "ok": 1,
+    "missing_or_weak": 5
+  },
+  "book_title_downgraded": 5,
+  "book_title_downgrade_reasons": {
+    "no_title_candidate": 4,
+    "weak_method": 1
+  },
+  "indie_proof_strength_counts": {
+    "both": 4,
+    "directory": 2
+  },
+  "recency_status_counts": {
+    "verified": 5,
+    "missing": 1
+  },
+  "email_quality_counts": {
+    "labeled_off_domain": 2,
+    "same_domain": 1
+  },
+  "leads_with_author_email": 3
+}

@@ -1,0 +1,302 @@
+{
+  "run_tag": "run_001",
+  "batch_index": 1,
+  "generated_at_utc": "2026-03-10T14:35:29Z",
+  "pipeline_exit_code": 0,
+  "pipeline_stdout_log": "prod_balanced_bootstrap_run1/run_001_pipeline.stdout.log",
+  "pipeline_stderr_log": "prod_balanced_bootstrap_run1/run_001_pipeline.stderr.log",
+  "merge_policy": "balanced",
+  "counts": {
+    "harvested_candidates": 80,
+    "candidates": 80,
+    "validated": 6,
+    "final": 6,
+    "verified": 0,
+    "pre_verify_rows": 6,
+    "kept_rows_after_gate": 6,
+    "master_merge_candidates": 1,
+    "queue_only_candidates": 5,
+    "suppressed_pre_validate_total": 0,
+    "added_to_master": 1,
+    "added_to_queue": 0,
+    "master_total": 1,
+    "queue_total": 29
+  },
+  "harvested_candidates": {
+    "total": 80,
+    "per_query": {
+      "epic:author-directory": 70,
+      "iabx:author-directory": 10
+    },
+    "per_source": {
+      "epic_directory": 70,
+      "iabx_directory": 10
+    },
+    "top_domains": [
+      {
+        "domain": "msolney.com",
+        "count": 1
+      },
+      {
+        "domain": "nilesbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.rmgarino.com",
+        "count": 1
+      },
+      {
+        "domain": "www.tamikareedwrites.com",
+        "count": 1
+      },
+      {
+        "domain": "www.davidgreenwriter.com",
+        "count": 1
+      },
+      {
+        "domain": "www.boobearbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.leeconleyauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.susenedwardsauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "authordiannagunn.com",
+        "count": 1
+      },
+      {
+        "domain": "tomkranzbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.mamminabooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.vncbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "authorjackadkins.com",
+        "count": 1
+      },
+      {
+        "domain": "authormrosepeluso.com",
+        "count": 1
+      },
+      {
+        "domain": "www.elizabethkleinauthor.com",
+        "count": 1
+      }
+    ]
+  },
+  "candidates": {
+    "total": 80,
+    "per_query": {
+      "epic:author-directory": 70,
+      "iabx:author-directory": 10
+    },
+    "per_source": {
+      "epic_directory": 70,
+      "iabx_directory": 10
+    },
+    "top_domains": [
+      {
+        "domain": "msolney.com",
+        "count": 1
+      },
+      {
+        "domain": "nilesbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.rmgarino.com",
+        "count": 1
+      },
+      {
+        "domain": "www.tamikareedwrites.com",
+        "count": 1
+      },
+      {
+        "domain": "www.davidgreenwriter.com",
+        "count": 1
+      },
+      {
+        "domain": "www.boobearbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.leeconleyauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.susenedwardsauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "authordiannagunn.com",
+        "count": 1
+      },
+      {
+        "domain": "tomkranzbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.mamminabooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.vncbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "authorjackadkins.com",
+        "count": 1
+      },
+      {
+        "domain": "authormrosepeluso.com",
+        "count": 1
+      },
+      {
+        "domain": "www.elizabethkleinauthor.com",
+        "count": 1
+      }
+    ]
+  },
+  "harvest": {
+    "generated_at_utc": "2026-03-10T14:34:31Z",
+    "target": 20,
+    "min_candidates": 80,
+    "effective_target": 80,
+    "google_cse_status": "other",
+    "google_cse_http_status": 0,
+    "google_cse_error_reason": "",
+    "google_cse_error_message": "",
+    "counts": {
+      "harvested_candidates": 80,
+      "directory_goal_before_web_fallback": 16,
+      "deterministic_goal": 80
+    },
+    "per_source": {
+      "epic_directory": 70,
+      "iabx_directory": 10
+    },
+    "top_domains": [
+      {
+        "domain": "msolney.com",
+        "count": 1
+      },
+      {
+        "domain": "nilesbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.rmgarino.com",
+        "count": 1
+      },
+      {
+        "domain": "www.tamikareedwrites.com",
+        "count": 1
+      },
+      {
+        "domain": "www.davidgreenwriter.com",
+        "count": 1
+      },
+      {
+        "domain": "www.boobearbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.leeconleyauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.susenedwardsauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "authordiannagunn.com",
+        "count": 1
+      },
+      {
+        "domain": "tomkranzbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.mamminabooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.vncbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "authorjackadkins.com",
+        "count": 1
+      },
+      {
+        "domain": "authormrosepeluso.com",
+        "count": 1
+      },
+      {
+        "domain": "www.elizabethkleinauthor.com",
+        "count": 1
+      }
+    ],
+    "harvest_shortfall_reason": ""
+  },
+  "pre_validate_suppression": {
+    "suppressed_pre_validate_total": 0,
+    "suppressed_pre_validate_by_reason": {}
+  },
+  "validator": {
+    "generated_at_utc": "2026-03-10T14:35:29Z",
+    "total_candidates": 8,
+    "kept_rows": 6,
+    "reject_reasons": {
+      "page_fetch_failed_other": 1,
+      "page_fetch_failed_404": 1
+    },
+    "listing_status_counts": {
+      "verified": 2,
+      "missing": 4
+    },
+    "book_title_method_counts": {
+      "books_index_card": 1,
+      "fallback": 4,
+      "recency_snippet": 1
+    },
+    "book_title_confidence_counts": {
+      "strong": 1,
+      "weak": 5
+    },
+    "book_title_status_counts": {
+      "ok": 1,
+      "missing_or_weak": 5
+    },
+    "book_title_downgraded": 5,
+    "book_title_downgrade_reasons": {
+      "no_title_candidate": 4,
+      "weak_method": 1
+    },
+    "indie_proof_strength_counts": {
+      "both": 4,
+      "directory": 2
+    },
+    "recency_status_counts": {
+      "verified": 5,
+      "missing": 1
+    },
+    "email_quality_counts": {
+      "labeled_off_domain": 2,
+      "same_domain": 1
+    },
+    "leads_with_author_email": 3
+  },
+  "google_cse_status": "other"
+}

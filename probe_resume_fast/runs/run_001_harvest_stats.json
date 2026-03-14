@@ -1,0 +1,81 @@
+{
+  "generated_at_utc": "2026-03-08T16:09:57Z",
+  "target": 60,
+  "min_candidates": 60,
+  "effective_target": 60,
+  "google_cse_status": "other",
+  "google_cse_http_status": 0,
+  "google_cse_error_reason": "",
+  "google_cse_error_message": "",
+  "counts": {
+    "harvested_candidates": 60,
+    "directory_goal_before_web_fallback": 48,
+    "deterministic_goal": 60
+  },
+  "per_source": {
+    "epic_directory": 60
+  },
+  "top_domains": [
+    {
+      "domain": "msolney.com",
+      "count": 1
+    },
+    {
+      "domain": "runesnielsen.com",
+      "count": 1
+    },
+    {
+      "domain": "ctphipps.com",
+      "count": 1
+    },
+    {
+      "domain": "www.gardnersart.com",
+      "count": 1
+    },
+    {
+      "domain": "www.knightvisionbooks.com",
+      "count": 1
+    },
+    {
+      "domain": "slynnhelton.com",
+      "count": 1
+    },
+    {
+      "domain": "erynnlehtonenwriting.com",
+      "count": 1
+    },
+    {
+      "domain": "andrewdmeredith.com",
+      "count": 1
+    },
+    {
+      "domain": "www.mdneu.com",
+      "count": 1
+    },
+    {
+      "domain": "afstewart.ca",
+      "count": 1
+    },
+    {
+      "domain": "shelbyhild.com",
+      "count": 1
+    },
+    {
+      "domain": "www.davidgreenwriter.com",
+      "count": 1
+    },
+    {
+      "domain": "www.leeconleyauthor.com",
+      "count": 1
+    },
+    {
+      "domain": "www.derricksmythe.com",
+      "count": 1
+    },
+    {
+      "domain": "daankatz.com",
+      "count": 1
+    }
+  ],
+  "harvest_shortfall_reason": ""
+}

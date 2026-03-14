@@ -1,0 +1,82 @@
+{
+  "generated_at_utc": "2026-03-12T02:59:40Z",
+  "target": 80,
+  "min_candidates": 80,
+  "effective_target": 80,
+  "google_cse_status": "other",
+  "google_cse_http_status": 0,
+  "google_cse_error_reason": "",
+  "google_cse_error_message": "",
+  "counts": {
+    "harvested_candidates": 80,
+    "directory_goal_before_web_fallback": 64,
+    "deterministic_goal": 80
+  },
+  "per_source": {
+    "epic_directory": 70,
+    "iabx_directory": 10
+  },
+  "top_domains": [
+    {
+      "domain": "msolney.com",
+      "count": 1
+    },
+    {
+      "domain": "nilesbooks.com",
+      "count": 1
+    },
+    {
+      "domain": "www.rmgarino.com",
+      "count": 1
+    },
+    {
+      "domain": "www.tamikareedwrites.com",
+      "count": 1
+    },
+    {
+      "domain": "www.davidgreenwriter.com",
+      "count": 1
+    },
+    {
+      "domain": "www.boobearbooks.com",
+      "count": 1
+    },
+    {
+      "domain": "www.leeconleyauthor.com",
+      "count": 1
+    },
+    {
+      "domain": "www.susenedwardsauthor.com",
+      "count": 1
+    },
+    {
+      "domain": "authordiannagunn.com",
+      "count": 1
+    },
+    {
+      "domain": "tomkranzbooks.com",
+      "count": 1
+    },
+    {
+      "domain": "www.mamminabooks.com",
+      "count": 1
+    },
+    {
+      "domain": "www.vncbooks.com",
+      "count": 1
+    },
+    {
+      "domain": "authorjackadkins.com",
+      "count": 1
+    },
+    {
+      "domain": "authormrosepeluso.com",
+      "count": 1
+    },
+    {
+      "domain": "www.elizabethkleinauthor.com",
+      "count": 1
+    }
+  ],
+  "harvest_shortfall_reason": ""
+}

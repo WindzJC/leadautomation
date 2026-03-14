@@ -1,0 +1,2 @@
+{"domain": "aleahenle.com", "origin": "https://aleahenle.com", "robots_mode": "parsed", "robots_text": "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n\nSitemap: https://aleahenle.com/wp-sitemap.xml\n", "robots_expiry_ts": 1773323882.8654883, "sitemap_urls": [], "fetch_failures": []}
+{"domain": "arhenle.com", "origin": "https://arhenle.com", "robots_mode": "allow_all", "robots_text": "", "robots_expiry_ts": 1773323876.9836965, "sitemap_urls": [], "fetch_failures": [{"url": "https://arhenle.com/sitemap.xml", "reason": "404", "status_code": 404}]}

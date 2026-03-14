@@ -1,0 +1,9 @@
+[RUN] /mnt/d/VS/lead finder automation/.venv/bin/python prospect_harvest.py --target 20 --min-candidates 20 --per-query 30 --max-per-domain 0 --pause-seconds 1.2 --goodreads-pages 3 --max-goodreads-candidates 12 --goodreads-outbound-per-url 2 --goodreads-rotation-offset 0 --search-timeout 6.0 --goodreads-timeout 6.0 --http-retries 0 --harvest-time-budget 90.0 --output prod_live_run3/run_001_candidates.csv --stats-output prod_live_run3/run_001_harvest_stats.json --queries-file prod_live_run3/run_001_queries.txt
+[OK] wrote 20 candidates to prod_live_run3/run_001_candidates.csv
+[INFO] batch 1: suppressed 2 pre-validate candidates, kept 18 of 20
+[RUN] /mnt/d/VS/lead finder automation/.venv/bin/python prospect_validate.py --input prod_live_run3/run_001_candidates.filtered.csv --output prod_live_run3/run_001_validated.csv --max-candidates 6 --max-support-pages 0 --max-pages-for-title 1 --max-pages-for-contact 2 --max-total-fetches-per-domain-per-run 4 --delay 0.05 --timeout 4.0 --min-year 2022 --max-year 2026 --stats-output prod_live_run3/run_001_validate_stats.json
+[INFO] reject counts: bad_book_title=3, page_fetch_failed_other=1, no_recency_proof=1, page_fetch_failed_404=1
+[OK] wrote 0 validated prospects to prod_live_run3/run_001_validated.csv
+[RUN] /mnt/d/VS/lead finder automation/.venv/bin/python prospect_dedupe.py --min-final 1 --max-final 6 --input prod_live_run3/run_001_validated.csv --output prod_live_run3/run_001_final.csv
+[OK] wrote 0 rows to prod_live_run3/run_001_final.csv
+[INFO] final count below requested minimum (0/1). Run harvest with broader queries and re-validate.

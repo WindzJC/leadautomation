@@ -37,6 +37,7 @@ ASTRA_OUTBOUND_PROFILE = "astra_outbound"
 VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
+AGENT_HUNT_PROFILE = "agent_hunt"
 STRICT_VERIFIED_PROFILES = {
     "fully_verified",
     ASTRA_OUTBOUND_PROFILE,
@@ -46,8 +47,9 @@ STRICT_VERIFIED_PROFILES = {
 }
 US_STRICT_PROFILES = {"fully_verified", ASTRA_OUTBOUND_PROFILE, STRICT_INTERACTIVE_PROFILE, STRICT_FULL_PROFILE}
 
-MINIMAL_COLUMNS = ["Email", "AuthorName", "BookTitle", "EmailSourceURL", "AuthorNameSourceURL", "BookTitleSourceURL"]
-VERIFIED_OUTPUT_COLUMNS = ["AuthorName", "BookTitle", "AuthorEmail", "SourceURL"]
+MINIMAL_COLUMNS = ["AuthorName", "AuthorEmail", "SourceURL"]
+VERIFIED_OUTPUT_COLUMNS = ["AuthorName", "AuthorEmail", "SourceURL"]
+SCOUTED_OUTPUT_COLUMNS = ["AuthorName", "AuthorEmail", "SourceURL"]
 CONTACT_QUEUE_COLUMNS = [
     "AuthorName",
     "BookTitle",
@@ -118,6 +120,26 @@ QUERY_TEMPLATES = [
     '"{genre}" "author newsletter"',
     '"{year}" "{genre}" "indie author" "official website"',
 ]
+BASE_QUERY_VARIANTS = [
+    [
+        '"indie author" "official website" "contact"',
+        '"self-published author" "official website"',
+        '"independently published author" "newsletter"',
+        '"author website" "new release" "indie author"',
+    ],
+    [
+        '"indie novelist" "official website"',
+        '"self-published writer" "contact"',
+        '"author website" "mailing list"',
+        '"independent author" "new release" "contact"',
+    ],
+    [
+        '"author website" "books" "contact"',
+        '"indie fantasy author" "official website"',
+        '"self-published author" "about the author"',
+        '"independent author" "media kit"',
+    ],
+]
 
 CANDIDATE_COLUMNS = [
     "CandidateURL",
@@ -131,6 +153,7 @@ CANDIDATE_COLUMNS = [
 AUTHOR_PATH_RE = re.compile(r"/(?:author|authors|about|bio)/([^/?#]+)", flags=re.IGNORECASE)
 SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
 ROLE_EMAIL_LOCALS = {"admin", "contact", "hello", "help", "hi", "info", "mail", "office", "sales", "support", "team"}
+SCOUT_ACCEPTABLE_EMAIL_QUALITIES = {"same_domain", "labeled_off_domain", "risky_role"}
 NON_US_HINTS = (
     "australia",
     "canada",
@@ -171,6 +194,34 @@ TITLE_HINTS = (
     "chronicles",
 )
 LISTING_HINTS = ("amazon", "barnes", "noble", "buy", "books", "titles", "works", "bibliography", "series")
+SCOUT_GENERIC_AUTHOR_SNIPPETS = (
+    "creative writing",
+    "new releases",
+    "official website",
+    "author website",
+    "military fantasy",
+    "comics & manga",
+    "comics and manga",
+    "welcome to",
+    "home of",
+)
+SCOUT_GENERIC_AUTHOR_TOKENS = {
+    "book",
+    "books",
+    "comics",
+    "creative",
+    "fantasy",
+    "fiction",
+    "history",
+    "manga",
+    "official",
+    "releases",
+    "review",
+    "reviews",
+    "website",
+    "writer",
+    "writing",
+}
 INTAKE_SCORE_HIGH_THRESHOLD = 40
 INTAKE_SCORE_LOW_THRESHOLD = 15
 INTAKE_SCORE_BANDS: List[Tuple[str, int | None]] = [
@@ -210,6 +261,10 @@ def is_fully_verified_profile(value: str) -> bool:
 
 def profile_requires_us_location(value: str) -> bool:
     return normalize_validation_profile(value) in US_STRICT_PROFILES
+
+
+def is_agent_hunt_profile(value: str) -> bool:
+    return normalize_validation_profile(value) == AGENT_HUNT_PROFILE
 
 
 def candidate_identity_key(
@@ -323,6 +378,7 @@ def looks_like_plausible_author_identity(source_title: str, candidate_url: str) 
 def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> Dict[str, object]:
     require_us_location = profile_requires_us_location(validation_profile)
     strict_verified = is_fully_verified_profile(validation_profile)
+    scout_mode = is_agent_hunt_profile(validation_profile)
     candidate_url = row.get("CandidateURL", "") or ""
     source_type = (row.get("SourceType", "") or "").strip().lower()
     source_title = (row.get("SourceTitle", "") or "").strip()
@@ -362,7 +418,7 @@ def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> D
         add_component("visible_personal_email_hint", 55)
     elif generic_email_count:
         add_component("visible_role_email_hint", 10)
-    elif strict_verified:
+    elif strict_verified or scout_mode:
         add_component("no_visible_email_hint", -8)
 
     location_hint = has_author_tied_us_location_hint(source_snippet, source_title=source_title)
@@ -370,10 +426,14 @@ def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> D
         add_component("author_us_location_hint", 36)
     elif require_us_location and "usa" in lowered:
         add_component("generic_usa_hint", 2)
+    elif scout_mode and "usa" in lowered:
+        add_component("generic_usa_hint", 1)
     elif require_us_location:
         add_component("missing_us_location_hint", -10)
+    elif scout_mode:
+        add_component("missing_us_location_hint", -4)
 
-    if has_non_us_hint(combined, candidate_url, require_us_location=require_us_location):
+    if has_non_us_hint(combined, candidate_url, require_us_location=require_us_location or scout_mode):
         add_component("non_us_hint", -45)
 
     if any(hint in lowered for hint in INDIE_HINTS):
@@ -427,7 +487,7 @@ def order_candidates_for_strict_validation(
     score_map_by_url: Dict[str, Dict[str, object]] = {}
     distribution: Counter[str] = Counter()
     raw_scores: List[int] = []
-    enabled = is_fully_verified_profile(validation_profile)
+    enabled = is_fully_verified_profile(validation_profile) or is_agent_hunt_profile(validation_profile)
 
     for index, row in enumerate(candidate_rows):
         scored = score_candidate_intake(row, validation_profile=validation_profile)
@@ -641,6 +701,10 @@ def summarize_candidate_intake_scores(
 def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
     profile = normalize_validation_profile(getattr(args, "validation_profile", "default"))
     args.validation_profile = profile
+    if profile == AGENT_HUNT_PROFILE:
+        if int(getattr(args, "goal_final", 0) or 0) == 0 and int(getattr(args, "goal_total", 100) or 100) == 100:
+            args.goal_final = 20
+        return
     if profile == STRICT_INTERACTIVE_PROFILE:
         if int(getattr(args, "max_runs", 20) or 20) == 20:
             args.max_runs = 20
@@ -707,8 +771,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--master-output", default="all_prospects.csv", help="Accumulated deduped output CSV.")
     parser.add_argument(
         "--minimal-output",
-        default="author_email_book.csv",
-        help="6-column export CSV (Email, AuthorName, BookTitle + source links).",
+        default="author_email_source.csv",
+        help="3-column lead export CSV (AuthorName, AuthorEmail, SourceURL).",
     )
     parser.add_argument(
         "--no-minimal-output",
@@ -723,12 +787,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verified-output",
         default="fully_verified_leads.csv",
-        help="4-column no-header export for fully_verified mode.",
+        help="3-column no-header export for fully_verified mode.",
+    )
+    parser.add_argument(
+        "--scouted-output",
+        default="scouted_leads.csv",
+        help="3-column no-header export for agent_hunt mode.",
+    )
+    parser.add_argument(
+        "--no-scouted-output",
+        action="store_true",
+        help="Disable writing the agent_hunt 3-column export.",
     )
     parser.add_argument(
         "--no-verified-output",
         action="store_true",
-        help="Disable writing the fully verified 4-column export.",
+        help="Disable writing the fully verified 3-column export.",
     )
     parser.add_argument(
         "--contact-queue-output",
@@ -961,13 +1035,14 @@ def parse_args() -> argparse.Namespace:
         choices=(
             "default",
             "fully_verified",
+            AGENT_HUNT_PROFILE,
             ASTRA_OUTBOUND_PROFILE,
             VERIFIED_NO_US_PROFILE,
             STRICT_INTERACTIVE_PROFILE,
             STRICT_FULL_PROFILE,
         ),
         default="default",
-        help="Validation profile: default keeps staged rows; fully_verified only keeps outbound-ready rows; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict outbound gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+        help="Validation profile: default keeps staged rows; fully_verified only keeps outbound-ready rows; agent_hunt writes scout-qualified rows with a separate 3-column export; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict outbound gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
     return parser.parse_args()
 
@@ -1004,25 +1079,16 @@ def write_minimal_rows(path: Path, rows: List[Dict[str, str]], with_header: bool
     unique = set()
     out_rows: List[List[str]] = []
     for row in rows:
-        email = (row.get("AuthorEmail", "") or "").strip().lower()
-        if not email:
-            continue
         author = (row.get("AuthorName", "") or "").strip()
-        book = (row.get("BookTitle", "") or "").strip()
-        email_source = (row.get("AuthorEmailSourceURL", "") or "").strip()
-        if not email_source:
-            email_source = (row.get("ContactPageURL", "") or row.get("AuthorWebsite", "")).strip()
-        author_source = (row.get("AuthorNameSourceURL", "") or "").strip()
-        if not author_source:
-            author_source = (row.get("AuthorWebsite", "") or row.get("ContactPageURL", "")).strip()
-        book_source = (row.get("BookTitleSourceURL", "") or "").strip()
-        if not book_source:
-            book_source = (row.get("ListingURL", "") or "").strip()
-        key = (author.lower(), email, book.lower())
+        email = (row.get("AuthorEmail", "") or "").strip().lower()
+        source_url = best_verified_source_url(row)
+        if not (author and email and source_url):
+            continue
+        key = (author.lower(), email, source_url.lower())
         if key in unique:
             continue
         unique.add(key)
-        out_rows.append([email, author, book, email_source, author_source, book_source])
+        out_rows.append([author, email, source_url])
 
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
@@ -1040,21 +1106,49 @@ def best_verified_source_url(row: Dict[str, str]) -> str:
     return ""
 
 
+def best_scout_source_url(row: Dict[str, str]) -> str:
+    for field in ("AuthorEmailSourceURL", "SourceURL", "ContactPageURL", "AuthorWebsite"):
+        value = (row.get(field, "") or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def write_verified_rows(path: Path, rows: List[Dict[str, str]]) -> int:
     unique = set()
     out_rows: List[List[str]] = []
     for row in rows:
         author = (row.get("AuthorName", "") or "").strip()
-        book = (row.get("BookTitle", "") or "").strip()
         email = (row.get("AuthorEmail", "") or "").strip().lower()
         source_url = best_verified_source_url(row)
-        if not (author and book and email and source_url):
+        if not (author and email and source_url):
             continue
-        key = (author.lower(), book.lower(), email, source_url.lower())
+        key = (author.lower(), email, source_url.lower())
         if key in unique:
             continue
         unique.add(key)
-        out_rows.append([author, book, email, source_url])
+        out_rows.append([author, email, source_url])
+
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerows(out_rows)
+    return len(out_rows)
+
+
+def write_scouted_rows(path: Path, rows: List[Dict[str, str]]) -> int:
+    unique = set()
+    out_rows: List[List[str]] = []
+    for row in rows:
+        author = (row.get("AuthorName", "") or "").strip()
+        email = (row.get("AuthorEmail", "") or "").strip().lower()
+        source_url = best_scout_source_url(row)
+        if not (author and email and source_url):
+            continue
+        key = (author.lower(), email, source_url.lower())
+        if key in unique:
+            continue
+        unique.add(key)
+        out_rows.append([author, email, source_url])
 
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
@@ -1121,6 +1215,56 @@ def row_has_clean_author_name(row: Dict[str, str]) -> bool:
     return bool(author) and "@" not in author and "get in touch" not in lowered
 
 
+def looks_like_generic_scout_author_name(value: str) -> bool:
+    author = re.sub(r"\s+", " ", (value or "").strip(" -|")).strip()
+    if not author:
+        return True
+    lowered = author.lower()
+    if any(snippet in lowered for snippet in SCOUT_GENERIC_AUTHOR_SNIPPETS):
+        return True
+    tokens = normalize_person_name(author).split()
+    if len(tokens) < 2:
+        return True
+    non_generic_tokens = [token for token in tokens if token not in SCOUT_GENERIC_AUTHOR_TOKENS]
+    return len(non_generic_tokens) < 2
+
+
+def row_has_scout_email(row: Dict[str, str]) -> bool:
+    email = (row.get("AuthorEmail", "") or "").strip()
+    email_quality = (row.get("EmailQuality", "") or "").strip()
+    return bool(email and best_scout_source_url(row) and email_quality in SCOUT_ACCEPTABLE_EMAIL_QUALITIES)
+
+
+def row_has_definitive_non_us_location(row: Dict[str, str]) -> bool:
+    location = (row.get("Location", "") or "").strip()
+    if not location or location.lower() in {"unknown", "n/a", "na"}:
+        return False
+    return not is_us_location(location)
+
+
+def scout_reject_reason(row: Dict[str, str]) -> str:
+    author_name = (row.get("AuthorName", "") or "").strip()
+    if (
+        not row_has_clean_author_name(row)
+        or not is_plausible_author_name(author_name)
+        or looks_like_generic_scout_author_name(author_name)
+    ):
+        return "bad_author_name"
+    if row_has_definitive_non_us_location(row):
+        return "non_us_location"
+    if not (row.get("SourceURL", "") or "").strip():
+        return "missing_source_url"
+    if not row_has_scout_email(row):
+        return "no_visible_author_email"
+    if not row_is_contactable(row):
+        return "missing_contact_path"
+    return ""
+
+
+def row_is_agent_hunt_qualified(row: Dict[str, str]) -> bool:
+    return scout_reject_reason(row) == ""
+
+
 def row_is_fully_verified(row: Dict[str, str], require_us_location: bool = True) -> bool:
     if not row_is_contactable(row):
         return False
@@ -1142,14 +1286,12 @@ def row_is_fully_verified(row: Dict[str, str], require_us_location: bool = True)
         return False
     if (row.get("RecencyStatus", "") or "").strip().lower() != "verified":
         return False
-    if (row.get("BookTitleStatus", "") or "").strip().lower() != "ok":
-        return False
-    if (row.get("BookTitleMethod", "") or "").strip() not in STRICT_MASTER_TITLE_METHODS:
-        return False
-    return bool((row.get("BookTitle", "") or "").strip() and best_verified_source_url(row))
+    return bool(best_verified_source_url(row))
 
 
 def count_goal_rows(rows: List[Dict[str, str]], validation_profile: str, policy: str) -> int:
+    if is_agent_hunt_profile(validation_profile):
+        return sum(1 for row in rows if row_is_agent_hunt_qualified(row))
     if is_fully_verified_profile(validation_profile):
         require_us_location = profile_requires_us_location(validation_profile)
         return sum(1 for row in rows if row_is_fully_verified(row, require_us_location=require_us_location))
@@ -1157,6 +1299,8 @@ def count_goal_rows(rows: List[Dict[str, str]], validation_profile: str, policy:
 
 
 def row_qualifies_for_master(row: Dict[str, str], policy: str, validation_profile: str = "default") -> bool:
+    if is_agent_hunt_profile(validation_profile):
+        return row_is_agent_hunt_qualified(row)
     if is_fully_verified_profile(validation_profile):
         return row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
     if policy == "open":
@@ -1166,14 +1310,12 @@ def row_qualifies_for_master(row: Dict[str, str], policy: str, validation_profil
     if not row_has_clean_author_name(row):
         return False
 
-    book_ok = (row.get("BookTitleStatus", "ok") or "ok").strip().lower() == "ok"
     recency_ok = (row.get("RecencyStatus", "verified") or "verified").strip().lower() == "verified"
-    title_method = (row.get("BookTitleMethod", "") or "").strip()
-    strong_title_method = title_method in STRICT_MASTER_TITLE_METHODS
+    email_ready = row_has_scout_email(row)
 
     if policy == "balanced":
-        return book_ok and strong_title_method
-    return book_ok and recency_ok and strong_title_method
+        return email_ready
+    return email_ready and recency_ok
 
 
 def split_rows_by_merge_policy(
@@ -1199,6 +1341,45 @@ def build_contact_queue_export_rows(
     combined = list(queue_rows)
     combined.extend(row for row in master_rows if not (row.get("AuthorEmail", "") or "").strip())
     return dedupe(combined)
+
+
+def summarize_row_domains(rows: List[Dict[str, str]], *, source_selector: Callable[[Dict[str, str]], str], limit: int = 10) -> List[Dict[str, object]]:
+    counts: Counter[str] = Counter()
+    for row in rows:
+        domain = registrable_domain(source_selector(row))
+        if domain:
+            counts[domain] += 1
+    return [{"domain": domain, "count": count} for domain, count in counts.most_common(limit)]
+
+
+def build_agent_hunt_stats(
+    *,
+    validated_rows: List[Dict[str, str]],
+    validator_reject_reasons: Dict[str, object],
+    target: int,
+) -> Dict[str, object]:
+    scouted_rows = [row for row in validated_rows if row_is_agent_hunt_qualified(row)]
+    strict_rows = [row for row in scouted_rows if row_is_fully_verified(row, require_us_location=True)]
+    scout_reject_counts: Counter[str] = Counter()
+    for row in validated_rows:
+        reason = scout_reject_reason(row)
+        if reason:
+            scout_reject_counts[reason] += 1
+    combined_rejects: Counter[str] = Counter()
+    merge_counter_dict(combined_rejects, validator_reject_reasons)
+    merge_counter_dict(combined_rejects, dict(scout_reject_counts))
+    return {
+        "scouted_rows": scouted_rows,
+        "strict_rows": strict_rows,
+        "scouted_target": int(target),
+        "scouted_progress": len(scouted_rows),
+        "scouted_rows_written": len(scouted_rows),
+        "strict_rows_written": len(strict_rows),
+        "top_reject_reasons": dict(combined_rejects.most_common(10)),
+        "scout_gate_reject_reasons": dict(scout_reject_counts),
+        "scouted_source_domains": summarize_row_domains(scouted_rows, source_selector=best_scout_source_url),
+        "strict_source_domains": summarize_row_domains(strict_rows, source_selector=best_verified_source_url),
+    }
 
 
 def row_count(path: Path) -> int:
@@ -1370,32 +1551,87 @@ def suppress_pre_validate_candidates(
     author_domains, listing_keys, author_names = build_existing_indexes(master_rows)
     kept: List[Dict[str, str]] = []
     reason_counts: Dict[str, int] = {}
+    source_totals: Counter[str] = Counter()
+    source_new: Counter[str] = Counter()
+    source_duplicates: Counter[str] = Counter()
+    query_totals: Counter[str] = Counter()
+    query_duplicates: Counter[str] = Counter()
+
+    def infer_source_label(row: Dict[str, str]) -> str:
+        source = (row.get("SourceType", "") or "").strip()
+        if source:
+            return source
+        lowered = (row.get("SourceQuery", "") or "").strip().lower()
+        if lowered.startswith("goodreads:"):
+            return "goodreads"
+        if lowered.startswith("openlibrary:"):
+            return "openlibrary"
+        return "web_search"
 
     for row in candidate_rows:
         url = (row.get("CandidateURL", "") or "").strip()
         if not url:
             continue
+        source = infer_source_label(row)
+        query = (row.get("SourceQuery", "") or "").strip() or "<none>"
+        source_totals[source] += 1
+        query_totals[query] += 1
         listing_key = listing_key_for_url(url)
         if listing_key and listing_key in listing_keys:
             reason_counts["listing_key"] = reason_counts.get("listing_key", 0) + 1
+            source_duplicates[source] += 1
+            query_duplicates[query] += 1
             continue
 
         candidate_domain = registrable_domain(url)
         if candidate_domain and candidate_domain in author_domains and not listing_key:
             reason_counts["author_site_domain"] = reason_counts.get("author_site_domain", 0) + 1
+            source_duplicates[source] += 1
+            query_duplicates[query] += 1
             continue
 
         inferred_author = infer_candidate_author_name(url)
         if inferred_author and inferred_author in author_names:
             reason_counts["author_name"] = reason_counts.get("author_name", 0) + 1
+            source_duplicates[source] += 1
+            query_duplicates[query] += 1
             continue
 
         kept.append(row)
+        source_new[source] += 1
 
     total = sum(reason_counts.values())
     return kept, {
         "suppressed_pre_validate_total": total,
         "suppressed_pre_validate_by_reason": dict(sorted(reason_counts.items(), key=lambda kv: kv[1], reverse=True)),
+        "new_unique_candidates_by_source": dict(sorted(source_new.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "duplicate_hit_rate_by_source": [
+            {
+                "source": source,
+                "duplicates": int(source_duplicates[source]),
+                "new": int(source_new[source]),
+                "total": int(total_count),
+                "duplicate_hit_rate": round(source_duplicates[source] / total_count, 3) if total_count else 0.0,
+            }
+            for source, total_count in sorted(source_totals.items(), key=lambda kv: (-kv[1], kv[0]))
+        ],
+        "duplicate_hit_rate_by_query": [
+            {
+                "query": query,
+                "duplicates": int(query_duplicates[query]),
+                "total": int(total_count),
+                "duplicate_hit_rate": round(query_duplicates[query] / total_count, 3) if total_count else 0.0,
+            }
+            for query, total_count in sorted(query_totals.items(), key=lambda kv: (-kv[1], kv[0]))
+        ],
+        "top_repeat_sources": [
+            {"source": source, "duplicates": int(count)}
+            for source, count in source_duplicates.most_common(10)
+        ],
+        "top_new_sources": [
+            {"source": source, "new": int(count)}
+            for source, count in source_new.most_common(10)
+        ],
     }
 
 
@@ -1427,16 +1663,11 @@ def run_logged_command(
     return result
 
 
-def build_rotating_queries(run_idx: int) -> List[str]:
-    base_queries = [
-        '"indie author" "official website" "contact"',
-        '"self-published author" "official website"',
-        '"independently published author" "newsletter"',
-        '"author website" "new release" "indie author"',
-    ]
+def build_rotating_queries(run_idx: int, *, stale_runs: int = 0) -> List[str]:
+    base_queries = list(BASE_QUERY_VARIANTS[(max(0, run_idx - 1 + stale_runs)) % len(BASE_QUERY_VARIANTS)])
     current_year = dt.datetime.now(dt.UTC).year
     years = list(range(current_year - 4, current_year + 1))
-    window = 4
+    window = min(len(QUERY_GENRES), 4 + min(2, max(0, stale_runs)))
     start = ((run_idx - 1) * window) % len(QUERY_GENRES)
     rotated = [QUERY_GENRES[(start + i) % len(QUERY_GENRES)] for i in range(window)]
     year = years[(run_idx - 1) % len(years)]
@@ -1512,6 +1743,7 @@ def orchestrate_candidate_replacements(
     max_candidates_per_slice: int,
     max_total_runtime: float,
     validate_slice: Callable[[List[Dict[str, str]], int, float], Dict[str, object]],
+    qualifies_for_progress: Callable[[Dict[str, str]], bool] | None = None,
 ) -> Dict[str, object]:
     aggregated_validated_rows: List[Dict[str, str]] = []
     slice_summaries: List[Dict[str, object]] = []
@@ -1523,9 +1755,13 @@ def orchestrate_candidate_replacements(
     cursor = 0
     slice_index = 0
     runtime_exhausted = False
+    progress_gate = qualifies_for_progress or (lambda row: True)
+
+    def qualified_progress_rows() -> List[Dict[str, str]]:
+        return dedupe([row for row in aggregated_validated_rows if progress_gate(row)])
 
     while cursor < len(candidate_rows):
-        verified_progress = len(dedupe(aggregated_validated_rows)[: max(1, target_verified)])
+        verified_progress = len(qualified_progress_rows()[: max(1, target_verified)])
         if verified_progress >= target_verified:
             break
         if max_total_runtime > 0 and runtime_used >= max_total_runtime:
@@ -1570,7 +1806,7 @@ def orchestrate_candidate_replacements(
             runtime_exhausted = True
             break
 
-    verified_progress = len(dedupe(aggregated_validated_rows)[: max(1, target_verified)])
+    verified_progress = len(qualified_progress_rows()[: max(1, target_verified)])
     return {
         "validated_rows": aggregated_validated_rows,
         "slice_summaries": slice_summaries,
@@ -1943,7 +2179,7 @@ def main() -> int:
         ]
         effective_queries = args.queries_file
         if not effective_queries and not args.disable_auto_queries:
-            rotated = build_rotating_queries(run_idx)
+            rotated = build_rotating_queries(run_idx, stale_runs=stale_runs if is_agent_hunt_profile(validation_profile) else 0)
             write_queries_file(run_queries_file, rotated)
             effective_queries = str(run_queries_file)
             print(f"[INFO] batch {run_idx}: using {len(rotated)} rotated queries")
@@ -2123,12 +2359,24 @@ def main() -> int:
                 }
 
             try:
+                if is_agent_hunt_profile(validation_profile):
+                    progress_qualifier = row_is_agent_hunt_qualified
+                elif is_fully_verified_profile(validation_profile):
+                    progress_qualifier = (
+                        lambda row: row_is_fully_verified(
+                            row,
+                            require_us_location=profile_requires_us_location(validation_profile),
+                        )
+                    )
+                else:
+                    progress_qualifier = None
                 validation_orchestration_stats = orchestrate_candidate_replacements(
                     filtered_candidate_rows,
                     target_verified=max(1, batch_verified_target),
                     max_candidates_per_slice=max(0, args.max_candidates),
                     max_total_runtime=max(0.0, args.max_total_runtime),
                     validate_slice=run_validate_slice,
+                    qualifies_for_progress=progress_qualifier,
                 )
             except subprocess.CalledProcessError as exc:
                 pipeline_exit_code = exc.returncode
@@ -2269,7 +2517,23 @@ def main() -> int:
             )
             print(f"[INFO] wrote {minimal_count} rows -> {args.minimal_output}")
         verified_output_count = 0
-        if is_fully_verified_profile(validation_profile) and not args.no_verified_output:
+        scouted_output_count = 0
+        agent_hunt_stats: Dict[str, object] = {}
+        if is_agent_hunt_profile(validation_profile):
+            agent_hunt_stats = build_agent_hunt_stats(
+                validated_rows=batch_rows,
+                validator_reject_reasons=validation_orchestration_stats.get("reject_reasons", {}),
+                target=max(1, goal_target),
+            )
+            scouted_rows = list(agent_hunt_stats.get("scouted_rows", []) or [])
+            strict_rows = list(agent_hunt_stats.get("strict_rows", []) or [])
+            if not args.no_scouted_output:
+                scouted_output_count = write_scouted_rows(Path(args.scouted_output), scouted_rows)
+                print(f"[INFO] wrote {scouted_output_count} rows -> {args.scouted_output}")
+            if not args.no_verified_output:
+                verified_output_count = write_verified_rows(Path(args.verified_output), strict_rows)
+                print(f"[INFO] wrote {verified_output_count} rows -> {args.verified_output}")
+        elif is_fully_verified_profile(validation_profile) and not args.no_verified_output:
             verified_rows = [
                 row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
             ]
@@ -2315,8 +2579,9 @@ def main() -> int:
                 "added_to_queue": added_to_queue,
                 "master_total": len(master_rows),
                 "goal_qualified_total": after,
-                "queue_total": len(queue_rows),
+                    "queue_total": len(queue_rows),
                     "verified_output_rows": verified_output_count,
+                    "scouted_output_rows": scouted_output_count,
                     "near_miss_location_total": len(near_miss_location_rows),
                     "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
                     "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
@@ -2331,6 +2596,17 @@ def main() -> int:
             "pre_validate_suppression": suppression_stats,
             "validator": load_json(validate_stats_path),
         }
+        if agent_hunt_stats:
+            run_stats["agent_hunt"] = {
+                "scouted_target": int(agent_hunt_stats.get("scouted_target", 0) or 0),
+                "scouted_progress": int(agent_hunt_stats.get("scouted_progress", 0) or 0),
+                "scouted_rows_written": int(agent_hunt_stats.get("scouted_rows_written", 0) or 0),
+                "strict_rows_written": int(agent_hunt_stats.get("strict_rows_written", 0) or 0),
+                "top_reject_reasons": dict(agent_hunt_stats.get("top_reject_reasons", {}) or {}),
+                "scout_gate_reject_reasons": dict(agent_hunt_stats.get("scout_gate_reject_reasons", {}) or {}),
+                "scouted_source_domains": list(agent_hunt_stats.get("scouted_source_domains", []) or []),
+                "strict_source_domains": list(agent_hunt_stats.get("strict_source_domains", []) or []),
+            }
         if harvest_stats:
             run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
         if verify_stdout_path.exists() or verify_stderr_path.exists():
@@ -2352,7 +2628,16 @@ def main() -> int:
             with_header=args.minimal_with_header,
         )
         print(f"[OK] wrote {minimal_count} rows -> {args.minimal_output}")
-    if is_fully_verified_profile(validation_profile) and not args.no_verified_output:
+    if is_agent_hunt_profile(validation_profile):
+        scouted_rows = [row for row in master_rows if row_is_agent_hunt_qualified(row)]
+        strict_rows = [row for row in scouted_rows if row_is_fully_verified(row, require_us_location=True)]
+        if not args.no_scouted_output:
+            scouted_output_count = write_scouted_rows(Path(args.scouted_output), scouted_rows)
+            print(f"[OK] wrote {scouted_output_count} rows -> {args.scouted_output}")
+        if not args.no_verified_output:
+            verified_output_count = write_verified_rows(Path(args.verified_output), strict_rows)
+            print(f"[OK] wrote {verified_output_count} rows -> {args.verified_output}")
+    elif is_fully_verified_profile(validation_profile) and not args.no_verified_output:
         verified_rows = [
             row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
         ]

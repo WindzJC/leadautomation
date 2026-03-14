@@ -1,0 +1,1 @@
+{"domain": "philoddy.com", "origin": "https://philoddy.com", "robots_mode": "parsed", "robots_text": "User-agent: *\nDisallow: /", "robots_expiry_ts": 1773238281.527529, "sitemap_urls": [], "fetch_failures": [{"url": "https://philoddy.com/", "reason": "robots_disallow", "status_code": 0}]}

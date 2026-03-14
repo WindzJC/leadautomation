@@ -1,0 +1,1 @@
+{"domain": "daankatz.com", "origin": "https://daankatz.com", "robots_mode": "parsed", "robots_text": "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n\nSitemap: https://daankatz.com/sitemap_index.xml\n", "robots_expiry_ts": 1773323820.687808, "sitemap_urls": [], "fetch_failures": []}

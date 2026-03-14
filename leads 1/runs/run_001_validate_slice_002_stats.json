@@ -1,0 +1,750 @@
+{
+  "generated_at_utc": "2026-03-12T13:47:26Z",
+  "validation_profile": "agent_hunt",
+  "total_candidates": 5,
+  "kept_rows": 3,
+  "reject_reasons": {
+    "bad_author_name": 1,
+    "time_budget_exceeded": 1
+  },
+  "listing_status_counts": {
+    "verified": 1,
+    "missing": 2
+  },
+  "book_title_method_counts": {
+    "fallback": 2,
+    "recency_snippet": 1
+  },
+  "book_title_confidence_counts": {
+    "weak": 3
+  },
+  "book_title_status_counts": {
+    "missing_or_weak": 3
+  },
+  "book_title_downgraded": 3,
+  "book_title_downgrade_reasons": {
+    "no_title_candidate": 2,
+    "weak_method": 1
+  },
+  "indie_proof_strength_counts": {
+    "directory": 3
+  },
+  "recency_status_counts": {
+    "verified": 2,
+    "missing": 1
+  },
+  "email_quality_counts": {
+    "labeled_off_domain": 1
+  },
+  "leads_with_author_email": 1,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 33.6569,
+    "verify_seconds": 27.7331
+  },
+  "prefilter_candidates": 5,
+  "verify_candidates": 5,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_001_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_001_validate_slice_002_stats_location_debug.jsonl",
+  "listing_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_001_validate_slice_002_stats_listing_debug.jsonl",
+  "near_miss_location_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_001_validate_slice_002_near_miss_location.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "non_us_location": 4
+  },
+  "location_method_counts": {
+    "broad_phrase": 1,
+    "footer": 3
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "County Galway on the west coast of Ireland",
+      "selected_source_url": "https://www.davidgreenwriter.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.davidgreenwriter.com/about-author",
+        "https://www.davidgreenwriter.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "County Galway on the west coast of Ireland",
+          "snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+          "method": "broad_phrase",
+          "source_url": "https://www.davidgreenwriter.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "County Galway on the west coast of Ireland",
+          "snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+          "method": "broad_phrase",
+          "source_url": "https://www.davidgreenwriter.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Author of Horror, Dark Fantasy, Historical Fiction",
+      "selected_source_url": "https://www.leeconleyauthor.com",
+      "selected_method": "footer",
+      "selected_snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.leeconleyauthor.com/about-author",
+        "https://www.leeconleyauthor.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Author of Horror, Dark Fantasy, Historical Fiction",
+          "snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+          "method": "footer",
+          "source_url": "https://www.leeconleyauthor.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.leeconleyauthor.com/post/author-interview-at-bookwormblues",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Author of Horror, Dark Fantasy, Historical Fiction",
+          "snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+          "method": "footer",
+          "source_url": "https://www.leeconleyauthor.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Dungeons and Dragons, Top Secret, Vampire",
+      "selected_source_url": "https://authorjackadkins.com",
+      "selected_method": "footer",
+      "selected_snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://authorjackadkins.com/about-author",
+        "https://authorjackadkins.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Dungeons and Dragons, Top Secret, Vampire",
+          "snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+          "method": "footer",
+          "source_url": "https://authorjackadkins.com",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://authorjackadkins.com/product-category/books/e-book/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "my \u2026 Read more Categories Author Helps , Yon Blog Author Newsletters and How to",
+          "snippet": "ragons of Dorwine fantasy series I started creating minis that represented the characters from my \u2026 Read more Categories Author Helps , Yon Blog Author Newsletters and How to Swing Em February 27, 2023 February 20, 2023 by Author Jack Adkins Author Newsletters (a.k",
+          "method": "broad_phrase",
+          "source_url": "https://authorjackadkins.com/category/yon_blog/author-helps/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://authorjackadkins.com/contact/",
+          "source_kind": "author_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.elizabethkleinauthor.com",
+      "candidate_domain": "elizabethkleinauthor.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Sydney, Australia",
+      "selected_source_url": "https://www.elizabethkleinauthor.com",
+      "selected_method": "footer",
+      "selected_snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.elizabethkleinauthor.com/about-author",
+        "https://www.elizabethkleinauthor.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Sydney, Australia",
+          "snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+          "method": "footer",
+          "source_url": "https://www.elizabethkleinauthor.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "a caravan with her husband",
+          "snippet": "r Writing Services Freebies Contact Blog About Elizabeth Elizabeth Klein is an author who lives in a caravan with her husband. She\u2019s lived on the road for more than 6 and a half years\u2026 \u200b She has over nineteen years",
+          "method": "broad_phrase",
+          "source_url": "https://www.elizabethkleinauthor.com/about.html",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Elizabeth Klein, Max",
+          "snippet": "n * Submit Elizabeth Klein - Author \"An inventor must have silence in order to think .\u201d - Elizabeth Klein, Max, the Intreped Mouse Home About Awards Blog Contact Freebies \u200b Books Fiction Non Fiction S",
+          "method": "footer",
+          "source_url": "https://www.elizabethkleinauthor.com/contact.html",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Sydney, Australia",
+          "snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+          "method": "footer",
+          "source_url": "https://www.elizabethkleinauthor.com/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_not_found": 3
+  },
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "verified": 3,
+    "dead_end": 1,
+    "triage_ready": 1
+  },
+  "planned_action_counts": {
+    "mark_verified": 3,
+    "stop_dead_end": 1,
+    "try_email_proof": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "CONTACT CONTACT",
+      "best_email_source_url": "https://www.davidgreenwriter.com",
+      "best_location_snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+      "best_location_source_url": "https://www.davidgreenwriter.com",
+      "best_listing_snippet": "gh the menu items. BOOKS OUT NOW AND COMING SOON EMPIRE OF RUIN ONE: IN SOLITUDE'S SHADOW EBOOK ORDER A SIGNED COPY EMPIRE OF RUIN TWO: PATH OF WAR EBOOK ORDER A SIGNED COPY EMPIRE OF R",
+      "best_listing_source_url": "https://www.amazon.com/gp/product/B0CPDFG6ZQ",
+      "best_recency_snippet": "N UP Sign up to david green's newsletter to stay up to date with all his current news and releases, and claim your free copy of his short story collection, 'Tales of Fire and Shadow' NOW!",
+      "best_recency_source_url": "https://www.davidgreenwriter.com",
+      "best_indie_snippet": "David Green Website of indie fantasy author David Green. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:verified",
+        "try_recency_proof:verified",
+        "try_email_proof:verified"
+      ]
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+      "best_location_source_url": "https://www.leeconleyauthor.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "Author | Lee C. Conley top of page -Author of Speculative Fiction- Lee C. Conley Home News and Events The Dead Sagas A Ritual of Bone A Ritual of Flesh Lore of The Dead Sagas other",
+      "best_recency_source_url": "https://www.leeconleyauthor.com",
+      "best_indie_snippet": "Lee c. conley Website of indie fantasy author Lee C. Conley. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "bad_author_name",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "current_state": "triage_ready",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+      "best_location_source_url": "https://authorjackadkins.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "time_budget_exceeded",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://www.elizabethkleinauthor.com",
+      "candidate_domain": "elizabethkleinauthor.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+      "best_location_source_url": "https://www.elizabethkleinauthor.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "Elizabeth Klein Website of indie fantasy author Elizabeth Klein. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing",
+        "try_recency_proof:missing",
+        "try_email_proof:missing"
+      ]
+    }
+  ],
+  "candidate_outcome_records": [
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 10,
+      "total_seconds": 3.5496,
+      "prefilter_seconds": 2.3831,
+      "verify_seconds": 2.1747,
+      "dominant_phase": "prefilter",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 9,
+      "total_seconds": 3.3109,
+      "prefilter_seconds": 1.0323,
+      "verify_seconds": 3.2528,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 8,
+      "total_seconds": 18.8742,
+      "prefilter_seconds": 10.9687,
+      "verify_seconds": 8.5305,
+      "dominant_phase": "prefilter",
+      "reject_reason": "bad_author_name",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "bad_author_name",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 12,
+      "total_seconds": 27.6426,
+      "prefilter_seconds": 18.1815,
+      "verify_seconds": 11.322,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "triage_ready",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": "try_listing_proof"
+    },
+    {
+      "candidate_url": "https://www.elizabethkleinauthor.com",
+      "candidate_domain": "elizabethkleinauthor.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 7,
+      "total_seconds": 2.2647,
+      "prefilter_seconds": 1.0913,
+      "verify_seconds": 2.4531,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "per_domain": {
+    "amazon.com": {
+      "fetch_count": 1,
+      "total_seconds": 0.4359,
+      "avg_latency": 0.4359,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "authordiannagunn.com": {
+      "fetch_count": 8,
+      "total_seconds": 18.8742,
+      "avg_latency": 2.3593,
+      "timeout_count": 0,
+      "prefilter_seconds": 10.9687,
+      "verify_seconds": 8.5305,
+      "dominant_phase": "prefilter"
+    },
+    "authorjackadkins.com": {
+      "fetch_count": 12,
+      "total_seconds": 27.6426,
+      "avg_latency": 2.3035,
+      "timeout_count": 0,
+      "prefilter_seconds": 18.1815,
+      "verify_seconds": 11.322,
+      "dominant_phase": "prefilter"
+    },
+    "davidgreenwriter.com": {
+      "fetch_count": 9,
+      "total_seconds": 3.1137,
+      "avg_latency": 0.346,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.3831,
+      "verify_seconds": 2.1747,
+      "dominant_phase": "prefilter"
+    },
+    "elizabethkleinauthor.com": {
+      "fetch_count": 7,
+      "total_seconds": 2.2647,
+      "avg_latency": 0.3235,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0913,
+      "verify_seconds": 2.4531,
+      "dominant_phase": "verify"
+    },
+    "leeconleyauthor.com": {
+      "fetch_count": 9,
+      "total_seconds": 3.3109,
+      "avg_latency": 0.3679,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0323,
+      "verify_seconds": 3.2528,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 5,
+  "top_domain_budget_burn": [
+    {
+      "domain": "authorjackadkins.com",
+      "fetch_count": 12,
+      "total_seconds": 27.6426,
+      "avg_latency": 2.3035,
+      "timeout_count": 0,
+      "prefilter_seconds": 18.1815,
+      "verify_seconds": 11.322,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "authordiannagunn.com",
+      "fetch_count": 8,
+      "total_seconds": 18.8742,
+      "avg_latency": 2.3593,
+      "timeout_count": 0,
+      "prefilter_seconds": 10.9687,
+      "verify_seconds": 8.5305,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "leeconleyauthor.com",
+      "fetch_count": 9,
+      "total_seconds": 3.3109,
+      "avg_latency": 0.3679,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0323,
+      "verify_seconds": 3.2528,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "davidgreenwriter.com",
+      "fetch_count": 9,
+      "total_seconds": 3.1137,
+      "avg_latency": 0.346,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.3831,
+      "verify_seconds": 2.1747,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "elizabethkleinauthor.com",
+      "fetch_count": 7,
+      "total_seconds": 2.2647,
+      "avg_latency": 0.3235,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0913,
+      "verify_seconds": 2.4531,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "amazon.com",
+      "fetch_count": 1,
+      "total_seconds": 0.4359,
+      "avg_latency": 0.4359,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "fetch_count": 12,
+      "total_seconds": 27.6426,
+      "prefilter_seconds": 18.1815,
+      "verify_seconds": 11.322,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "triage_ready",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": "try_listing_proof"
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "fetch_count": 8,
+      "total_seconds": 18.8742,
+      "prefilter_seconds": 10.9687,
+      "verify_seconds": 8.5305,
+      "dominant_phase": "prefilter",
+      "reject_reason": "bad_author_name",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "bad_author_name",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "fetch_count": 10,
+      "total_seconds": 3.5496,
+      "prefilter_seconds": 2.3831,
+      "verify_seconds": 2.1747,
+      "dominant_phase": "prefilter",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "fetch_count": 9,
+      "total_seconds": 3.3109,
+      "prefilter_seconds": 1.0323,
+      "verify_seconds": 3.2528,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://www.elizabethkleinauthor.com",
+      "candidate_domain": "elizabethkleinauthor.com",
+      "fetch_count": 7,
+      "total_seconds": 2.2647,
+      "prefilter_seconds": 1.0913,
+      "verify_seconds": 2.4531,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "max_fetches_per_domain": 14,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 874.9618,
+  "max_concurrency": 4
+}

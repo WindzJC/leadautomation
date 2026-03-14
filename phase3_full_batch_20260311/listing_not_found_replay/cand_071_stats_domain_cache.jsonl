@@ -1,0 +1,1 @@
+{"domain": "chrishanger.net", "origin": "http://www.chrishanger.net", "robots_mode": "parsed", "robots_text": "User-agent: *\r\nDisallow: /critic/\r\n", "robots_expiry_ts": 1773324316.2987113, "sitemap_urls": [], "fetch_failures": [{"url": "http://www.chrishanger.net/sitemap.xml", "reason": "404", "status_code": 404}]}

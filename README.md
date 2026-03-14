@@ -39,6 +39,7 @@ Automate finding 20-40 qualified indie/self-pub author prospects, with an option
   - `--max-total-runtime 900`
   - `--max-seconds-per-domain 25`
   - `--max-fetches-per-domain 16`
+- `--validation-profile agent_hunt` keeps the staged validator behavior, reuses the Phase 3 replacement loop, and writes a separate scout export without changing `strict_full` rules or strict CSV schemas.
 
 ## Output Columns
 Validated/final CSV columns:
@@ -95,8 +96,8 @@ python run_lead_finder_loop.py \
   --verified-output fully_verified_leads.csv
 ```
 
-This keeps the rich audit CSVs internally and writes a 4-column no-header export:
-`AuthorName,BookTitle,AuthorEmail,SourceURL`
+This keeps the rich audit CSVs internally and writes a 3-column no-header export:
+`AuthorName,AuthorEmail,SourceURL`
 
 Strict profiles also write a location-recovery artifact:
 - per-run validator artifact: `runs/run_XXX_near_miss_location.csv`
@@ -135,6 +136,20 @@ python run_lead_finder_loop.py \
   --verified-output fully_verified_leads.csv
 ```
 
+Agent-hunt scout preset:
+```bash
+python run_lead_finder_loop.py \
+  --validation-profile agent_hunt \
+  --goal-final 20 \
+  --scouted-output scouted_leads.csv \
+  --master-output leads_full.csv
+```
+
+This keeps the staged validator behavior, writes a separate 3-column no-header scout export:
+`AuthorName,AuthorEmail,SourceURL`
+
+`fully_verified_leads.csv` remains strict-only and is not loosened by `agent_hunt`.
+
 Astra outbound preset:
 ```bash
 python run_lead_finder_loop.py \
@@ -167,6 +182,64 @@ Email-only variant:
 ```bash
 python run_lead_finder.py --require-email
 ```
+
+## Local Dashboard
+Streamlit v1 dashboard files live under:
+
+```text
+dashboard/
+  app.py
+  data_loader.py
+  utils.py
+  views/
+    overview.py
+    verified_leads.py
+    scouted_leads.py
+    contact_queue.py
+    near_misses.py
+    reject_analysis.py
+    candidate_detail.py
+```
+
+The dashboard is a thin local operator UI over the existing pipeline outputs. It reads CSV/JSON/JSONL artifacts from disk and does not change pipeline schemas or validation behavior.
+
+Launch it with:
+```bash
+streamlit run dashboard/app.py
+```
+
+v1 pages:
+- Run Pipeline
+- Overview
+- Verified Leads
+- Scouted Leads
+- Contact Queue
+- Near Misses
+- Reject Analysis
+- Candidate Detail / Evidence
+
+The `Run Pipeline` page is a thin browser launcher for the existing CLI loop. It:
+- starts `run_lead_finder_loop.py` in the background
+- writes outputs into a new top-level folder such as `browser_run_YYYYMMDD_HHMMSS/`
+- tails the run log in the UI
+- does not change pipeline validation rules or output schemas
+
+Typical local flow:
+1. `streamlit run dashboard/app.py`
+2. Open the `Run Pipeline` page
+3. Start a run
+4. Switch to `Overview`, `Verified Leads`, `Scouted Leads`, or `Contact Queue` to review the new folder once it appears
+
+The sidebar lets you pick a run folder and run tag. Supported inputs include:
+- `fully_verified_leads.csv`
+- `scouted_leads.csv`
+- `contact_queue.csv`
+- `near_miss_location.csv`
+- `author_email_source.csv`
+- `runs/run_*_stats.json`
+- `runs/run_*_validate_stats.json`
+- `runs/*_listing_debug.jsonl`
+- `runs/*_location_debug.jsonl`
 
 ## Run Flow (Manual)
 ```bash
@@ -216,7 +289,7 @@ python run_lead_finder_loop.py \
   --delay 0.3 --timeout 12 \
   --require-email --email-gate strict \
   --master-output all_prospects.csv \
-  --minimal-output author_email_book.csv
+  --minimal-output author_email_source.csv
 ```
 
 Notes:
@@ -263,8 +336,8 @@ Notes:
 - `--require-contact-path` keeps only rows with non-homepage contact or subscribe/newsletter paths.
 - `--contact-path-strict` tightens contact-path filtering to stronger hints only.
 - `--merge-policy strict|balanced|open` controls what is allowed into `leads_full.csv`.
-  - `strict` (default): only rows with `BookTitleStatus=ok`, `RecencyStatus=verified`, and title methods in `jsonld_book|listing_match|listing_title_oracle|books_index_card` merge to master.
-  - `balanced`: only rows with `BookTitleStatus=ok` and title methods in `jsonld_book|listing_match|listing_title_oracle|books_index_card` merge; recency may still be staged.
+  - `strict` (default): only rows with visible exportable email/source evidence and `RecencyStatus=verified` merge to master.
+  - `balanced`: rows with visible exportable email/source evidence merge; recency may still be staged.
   - `open`: merge all validated rows.
 - `--validation-profile fully_verified` is stricter than merge policy:
   - requires visible on-page author email text/obfuscation
@@ -272,10 +345,10 @@ Notes:
   - requires onsite/listing indie proof (`IndieProofStrength=onsite|both`)
   - requires `ListingStatus=verified`
   - requires `RecencyStatus=verified`
-  - writes a 4-column final export to `fully_verified_leads.csv` by default (change with `--verified-output`)
+  - writes a 3-column final export to `fully_verified_leads.csv` by default (change with `--verified-output`)
 - `run_lead_finder_loop.py` now auto-writes a source-linked export:
-  - `Email,AuthorName,BookTitle,EmailSourceURL,AuthorNameSourceURL,BookTitleSourceURL`
-  - default file: `author_email_book.csv` (change with `--minimal-output`)
+  - `AuthorName,AuthorEmail,SourceURL`
+  - default file: `author_email_source.csv` (change with `--minimal-output`)
 - `run_lead_finder_loop.py` now also writes:
   - `contact_queue.csv` for staged/manual-review leads and master leads without public email
   - `ContactURL` on validated/queue rows using priority:

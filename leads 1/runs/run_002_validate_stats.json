@@ -1,0 +1,4391 @@
+{
+  "generated_at_utc": "2026-03-12T14:16:11Z",
+  "validation_profile": "agent_hunt",
+  "total_candidates": 20,
+  "kept_rows": 12,
+  "reject_reasons": {
+    "enterprise_or_famous": 3,
+    "page_fetch_failed_other": 1,
+    "bad_author_name": 2,
+    "time_budget_exceeded": 1,
+    "page_fetch_failed_robots_disallow": 1
+  },
+  "listing_status_counts": {
+    "verified": 5,
+    "missing": 5,
+    "unverified": 2
+  },
+  "book_title_method_counts": {
+    "books_index_card": 1,
+    "fallback": 5,
+    "listing_match": 2,
+    "recency_snippet": 2,
+    "book_detail_og": 1,
+    "books_page_link": 1
+  },
+  "book_title_confidence_counts": {
+    "strong": 3,
+    "weak": 9
+  },
+  "book_title_status_counts": {
+    "ok": 3,
+    "missing_or_weak": 9
+  },
+  "book_title_downgraded": 9,
+  "book_title_downgrade_reasons": {
+    "no_title_candidate": 5,
+    "weak_method": 4
+  },
+  "indie_proof_strength_counts": {
+    "both": 7,
+    "directory": 5
+  },
+  "recency_status_counts": {
+    "verified": 10,
+    "missing": 2
+  },
+  "email_quality_counts": {
+    "labeled_off_domain": 2,
+    "same_domain": 3
+  },
+  "leads_with_author_email": 5,
+  "fully_verified_rows": 2,
+  "stage_timings": {
+    "prefilter_seconds": 67.3639,
+    "verify_seconds": 52.9014
+  },
+  "prefilter_candidates": 18,
+  "verify_candidates": 18,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {
+    "sitemap": 1
+  },
+  "domain_cache_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_stats_location_debug.jsonl",
+  "listing_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_stats_listing_debug.jsonl",
+  "near_miss_location_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_near_miss_location.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "non_us_location": 10,
+    "publisher_location_only": 1,
+    "weak_us_signal": 1,
+    "ok": 1
+  },
+  "location_method_counts": {
+    "broad_phrase": 7,
+    "directory": 1,
+    "footer": 4,
+    "author_city_state": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://msolney.com/",
+      "candidate_domain": "msolney.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "readers",
+      "selected_source_url": "https://msolney.com/contact",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "cially during release periods, but I appreciate every message and genuinely enjoy hearing from readers. Use the form below and I\u2019ll get back to you as soon as possible. Matthew Your Email Your",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://msolney.com/about-author",
+        "https://msolney.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "publishing, reader engagement, and what actually works once the marketing noise",
+          "snippet": "ers exist purely to experiment, question, or think out loud. I also share lessons learned from publishing, reader engagement, and what actually works once the marketing noise is stripped away. Paid subscribers get deeper access, early... Read More Blog February 24,",
+          "method": "broad_phrase",
+          "source_url": "https://msolney.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "the series: The Empowered Ones The First Fear Buy Now About Praise for M",
+          "snippet": ".S. Olney About Books Other Writing Blog Events Mailing List Contact Press Kit Buy Direct From the series: The Empowered Ones The First Fear Buy Now About Praise for M.S. Olney\u2019s \u2018The Empowered Ones Series\u2019 \u2018A thrilling, action packed Fantasy adventure\u2019 \u2013 D",
+          "method": "broad_phrase",
+          "source_url": "https://msolney.com/books/the-first-fear",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://msolney.com/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "readers",
+          "snippet": "cially during release periods, but I appreciate every message and genuinely enjoy hearing from readers. Use the form below and I\u2019ll get back to you as soon as possible. Matthew Your Email Your",
+          "method": "broad_phrase",
+          "source_url": "https://msolney.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://msolney.com/mailing-list",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.rmgarino.com",
+      "candidate_domain": "rmgarino.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Chaos Of Souls Series - Where Monsters, Magic",
+      "selected_source_url": "https://www.epicindie.net/authordirectory",
+      "selected_method": "directory",
+      "selected_snippet": "R.M. Garino R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.rmgarino.com/about-author",
+        "https://www.rmgarino.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "non_us_location",
+          "location": "Chaos Of Souls Series - Where Monsters, Magic",
+          "snippet": "R.M. Garino R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+          "method": "directory",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "The ChaoS oF SoulS SerieS Where Monsters, Magic",
+          "snippet": "giveaways and to keep a foot in the chaos! Join us... brainzzzz, uhm we mean bookssss... The ChaoS oF SoulS SerieS Where Monsters, Magic & Mayhem Come to Life the prequel Welcome to where the Chaos begins.\u200b \u200b Follow Malachite",
+          "method": "footer",
+          "source_url": "https://www.rmgarino.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS",
+          "snippet": "OF SOULS SERIES A READER'S GUIDE TO CHAOS REVIEWS BONUS CONTENT CHARACTERS OF CHAOS MAPS FROM CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS OF SOULS DELETED CHAPTERS & SCENES BLOG More Use tab to navigate through the menu items. A",
+          "method": "broad_phrase",
+          "source_url": "https://www.rmgarino.com/blog/categories/author-friends-and-blogs",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS",
+          "snippet": "OF SOULS SERIES A READER'S GUIDE TO CHAOS REVIEWS BONUS CONTENT CHARACTERS OF CHAOS MAPS FROM CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS OF SOULS DELETED CHAPTERS & SCENES BLOG More Use tab to navigate through the menu items. c",
+          "method": "broad_phrase",
+          "source_url": "https://www.rmgarino.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS",
+          "snippet": "OF SOULS SERIES A READER'S GUIDE TO CHAOS REVIEWS BONUS CONTENT CHARACTERS OF CHAOS MAPS FROM CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS OF SOULS DELETED CHAPTERS & SCENES BLOG More Use tab to navigate through the menu items. t",
+          "method": "broad_phrase",
+          "source_url": "https://www.rmgarino.com/about-the-newsletter",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "The ChaoS oF SoulS SerieS Where Monsters, Magic",
+          "snippet": "giveaways and to keep a foot in the chaos! Join us... brainzzzz, uhm we mean bookssss... The ChaoS oF SoulS SerieS Where Monsters, Magic & Mayhem Come to Life the prequel Welcome to where the Chaos begins.\u200b \u200b Follow Malachite",
+          "method": "footer",
+          "source_url": "https://www.rmgarino.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "County Galway on the west coast of Ireland",
+      "selected_source_url": "https://www.davidgreenwriter.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.davidgreenwriter.com/about-author",
+        "https://www.davidgreenwriter.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "County Galway on the west coast of Ireland",
+          "snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+          "method": "broad_phrase",
+          "source_url": "https://www.davidgreenwriter.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "County Galway on the west coast of Ireland",
+          "snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+          "method": "broad_phrase",
+          "source_url": "https://www.davidgreenwriter.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Author of Horror, Dark Fantasy, Historical Fiction",
+      "selected_source_url": "https://www.leeconleyauthor.com",
+      "selected_method": "footer",
+      "selected_snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.leeconleyauthor.com/about-author",
+        "https://www.leeconleyauthor.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Author of Horror, Dark Fantasy, Historical Fiction",
+          "snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+          "method": "footer",
+          "source_url": "https://www.leeconleyauthor.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.leeconleyauthor.com/post/author-interview-at-bookwormblues",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Author of Horror, Dark Fantasy, Historical Fiction",
+          "snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+          "method": "footer",
+          "source_url": "https://www.leeconleyauthor.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Dungeons and Dragons, Top Secret, Vampire",
+      "selected_source_url": "https://authorjackadkins.com",
+      "selected_method": "footer",
+      "selected_snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://authorjackadkins.com/about-author",
+        "https://authorjackadkins.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Dungeons and Dragons, Top Secret, Vampire",
+          "snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+          "method": "footer",
+          "source_url": "https://authorjackadkins.com",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://authorjackadkins.com/product-category/books/e-book/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "my \u2026 Read more Categories Author Helps , Yon Blog Author Newsletters and How to",
+          "snippet": "ragons of Dorwine fantasy series I started creating minis that represented the characters from my \u2026 Read more Categories Author Helps , Yon Blog Author Newsletters and How to Swing Em February 27, 2023 February 20, 2023 by Author Jack Adkins Author Newsletters (a.k",
+          "method": "broad_phrase",
+          "source_url": "https://authorjackadkins.com/category/yon_blog/author-helps/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://authorjackadkins.com/contact/",
+          "source_kind": "author_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.elizabethkleinauthor.com",
+      "candidate_domain": "elizabethkleinauthor.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "Sydney, Australia",
+      "selected_source_url": "https://www.elizabethkleinauthor.com",
+      "selected_method": "footer",
+      "selected_snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.elizabethkleinauthor.com/about-author",
+        "https://www.elizabethkleinauthor.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Sydney, Australia",
+          "snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+          "method": "footer",
+          "source_url": "https://www.elizabethkleinauthor.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "a caravan with her husband",
+          "snippet": "r Writing Services Freebies Contact Blog About Elizabeth Elizabeth Klein is an author who lives in a caravan with her husband. She\u2019s lived on the road for more than 6 and a half years\u2026 \u200b She has over nineteen years",
+          "method": "broad_phrase",
+          "source_url": "https://www.elizabethkleinauthor.com/about.html",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Elizabeth Klein, Max",
+          "snippet": "n * Submit Elizabeth Klein - Author \"An inventor must have silence in order to think .\u201d - Elizabeth Klein, Max, the Intreped Mouse Home About Awards Blog Contact Freebies \u200b Books Fiction Non Fiction S",
+          "method": "footer",
+          "source_url": "https://www.elizabethkleinauthor.com/contact.html",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Sydney, Australia",
+          "snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+          "method": "footer",
+          "source_url": "https://www.elizabethkleinauthor.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://runesnielsen.com",
+      "candidate_domain": "runesnielsen.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "the back cover of The Doomsayer Prince reviews \u201cA DEFINITE MUST READ\u201d \u201cWorld-cla",
+      "selected_source_url": "https://runesnielsen.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "become damaged at the worst possible time, and his destined allies need to be saved. \u201d \u2014 From the back cover of The Doomsayer Prince reviews \u201cA DEFINITE MUST READ\u201d \u201cWorld-class epic fantasy\u201d \u201cA GRIPPING READ WITH A CLIFF FOR A CONCLUSION!\u201d \u201cI LOVED THIS BOOK\u201d REVI",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://runesnielsen.com/about-author",
+        "https://runesnielsen.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the back cover of The Doomsayer Prince reviews \u201cA DEFINITE MUST READ\u201d \u201cWorld-cla",
+          "snippet": "become damaged at the worst possible time, and his destined allies need to be saved. \u201d \u2014 From the back cover of The Doomsayer Prince reviews \u201cA DEFINITE MUST READ\u201d \u201cWorld-class epic fantasy\u201d \u201cA GRIPPING READ WITH A CLIFF FOR A CONCLUSION!\u201d \u201cI LOVED THIS BOOK\u201d REVI",
+          "method": "broad_phrase",
+          "source_url": "https://runesnielsen.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": ", or",
+          "snippet": "S. A. Corey One of the best books I read this year is Leviathan Wakes by James S. A. Corey, or actually by Daniel Abraham and Ty Franck as Corey is a pen name. I love the way the two a",
+          "method": "weak_us_signal",
+          "source_url": "https://runesnielsen.com/book/2018/7/25/expansive-fun",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "I mean, I COULD but you probably wouldn",
+          "snippet": "hite North of the country and I\u2019m a doctor! Well, not the kind you want operating on you. I mean, I COULD but you probably wouldn\u2019t make it, so keep that in mind. Why did you decide to take part in the SPFBO? I think SP",
+          "method": "footer",
+          "source_url": "https://runesnielsen.com/author/author-interviews/2022/5/28/author-interview-ac-cross",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Denmark in a house share with his wife, their cat, the heroically fluffy Mr",
+          "snippet": "ions, including the EU Parliament, Kanal 2, Jubii, Microsoft, and the Carlsberg Group. He lives in Denmark in a house share with his wife, their cat, the heroically fluffy Mr. Muffin, and his best friend and the friend\u2019s family. When he\u2019s not writing about imagina",
+          "method": "broad_phrase",
+          "source_url": "https://runesnielsen.com/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the back cover of The Doomsayer Prince reviews \u201cA DEFINITE MUST READ\u201d \u201cWorld-cla",
+          "snippet": "become damaged at the worst possible time, and his destined allies need to be saved. \u201d \u2014 From the back cover of The Doomsayer Prince reviews \u201cA DEFINITE MUST READ\u201d \u201cWorld-class epic fantasy\u201d \u201cA GRIPPING READ WITH A CLIFF FOR A CONCLUSION!\u201d \u201cI LOVED THIS BOOK\u201d REVI",
+          "method": "broad_phrase",
+          "source_url": "https://runesnielsen.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://ctphipps.com",
+      "candidate_domain": "ctphipps.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "publisher_location_only",
+      "selected_location": "Lords of Dragon Keep, Guardians of Dragon Keep",
+      "selected_source_url": "https://ctphipps.com",
+      "selected_method": "footer",
+      "selected_snippet": "s, I\u2019m pleased to say that one of my epics has been completed. THE DARK UNDERMASTER SAGA (Lords of Dragon Keep, Guardians of Dragon Keep, and Wizards of Dragon Keep) has been finished with the third book. WIZARDS OF DRAGON KEE",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://ctphipps.com/about-author",
+        "https://ctphipps.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Lords of Dragon Keep, Guardians of Dragon Keep",
+          "snippet": "s, I\u2019m pleased to say that one of my epics has been completed. THE DARK UNDERMASTER SAGA (Lords of Dragon Keep, Guardians of Dragon Keep, and Wizards of Dragon Keep) has been finished with the third book. WIZARDS OF DRAGON KEE",
+          "method": "footer",
+          "source_url": "https://ctphipps.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "United States",
+          "snippet": "demy space-opera Spotlight Straight Outta Fangton Supervillainy Saga Tales of the Al-Azif United States of Monsters vampires World-Building Wraith Knight Writing Blog at WordPress.com. Comment",
+          "method": "weak_us_signal",
+          "source_url": "https://ctphipps.com/2015/07/21/author-blurb-by-stevie-kopas/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "United States",
+          "snippet": "ang, Handsome Jack, and the Red Skull with a bit of Lex Luthor\u2019s time as President of the United States. Charles Omega is meant to represent the worst of political corruption and authority as w",
+          "method": "weak_us_signal",
+          "source_url": "https://ctphipps.com/blog/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Lords of Dragon Keep, Guardians of Dragon Keep",
+          "snippet": "s, I\u2019m pleased to say that one of my epics has been completed. THE DARK UNDERMASTER SAGA (Lords of Dragon Keep, Guardians of Dragon Keep, and Wizards of Dragon Keep) has been finished with the third book. WIZARDS OF DRAGON KEE",
+          "method": "footer",
+          "source_url": "https://ctphipps.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://erynnlehtonenwriting.com",
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "non_us_location",
+      "selected_location": "the University of British Columbia, you can usually find me typing away at my ne",
+      "selected_source_url": "https://erynnlehtonenwriting.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "k animating stuffed animals yet! Ever since graduating with my degree in creative writing from the University of British Columbia, you can usually find me typing away at my next fantasy novel like my life depends on it. Other times, I\u2019m locked inside a book, be tha",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://erynnlehtonenwriting.com/about-author",
+        "https://erynnlehtonenwriting.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the University of British Columbia, you can usually find me typing away at my ne",
+          "snippet": "k animating stuffed animals yet! Ever since graduating with my degree in creative writing from the University of British Columbia, you can usually find me typing away at my next fantasy novel like my life depends on it. Other times, I\u2019m locked inside a book, be tha",
+          "method": "broad_phrase",
+          "source_url": "https://erynnlehtonenwriting.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "More View More Erynn Lehtonen One day, Erynn",
+          "snippet": "-16-0 Experience the Entire Lunar Insurrection Series! View More View More View More View More View More Erynn Lehtonen One day, Erynn\u2019s army of fluffy minions will take over the world. But, well, she hasn\u2019t had any luck ani",
+          "method": "footer",
+          "source_url": "https://erynnlehtonenwriting.com/books/academy-of-souls/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "From The Mists of Arathia Balancing Life, Writing",
+          "snippet": "o reduce spam. Learn how your comment data is processed. Search for: Recent Posts Excerpt From The Mists of Arathia Balancing Life, Writing, and Mental Endurance Art of the Yokai Calling Cover The Evolution of a Book\u2019s Cover Desi",
+          "method": "footer",
+          "source_url": "https://erynnlehtonenwriting.com/authorrr/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "you! Follow Follow Follow Name Email Address Subject Subject Ghostwriting Line a",
+          "snippet": "ust click the button below! CONTACT ME Contact me today! Got a question? I'd love to hear from you! Follow Follow Follow Name Email Address Subject Subject Ghostwriting Line and Developmental Editing My Books General Inquiries Message Privacy Policy Privacy Policy",
+          "method": "broad_phrase",
+          "source_url": "https://erynnlehtonenwriting.com/contact/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "In the past, I didn",
+          "snippet": "ds that share the perspectives and experiences of people suffering from mental illnesses. In the past, I didn\u2019t share anything about these goals on my blog or social media. And though this will chang",
+          "method": "footer",
+          "source_url": "https://erynnlehtonenwriting.com/newsletter/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the University of British Columbia, you can usually find me typing away at my ne",
+          "snippet": "k animating stuffed animals yet! Ever since graduating with my degree in creative writing from the University of British Columbia, you can usually find me typing away at my next fantasy novel like my life depends on it. Other times, I\u2019m locked inside a book, be tha",
+          "method": "broad_phrase",
+          "source_url": "https://erynnlehtonenwriting.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "weak_us_signal",
+      "selected_location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+      "selected_source_url": "https://shelbyhild.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://shelbyhild.com/about-author",
+        "https://shelbyhild.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+          "snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+          "method": "broad_phrase",
+          "source_url": "https://shelbyhild.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+          "snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+          "method": "broad_phrase",
+          "source_url": "https://shelbyhild.com/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_not_found": 6,
+    "listing_amazon_interstitial_no_bn_candidate": 2
+  },
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "verified": 12,
+    "triage_ready": 4,
+    "harvested": 2,
+    "dead_end": 2
+  },
+  "planned_action_counts": {
+    "mark_verified": 12,
+    "try_email_proof": 6,
+    "stop_dead_end": 2
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://msolney.com/",
+      "candidate_domain": "msolney.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "cially during release periods, but I appreciate every message and genuinely enjoy hearing from readers. Use the form below and I\u2019ll get back to you as soon as possible. Matthew Your Email Your",
+      "best_location_source_url": "https://msolney.com/contact",
+      "best_listing_snippet": " my novella The Nightblade Email Address Did you mean ? Choose Your Retailer Print Amazon Ebook All retailers Direct Audiobook Amazon About | M.S. Olney M.S. Olney M.S. Olney About Book",
+      "best_listing_source_url": "https://www.amazon.com/First-Fear-Empowered-Ones/dp/1981001131/ref=tmm_pap_swatch_0",
+      "best_recency_snippet": "eting noise is stripped away. Paid subscribers get deeper access, early... Read More Blog February 24, 2026 A review of my 2025 and what's to come! With 2025 now behind us, it feels like the right ",
+      "best_recency_source_url": "https://msolney.com/",
+      "best_indie_snippet": "M.S. OLNEY The website of indie scifi and fantasy author and EPIC founder M.S. Olney. Author of the Sundered Crown Saga and the Empowered Ones series plus much more! Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:verified",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://www.rmgarino.com",
+      "candidate_domain": "rmgarino.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "R.M. Garino R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+      "best_location_source_url": "https://www.epicindie.net/authordirectory",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "Fantasy Author | R.M. Garino | top of page Gain access to our monthly fantasy ebook giveaways Join HOME ABOUT THE BIRTH OF THE CHAOS SERIES OVERVIEW OF THE SERIES THE NEWSLETTER CO",
+      "best_recency_source_url": "https://www.rmgarino.com",
+      "best_indie_snippet": "R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://www.independentauthornetwork.com/contact-us.html",
+      "candidate_domain": "independentauthornetwork.com",
+      "current_state": "triage_ready",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "enterprise_or_famous",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    },
+    {
+      "candidate_url": "https://www.independentauthornetwork.com/",
+      "candidate_domain": "independentauthornetwork.com",
+      "current_state": "triage_ready",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "enterprise_or_famous",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    },
+    {
+      "candidate_url": "https://slynnhelton.com",
+      "candidate_domain": "slynnhelton.com",
+      "current_state": "harvested",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "page_fetch_failed_other",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "CONTACT CONTACT",
+      "best_email_source_url": "https://www.davidgreenwriter.com",
+      "best_location_snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+      "best_location_source_url": "https://www.davidgreenwriter.com",
+      "best_listing_snippet": "gh the menu items. BOOKS OUT NOW AND COMING SOON EMPIRE OF RUIN ONE: IN SOLITUDE'S SHADOW EBOOK ORDER A SIGNED COPY EMPIRE OF RUIN TWO: PATH OF WAR EBOOK ORDER A SIGNED COPY EMPIRE OF R",
+      "best_listing_source_url": "https://www.amazon.com/gp/product/B0CPDFG6ZQ",
+      "best_recency_snippet": "N UP Sign up to david green's newsletter to stay up to date with all his current news and releases, and claim your free copy of his short story collection, 'Tales of Fire and Shadow' NOW!",
+      "best_recency_source_url": "https://www.davidgreenwriter.com",
+      "best_indie_snippet": "David Green Website of indie fantasy author David Green. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:verified",
+        "try_recency_proof:verified",
+        "try_email_proof:verified"
+      ]
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+      "best_location_source_url": "https://www.leeconleyauthor.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "Author | Lee C. Conley top of page -Author of Speculative Fiction- Lee C. Conley Home News and Events The Dead Sagas A Ritual of Bone A Ritual of Flesh Lore of The Dead Sagas other",
+      "best_recency_source_url": "https://www.leeconleyauthor.com",
+      "best_indie_snippet": "Lee c. conley Website of indie fantasy author Lee C. Conley. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "bad_author_name",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "current_state": "triage_ready",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+      "best_location_source_url": "https://authorjackadkins.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "time_budget_exceeded",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://www.elizabethkleinauthor.com",
+      "candidate_domain": "elizabethkleinauthor.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "rld of fairy tales, danger and whimsy. Sam Flynn, a seemingly ordinary teenager living in Sydney, Australia, wants to live a quiet life after his school graduation. But when his great-uncle Roy tel",
+      "best_location_source_url": "https://www.elizabethkleinauthor.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "Elizabeth Klein Website of indie fantasy author Elizabeth Klein. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location",
+        "try_listing_proof:missing",
+        "try_recency_proof:missing",
+        "try_email_proof:missing"
+      ]
+    }
+  ],
+  "candidate_outcome_records_count": 20,
+  "per_domain": {
+    "amazon.com": {
+      "fetch_count": 7,
+      "total_seconds": 4.430000000000001,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0
+    },
+    "independentauthornetwork.com": {
+      "fetch_count": 4,
+      "total_seconds": 2.7629,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.4167,
+      "verify_seconds": 1.245
+    },
+    "msolney.com": {
+      "fetch_count": 8,
+      "total_seconds": 7.293,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.0687,
+      "verify_seconds": 7.224
+    },
+    "rmgarino.com": {
+      "fetch_count": 11,
+      "total_seconds": 1.7118,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0026,
+      "verify_seconds": 2.3959
+    },
+    "slynnhelton.com": {
+      "fetch_count": 2,
+      "total_seconds": 6.0645,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.0649,
+      "verify_seconds": 0.0
+    },
+    "authordiannagunn.com": {
+      "fetch_count": 8,
+      "total_seconds": 9.0778,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.6398,
+      "verify_seconds": 3.0612
+    },
+    "authorjackadkins.com": {
+      "fetch_count": 12,
+      "total_seconds": 25.5255,
+      "timeout_count": 0,
+      "prefilter_seconds": 20.3154,
+      "verify_seconds": 7.0684
+    },
+    "davidgreenwriter.com": {
+      "fetch_count": 9,
+      "total_seconds": 2.3819,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.8397,
+      "verify_seconds": 2.7999
+    },
+    "elizabethkleinauthor.com": {
+      "fetch_count": 7,
+      "total_seconds": 1.785,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7099,
+      "verify_seconds": 2.3492
+    },
+    "leeconleyauthor.com": {
+      "fetch_count": 9,
+      "total_seconds": 1.5871,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.9353,
+      "verify_seconds": 1.6199
+    },
+    "ctphipps.com": {
+      "fetch_count": 7,
+      "total_seconds": 1.5502,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.6146,
+      "verify_seconds": 2.9121
+    },
+    "erynnlehtonenwriting.com": {
+      "fetch_count": 11,
+      "total_seconds": 11.5772,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.1511,
+      "verify_seconds": 4.379
+    },
+    "runesnielsen.com": {
+      "fetch_count": 8,
+      "total_seconds": 3.1374,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7064,
+      "verify_seconds": 3.852
+    },
+    "shelbyhild.com": {
+      "fetch_count": 5,
+      "total_seconds": 5.9863,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.8039,
+      "verify_seconds": 3.1363
+    },
+    "amycampbell.info": {
+      "fetch_count": 4,
+      "total_seconds": 2.5378,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.8833,
+      "verify_seconds": 1.3439
+    },
+    "derricksmythe.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.7608,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7615,
+      "verify_seconds": 0.0
+    },
+    "kovakillian.com": {
+      "fetch_count": 8,
+      "total_seconds": 1.5938,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.8504,
+      "verify_seconds": 2.8334
+    },
+    "legendsofkalda.com": {
+      "fetch_count": 8,
+      "total_seconds": 3.2738,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.5821,
+      "verify_seconds": 1.3732
+    },
+    "zackargyle.com": {
+      "fetch_count": 8,
+      "total_seconds": 1.0065,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.4476,
+      "verify_seconds": 2.8387
+    },
+    "ejfisch.com": {
+      "fetch_count": 7,
+      "total_seconds": 2.6555,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.5697,
+      "verify_seconds": 2.4691
+    }
+  },
+  "candidate_budget_burn_count": 20,
+  "top_domain_budget_burn": [
+    {
+      "candidate_domain": "authorjackadkins.com",
+      "fetch_count": 12,
+      "total_seconds": 25.5255,
+      "timeout_count": 0,
+      "prefilter_seconds": 20.3154,
+      "verify_seconds": 7.0684,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "fetch_count": 11,
+      "total_seconds": 11.5772,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.1511,
+      "verify_seconds": 4.379,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "authordiannagunn.com",
+      "fetch_count": 8,
+      "total_seconds": 9.0778,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.6398,
+      "verify_seconds": 3.0612,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "msolney.com",
+      "fetch_count": 8,
+      "total_seconds": 7.293,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.0687,
+      "verify_seconds": 7.224,
+      "dominant_phase": "verify"
+    },
+    {
+      "candidate_domain": "slynnhelton.com",
+      "fetch_count": 2,
+      "total_seconds": 6.0645,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.0649,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "shelbyhild.com",
+      "fetch_count": 5,
+      "total_seconds": 5.9863,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.8039,
+      "verify_seconds": 3.1363,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "amazon.com",
+      "fetch_count": 7,
+      "total_seconds": 4.43,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "legendsofkalda.com",
+      "fetch_count": 8,
+      "total_seconds": 3.2738,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.5821,
+      "verify_seconds": 1.3732,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "candidate_domain": "runesnielsen.com",
+      "fetch_count": 8,
+      "total_seconds": 3.1374,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7064,
+      "verify_seconds": 3.852,
+      "dominant_phase": "verify"
+    },
+    {
+      "candidate_domain": "independentauthornetwork.com",
+      "fetch_count": 4,
+      "total_seconds": 2.7629,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.4167,
+      "verify_seconds": 1.245,
+      "dominant_phase": "prefilter"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "fetch_count": 12,
+      "total_seconds": 25.5255,
+      "prefilter_seconds": 20.3154,
+      "verify_seconds": 7.0684,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "triage_ready",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": "try_listing_proof"
+    },
+    {
+      "candidate_url": "https://erynnlehtonenwriting.com",
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "fetch_count": 11,
+      "total_seconds": 11.5772,
+      "prefilter_seconds": 9.1511,
+      "verify_seconds": 4.379,
+      "dominant_phase": "prefilter",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "fetch_count": 8,
+      "total_seconds": 9.0778,
+      "prefilter_seconds": 6.6398,
+      "verify_seconds": 3.0612,
+      "dominant_phase": "prefilter",
+      "reject_reason": "bad_author_name",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "bad_author_name",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://msolney.com/",
+      "candidate_domain": "msolney.com",
+      "fetch_count": 9,
+      "total_seconds": 8.0384,
+      "prefilter_seconds": 3.0687,
+      "verify_seconds": 7.224,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "fetch_count": 6,
+      "total_seconds": 6.9105,
+      "prefilter_seconds": 4.8039,
+      "verify_seconds": 3.1363,
+      "dominant_phase": "prefilter",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://slynnhelton.com",
+      "candidate_domain": "slynnhelton.com",
+      "fetch_count": 2,
+      "total_seconds": 6.0645,
+      "prefilter_seconds": 6.0649,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter",
+      "reject_reason": "page_fetch_failed_other",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "harvested",
+      "next_action": "try_email_proof",
+      "next_action_reason": "page_fetch_failed_other",
+      "last_attempted_action": ""
+    },
+    {
+      "candidate_url": "https://runesnielsen.com",
+      "candidate_domain": "runesnielsen.com",
+      "fetch_count": 9,
+      "total_seconds": 3.5824,
+      "prefilter_seconds": 1.7064,
+      "verify_seconds": 3.852,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "fetch_count": 10,
+      "total_seconds": 3.5415,
+      "prefilter_seconds": 1.8397,
+      "verify_seconds": 2.7999,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://www.legendsofkalda.com",
+      "candidate_domain": "legendsofkalda.com",
+      "fetch_count": 8,
+      "total_seconds": 3.2738,
+      "prefilter_seconds": 2.5821,
+      "verify_seconds": 1.3732,
+      "dominant_phase": "prefilter",
+      "reject_reason": "enterprise_or_famous",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "triage_ready",
+      "next_action": "try_email_proof",
+      "next_action_reason": "enterprise_or_famous",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://www.ejfisch.com",
+      "candidate_domain": "ejfisch.com",
+      "fetch_count": 7,
+      "total_seconds": 2.6555,
+      "prefilter_seconds": 1.5697,
+      "verify_seconds": 2.4691,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "max_fetches_per_domain": 14,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 900.0,
+  "max_concurrency": 4,
+  "verified_target": 5,
+  "verified_progress": 5,
+  "candidates_replaced": 15,
+  "dead_end_count": 2,
+  "exhausted_before_target": false,
+  "validator_slices": [
+    {
+      "slice_index": 1,
+      "candidate_count": 5,
+      "kept_rows": 2,
+      "batch_runtime_exceeded": false,
+      "runtime_seconds": 23.4179,
+      "stats_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_slice_001_stats.json"
+    },
+    {
+      "slice_index": 2,
+      "candidate_count": 5,
+      "kept_rows": 3,
+      "batch_runtime_exceeded": false,
+      "runtime_seconds": 47.3387,
+      "stats_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_slice_002_stats.json"
+    },
+    {
+      "slice_index": 3,
+      "candidate_count": 4,
+      "kept_rows": 4,
+      "batch_runtime_exceeded": false,
+      "runtime_seconds": 30.5555,
+      "stats_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_slice_003_stats.json"
+    },
+    {
+      "slice_index": 4,
+      "candidate_count": 3,
+      "kept_rows": 1,
+      "batch_runtime_exceeded": false,
+      "runtime_seconds": 7.6726,
+      "stats_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_slice_004_stats.json"
+    },
+    {
+      "slice_index": 5,
+      "candidate_count": 2,
+      "kept_rows": 1,
+      "batch_runtime_exceeded": false,
+      "runtime_seconds": 7.2418,
+      "stats_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_slice_005_stats.json"
+    },
+    {
+      "slice_index": 6,
+      "candidate_count": 1,
+      "kept_rows": 1,
+      "batch_runtime_exceeded": false,
+      "runtime_seconds": 4.0388,
+      "stats_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_002_validate_slice_006_stats.json"
+    }
+  ],
+  "intake_scoring": {
+    "enabled": true,
+    "prevalidate_candidate_score_distribution": {
+      "0_19": 5,
+      "lt_0": 51
+    },
+    "prevalidate_candidate_score_summary": {
+      "avg_score": -5.59,
+      "max_score": 17,
+      "min_score": -46,
+      "high_score_threshold": 40,
+      "low_score_threshold": 15
+    },
+    "average_candidate_score_by_outcome": {
+      "verified": 2,
+      "dead_end": -1,
+      "failed": 3.33
+    },
+    "average_feature_contributions_by_outcome": {
+      "verified": {
+        "listing_path_hint": 8.0,
+        "missing_us_location_hint": -4.0,
+        "no_visible_email_hint": -8.0,
+        "plausible_author_identity": 5.0,
+        "rich_directory_source": 2.0,
+        "root_author_site": 4.0,
+        "title_hint": 10.0
+      },
+      "dead_end": {
+        "missing_us_location_hint": -4.0,
+        "no_visible_email_hint": -8.0,
+        "plausible_author_identity": 5.0,
+        "rich_directory_source": 2.0,
+        "root_author_site": 4.0
+      },
+      "failed": {
+        "author_page_entry": 6.0,
+        "listing_path_hint": 8.0,
+        "missing_us_location_hint": -4.0,
+        "no_visible_email_hint": -8.0,
+        "plausible_author_identity": 5.0,
+        "rich_directory_source": 2.0,
+        "root_author_site": 4.0,
+        "title_hint": 10.0
+      }
+    },
+    "top_false_positive_score_features": [
+      {
+        "feature": "plausible_author_identity",
+        "avg_contribution": 5.0,
+        "count": 8
+      },
+      {
+        "feature": "root_author_site",
+        "avg_contribution": 4.0,
+        "count": 7
+      },
+      {
+        "feature": "title_hint",
+        "avg_contribution": 10.0,
+        "count": 2
+      },
+      {
+        "feature": "rich_directory_source",
+        "avg_contribution": 2.0,
+        "count": 6
+      },
+      {
+        "feature": "listing_path_hint",
+        "avg_contribution": 8.0,
+        "count": 1
+      },
+      {
+        "feature": "author_page_entry",
+        "avg_contribution": 6.0,
+        "count": 1
+      }
+    ],
+    "strongest_negative_predictors_dead_end": [
+      {
+        "feature": "no_visible_email_hint",
+        "avg_contribution": -8.0,
+        "count": 2
+      },
+      {
+        "feature": "missing_us_location_hint",
+        "avg_contribution": -4.0,
+        "count": 2
+      }
+    ],
+    "top_high_score_failure_reasons": {},
+    "score_buckets_by_outcome": {
+      "80_plus": {},
+      "60_79": {},
+      "40_59": {},
+      "20_39": {},
+      "0_19": {
+        "verified": 2,
+        "failed": 3
+      },
+      "lt_0": {
+        "verified": 10,
+        "dead_end": 2,
+        "failed": 3
+      }
+    },
+    "low_score_candidates_total": 54,
+    "low_score_candidates_skipped": 36,
+    "low_score_candidates_delayed": 15,
+    "top_prevalidate_candidates": [
+      {
+        "candidate_url": "https://msolney.com/",
+        "score": 17,
+        "band": "0_19",
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://www.rmgarino.com",
+        "score": 17,
+        "band": "0_19",
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://www.independentauthornetwork.com/contact-us.html",
+        "score": 9,
+        "band": "0_19",
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "author_page_entry",
+            "contribution": 6
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://www.independentauthornetwork.com/",
+        "score": 7,
+        "band": "0_19",
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://slynnhelton.com",
+        "score": 7,
+        "band": "0_19",
+        "top_positive_features": [
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://www.davidgreenwriter.com",
+        "score": -1,
+        "band": "lt_0",
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://www.leeconleyauthor.com",
+        "score": -1,
+        "band": "lt_0",
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "http://authordiannagunn.com",
+        "score": -1,
+        "band": "lt_0",
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://authorjackadkins.com",
+        "score": -1,
+        "band": "lt_0",
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      },
+      {
+        "candidate_url": "https://www.elizabethkleinauthor.com",
+        "score": -1,
+        "band": "lt_0",
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ]
+      }
+    ],
+    "candidate_intake_score_records": [
+      {
+        "candidate_url": "https://msolney.com/",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": 17,
+        "band": "0_19",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "title_hint": 10
+        },
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.rmgarino.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": 17,
+        "band": "0_19",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "title_hint": 10
+        },
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.independentauthornetwork.com/contact-us.html",
+        "source_type": "ian_directory",
+        "source_query": "independent-author-network:author-directory",
+        "source_url": "https://www.independentauthornetwork.com/angel-a.html",
+        "score": 9,
+        "band": "0_19",
+        "components": {
+          "author_page_entry": 6,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "title_hint": 10
+        },
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "author_page_entry",
+            "contribution": 6
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "triage_ready",
+        "reject_reason": "enterprise_or_famous",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.independentauthornetwork.com/",
+        "source_type": "ian_directory",
+        "source_query": "independent-author-network:author-directory",
+        "source_url": "https://www.independentauthornetwork.com/angel-a.html",
+        "score": 7,
+        "band": "0_19",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "title_hint": 10
+        },
+        "top_positive_features": [
+          {
+            "feature": "title_hint",
+            "contribution": 10
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "triage_ready",
+        "reject_reason": "enterprise_or_famous",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://slynnhelton.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": 7,
+        "band": "0_19",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "harvested",
+        "reject_reason": "page_fetch_failed_other",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.davidgreenwriter.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.leeconleyauthor.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "http://authordiannagunn.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "dead_end",
+        "reject_reason": "bad_author_name",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://authorjackadkins.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "triage_ready",
+        "reject_reason": "time_budget_exceeded",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.elizabethkleinauthor.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://runesnielsen.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://ctphipps.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://erynnlehtonenwriting.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://shelbyhild.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.Derricksmythe.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "harvested",
+        "reject_reason": "page_fetch_failed_robots_disallow",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.kovakillian.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.amycampbell.info",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "dead_end",
+        "reject_reason": "bad_author_name",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.zackargyle.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.legendsofkalda.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "triage_ready",
+        "reject_reason": "enterprise_or_famous",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.ejfisch.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": true,
+        "outcome_state": "verified",
+        "reject_reason": "kept",
+        "kept": true
+      },
+      {
+        "candidate_url": "https://www.kellannetta.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://arhenle.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://www.ljcohen.net",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://lisamgreen.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://jamesewisher.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://martinowton.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://www.marilynpeake.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://jslockard.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.cfwelburn.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://miketconley.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.armoredhistory.net",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://catrinrussell.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://melindakucsera.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.robinlythgoe.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.daynaward.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.tigerhebert.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://enthralledbylove.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://marktimmony.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -1,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://nilesbooks.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.tamikareedwrites.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.boobearbooks.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://www.susenedwardsauthor.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://tomkranzbooks.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.vncbooks.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://authormrosepeluso.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://www.jannabluebooks.com/",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://www.glassauthor.com",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -11,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "plausible_author_identity": 5,
+          "root_author_site": 4,
+          "thin_directory_source": -4
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.mamminabooks.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -16,
+        "band": "lt_0",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://iankanebooks.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -16,
+        "band": "lt_0",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.gardnersart.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -16,
+        "band": "lt_0",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://mhwoodscourt.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -16,
+        "band": "lt_0",
+        "components": {
+          "listing_path_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "listing_path_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://daankatz.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -24,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://www.jaimieschock.com",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -24,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "rich_directory_source": 2,
+          "root_author_site": 4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "http://www.taowebsites.com",
+        "source_type": "iabx_directory",
+        "source_query": "iabx:author-directory",
+        "source_url": "https://www.iabx.org/author-directory",
+        "score": -34,
+        "band": "lt_0",
+        "components": {
+          "generic_directory_snippet": -12,
+          "indie_hint": 8,
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "root_author_site": 4,
+          "thin_directory_source": -4,
+          "weak_author_identity": -18
+        },
+        "top_positive_features": [
+          {
+            "feature": "indie_hint",
+            "contribution": 8
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "weak_author_identity",
+            "contribution": -18
+          },
+          {
+            "feature": "generic_directory_snippet",
+            "contribution": -12
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "thin_directory_source",
+            "contribution": -4
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://afstewart.ca",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -46,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "non_us_hint": -45,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "non_us_hint",
+            "contribution": -45
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      },
+      {
+        "candidate_url": "https://robbwallace.co.uk",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "score": -46,
+        "band": "lt_0",
+        "components": {
+          "missing_us_location_hint": -4,
+          "no_visible_email_hint": -8,
+          "non_us_hint": -45,
+          "plausible_author_identity": 5,
+          "rich_directory_source": 2,
+          "root_author_site": 4
+        },
+        "top_positive_features": [
+          {
+            "feature": "plausible_author_identity",
+            "contribution": 5
+          },
+          {
+            "feature": "root_author_site",
+            "contribution": 4
+          },
+          {
+            "feature": "rich_directory_source",
+            "contribution": 2
+          }
+        ],
+        "top_negative_features": [
+          {
+            "feature": "non_us_hint",
+            "contribution": -45
+          },
+          {
+            "feature": "no_visible_email_hint",
+            "contribution": -8
+          },
+          {
+            "feature": "missing_us_location_hint",
+            "contribution": -4
+          }
+        ],
+        "processed": false,
+        "outcome_state": "",
+        "reject_reason": "",
+        "kept": false
+      }
+    ]
+  }
+}

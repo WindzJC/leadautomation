@@ -1,0 +1,33 @@
+{
+  "generated_at_utc": "2026-03-10T14:28:48Z",
+  "total_candidates": 2,
+  "kept_rows": 2,
+  "reject_reasons": {},
+  "listing_status_counts": {
+    "verified": 1,
+    "missing": 1
+  },
+  "book_title_method_counts": {
+    "book_detail_og": 1,
+    "fallback": 1
+  },
+  "book_title_confidence_counts": {
+    "weak": 2
+  },
+  "book_title_status_counts": {
+    "missing_or_weak": 2
+  },
+  "book_title_downgraded": 2,
+  "book_title_downgrade_reasons": {
+    "weak_method": 1,
+    "no_title_candidate": 1
+  },
+  "indie_proof_strength_counts": {
+    "both": 2
+  },
+  "recency_status_counts": {
+    "verified": 2
+  },
+  "email_quality_counts": {},
+  "leads_with_author_email": 0
+}

@@ -1,0 +1,11 @@
+[RUN] /mnt/d/VS/lead finder automation/.venv/bin/python prospect_harvest.py --target 60 --min-candidates 80 --per-query 30 --max-per-domain 0 --pause-seconds 1.2 --goodreads-pages 3 --max-goodreads-candidates 12 --goodreads-outbound-per-url 2 --goodreads-rotation-offset 0 --search-timeout 6.0 --goodreads-timeout 6.0 --http-retries 0 --harvest-time-budget 90.0 --output prod_hardened30b_run3/run_001_candidates.csv --stats-output prod_hardened30b_run3/run_001_harvest_stats.json --queries-file prod_hardened30b_run3/run_001_queries.txt
+[OK] wrote 80 candidates to prod_hardened30b_run3/run_001_candidates.csv
+[INFO] batch 1: suppressed 7 pre-validate candidates, kept 73 of 80
+[RUN] /mnt/d/VS/lead finder automation/.venv/bin/python prospect_validate.py --input prod_hardened30b_run3/run_001_candidates.filtered.csv --output prod_hardened30b_run3/run_001_validated.csv --max-candidates 30 --max-support-pages 0 --max-pages-for-title 2 --max-pages-for-contact 2 --max-total-fetches-per-domain-per-run 4 --delay 0.02 --timeout 4.0 --min-year 2022 --max-year 2026 --stats-output prod_hardened30b_run3/run_001_validate_stats.json
+[INFO] processed 10/30 candidates, kept 6
+[INFO] processed 20/30 candidates, kept 12
+[INFO] processed 30/30 candidates, kept 19
+[INFO] reject counts: bad_author_name=4, page_fetch_failed_robots_disallow=3, page_fetch_failed_other=2, page_fetch_failed_404=1, page_fetch_failed_403=1
+[OK] wrote 19 validated prospects to prod_hardened30b_run3/run_001_validated.csv
+[RUN] /mnt/d/VS/lead finder automation/.venv/bin/python prospect_dedupe.py --min-final 1 --max-final 20 --input prod_hardened30b_run3/run_001_validated.csv --output prod_hardened30b_run3/run_001_final.csv
+[OK] wrote 19 rows to prod_hardened30b_run3/run_001_final.csv

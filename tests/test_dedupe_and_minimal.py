@@ -24,9 +24,9 @@ def test_dedupe_by_email_author_or_listing() -> None:
 
 def test_minimal_output_no_header_default(tmp_path: Path) -> None:
     rows = [
-        {"AuthorName": "Alpha", "BookTitle": "Book A", "AuthorEmail": "ALPHA@EXAMPLE.COM"},
-        {"AuthorName": "Alpha", "BookTitle": "Book A", "AuthorEmail": "alpha@example.com"},
-        {"AuthorName": "Beta", "BookTitle": "Book B", "AuthorEmail": "beta@example.com"},
+        {"AuthorName": "Alpha", "AuthorEmail": "ALPHA@EXAMPLE.COM", "AuthorEmailSourceURL": "https://alpha.example/contact"},
+        {"AuthorName": "Alpha", "AuthorEmail": "alpha@example.com", "AuthorEmailSourceURL": "https://alpha.example/contact"},
+        {"AuthorName": "Beta", "AuthorEmail": "beta@example.com", "SourceURL": "https://beta.example/about"},
     ]
     out_file = tmp_path / "minimal.csv"
 
@@ -36,8 +36,8 @@ def test_minimal_output_no_header_default(tmp_path: Path) -> None:
     with out_file.open("r", encoding="utf-8", newline="") as fh:
         data = list(csv.reader(fh))
     assert data == [
-        ["alpha@example.com", "Alpha", "Book A", "", "", ""],
-        ["beta@example.com", "Beta", "Book B", "", "", ""],
+        ["Alpha", "alpha@example.com", "https://alpha.example/contact"],
+        ["Beta", "beta@example.com", "https://beta.example/about"],
     ]
 
 
@@ -45,11 +45,8 @@ def test_minimal_output_includes_source_urls(tmp_path: Path) -> None:
     rows = [
         {
             "AuthorName": "Gamma",
-            "BookTitle": "Book C",
             "AuthorEmail": "gamma@example.com",
             "AuthorEmailSourceURL": "https://author.example.com/contact",
-            "AuthorNameSourceURL": "https://author.example.com/about",
-            "BookTitleSourceURL": "https://www.amazon.com/dp/ABC1234567",
         }
     ]
     out_file = tmp_path / "minimal_sources.csv"
@@ -60,14 +57,11 @@ def test_minimal_output_includes_source_urls(tmp_path: Path) -> None:
     with out_file.open("r", encoding="utf-8", newline="") as fh:
         data = list(csv.reader(fh))
     assert data == [
-        ["Email", "AuthorName", "BookTitle", "EmailSourceURL", "AuthorNameSourceURL", "BookTitleSourceURL"],
+        ["AuthorName", "AuthorEmail", "SourceURL"],
         [
-            "gamma@example.com",
             "Gamma",
-            "Book C",
+            "gamma@example.com",
             "https://author.example.com/contact",
-            "https://author.example.com/about",
-            "https://www.amazon.com/dp/ABC1234567",
         ],
     ]
 

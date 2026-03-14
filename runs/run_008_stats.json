@@ -1,0 +1,12 @@
+{
+  "run_tag": "run_008",
+  "batch_index": 8,
+  "generated_at_utc": "2026-03-06T04:36:20Z",
+  "pipeline_exit_code": 1,
+  "candidates": {
+    "total": 0,
+    "per_query": {},
+    "top_domains": []
+  },
+  "validator": {}
+}

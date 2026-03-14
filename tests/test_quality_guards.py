@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from enrich_queue import is_staged_row, queue_row_candidate_url, queue_row_to_candidate
 from prospect_dedupe import dedupe
+from prospect_harvest import rotate_candidate_groups
 from prospect_validate import (
     CandidateProofLedger,
     FetchResult,
@@ -38,6 +39,7 @@ from prospect_validate import (
     parse_sitemap_xml,
     plan_candidate_next_action,
     row_meets_fully_verified_profile,
+    resolve_listing_title_oracle,
     resolve_primary_book_title,
     should_track_listing_reject_reason,
     validate_candidates,
@@ -45,14 +47,18 @@ from prospect_validate import (
 from run_lead_finder import apply_validation_profile_defaults as apply_single_run_profile_defaults
 from run_lead_finder_loop import (
     apply_validation_profile_defaults,
+    build_agent_hunt_stats,
+    build_rotating_queries,
     keep_verified_rows,
     orchestrate_candidate_replacements,
     order_candidates_for_strict_validation,
+    row_is_agent_hunt_qualified,
     row_qualifies_for_master,
     score_candidate_intake,
     split_rows_by_merge_policy,
     suppress_pre_validate_candidates,
     summarize_candidate_intake_scores,
+    write_scouted_rows,
     write_verified_rows,
 )
 
@@ -683,7 +689,35 @@ def test_book_title_quality_filter() -> None:
     assert not is_plausible_book_title("Writer | Lee C. Conley", author_name="Lee C. Conley", context={"source_method": "source_title"})
     assert not is_plausible_book_title("Lee C. Conley | Books", author_name="Lee C. Conley", context={"source_method": "source_title"})
     assert not is_plausible_book_title("Follow the author", author_name="Virtuous Cornwall", context={"source_method": "listing_title_oracle"})
+    assert not is_plausible_book_title("Skip to", author_name="C.T. Phipps", context={"source_method": "listing_title_oracle"})
+    assert not is_plausible_book_title("Navigation Menu", author_name="Jane Doe", context={"source_method": "listing_title_oracle"})
     assert is_plausible_book_title("Skyfall", author_name="Jane Doe", context={"source_method": "jsonld_book"})
+    assert is_plausible_book_title(
+        "It",
+        author_name="Stephen King",
+        context={"source_method": "listing_title_oracle", "strong_book_evidence": True},
+    )
+
+
+def test_listing_title_oracle_rejects_nav_boilerplate() -> None:
+    soup = BeautifulSoup(
+        """
+        <html><body>
+          <h1>Follow the author</h1>
+          <h2>Skip to</h2>
+        </body></html>
+        """,
+        "html.parser",
+    )
+
+    result = resolve_listing_title_oracle(
+        "https://www.amazon.com/dp/B0G2KWM2P2/",
+        soup.get_text(" ", strip=True),
+        soup,
+        author_name="C.T. Phipps",
+    )
+
+    assert result == {}
 
 
 def test_book_title_can_be_recovered_from_same_site_links() -> None:
@@ -772,6 +806,64 @@ def test_pre_validate_suppression_uses_listing_domain_and_author_name() -> None:
         "author_site_domain": 1,
         "listing_key": 1,
     }
+    assert stats["new_unique_candidates_by_source"] == {"web_search": 1}
+    assert stats["top_repeat_sources"][0] == {"source": "web_search", "duplicates": 2}
+    assert stats["top_repeat_sources"][1] == {"source": "goodreads", "duplicates": 1}
+    assert stats["duplicate_hit_rate_by_source"][0]["source"] == "web_search"
+    assert stats["duplicate_hit_rate_by_source"][0]["duplicate_hit_rate"] == round(2 / 3, 3)
+
+
+def test_pre_validate_suppression_reports_duplicate_rates_by_source_and_query() -> None:
+    master_rows = [
+        {
+            "AuthorName": "Jane Doe",
+            "AuthorWebsite": "https://janedoeauthor.com",
+            "ContactPageURL": "https://janedoeauthor.com/contact",
+            "SubscribeURL": "",
+            "ListingURL": "",
+        }
+    ]
+    candidate_rows = [
+        {
+            "CandidateURL": "https://janedoeauthor.com/about",
+            "SourceType": "epic_directory",
+            "SourceQuery": "epic:author-directory",
+        },
+        {
+            "CandidateURL": "https://newauthor.example/contact",
+            "SourceType": "epic_directory",
+            "SourceQuery": "epic:author-directory",
+        },
+        {
+            "CandidateURL": "https://fresh.example/contact",
+            "SourceType": "web_search",
+            "SourceQuery": "\"indie author\" \"contact\"",
+        },
+    ]
+
+    kept, stats = suppress_pre_validate_candidates(candidate_rows, master_rows)
+
+    assert [row["CandidateURL"] for row in kept] == [
+        "https://newauthor.example/contact",
+        "https://fresh.example/contact",
+    ]
+    assert stats["new_unique_candidates_by_source"] == {
+        "epic_directory": 1,
+        "web_search": 1,
+    }
+    assert stats["duplicate_hit_rate_by_source"][0] == {
+        "source": "epic_directory",
+        "duplicates": 1,
+        "new": 1,
+        "total": 2,
+        "duplicate_hit_rate": 0.5,
+    }
+    assert stats["duplicate_hit_rate_by_query"][0] == {
+        "query": "epic:author-directory",
+        "duplicates": 1,
+        "total": 2,
+        "duplicate_hit_rate": 0.5,
+    }
 
 
 def test_pre_validate_suppression_allows_revisit_for_weak_title_rows() -> None:
@@ -843,20 +935,19 @@ def test_row_qualifies_for_master_respects_merge_policy() -> None:
         "BookTitleMethod": "source_title",
         "RecencyStatus": "missing",
     }
-    strict_row = {
+    balanced_row = {
         "AuthorName": "Jane Doe",
         "AuthorWebsite": "https://janedoeauthor.com",
         "ContactPageURL": "https://janedoeauthor.com/contact",
-        "BookTitleStatus": "ok",
-        "BookTitleMethod": "jsonld_book",
-        "RecencyStatus": "verified",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "BookTitleStatus": "missing_or_weak",
+        "BookTitleMethod": "fallback",
+        "RecencyStatus": "missing",
     }
-    weak_method_row = {
-        "AuthorName": "Jane Doe",
-        "AuthorWebsite": "https://janedoeauthor.com",
-        "ContactPageURL": "https://janedoeauthor.com/contact",
-        "BookTitleStatus": "ok",
-        "BookTitleMethod": "source_title",
+    strict_row = {
+        **balanced_row,
         "RecencyStatus": "verified",
     }
     fully_verified_row = {
@@ -870,18 +961,18 @@ def test_row_qualifies_for_master_respects_merge_policy() -> None:
         "IndieProofStrength": "onsite",
         "ListingStatus": "verified",
         "RecencyStatus": "verified",
-        "BookTitle": "Skyfall",
-        "BookTitleStatus": "ok",
-        "BookTitleMethod": "jsonld_book",
+        "BookTitle": "",
+        "BookTitleStatus": "missing_or_weak",
+        "BookTitleMethod": "fallback",
     }
 
     assert not row_qualifies_for_master(staged_row, policy="strict")
     assert not row_qualifies_for_master(staged_row, policy="balanced")
     assert row_qualifies_for_master(staged_row, policy="open")
+    assert row_qualifies_for_master(balanced_row, policy="balanced")
+    assert not row_qualifies_for_master(balanced_row, policy="strict")
     assert row_qualifies_for_master(strict_row, policy="strict")
     assert row_qualifies_for_master(strict_row, policy="balanced")
-    assert not row_qualifies_for_master(weak_method_row, policy="strict")
-    assert not row_qualifies_for_master(weak_method_row, policy="balanced")
     assert not row_qualifies_for_master(strict_row, policy="strict", validation_profile="fully_verified")
     assert row_qualifies_for_master(fully_verified_row, policy="strict", validation_profile="fully_verified")
     assert row_qualifies_for_master(fully_verified_row, policy="strict", validation_profile="astra_outbound")
@@ -893,6 +984,189 @@ def test_row_qualifies_for_master_respects_merge_policy() -> None:
     assert not row_qualifies_for_master(missing_location_row, policy="strict", validation_profile="strict_interactive")
     assert not row_qualifies_for_master(missing_location_row, policy="strict", validation_profile="strict_full")
     assert row_qualifies_for_master(missing_location_row, policy="strict", validation_profile="verified_no_us")
+
+
+def test_agent_hunt_accepts_scoutable_row_that_fails_strict_full() -> None:
+    row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://janedoeauthor.com/contact",
+        "BookTitle": "",
+        "BookTitleStatus": "missing_or_weak",
+        "BookTitleMethod": "fallback",
+        "BookTitleConfidence": "weak",
+        "Location": "",
+        "IndieProofStrength": "directory",
+        "ListingStatus": "missing",
+        "RecencyStatus": "missing",
+    }
+
+    assert row_is_agent_hunt_qualified(row)
+    assert row_qualifies_for_master(row, policy="strict", validation_profile="agent_hunt")
+    assert not row_qualifies_for_master(row, policy="strict", validation_profile="strict_full")
+
+
+def test_agent_hunt_rejects_obvious_dead_end_non_us_row() -> None:
+    row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://janedoeauthor.com/contact",
+        "BookTitle": "Skyfall",
+        "BookTitleStatus": "ok",
+        "Location": "Dublin, Ireland",
+    }
+
+    assert not row_is_agent_hunt_qualified(row)
+    assert not row_qualifies_for_master(row, policy="strict", validation_profile="agent_hunt")
+
+
+def test_agent_hunt_requires_source_url() -> None:
+    row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "",
+        "BookTitle": "",
+        "BookTitleStatus": "missing_or_weak",
+    }
+
+    assert not row_is_agent_hunt_qualified(row)
+    assert not row_qualifies_for_master(row, policy="strict", validation_profile="agent_hunt")
+
+
+def test_agent_hunt_rejects_junk_branding_author_name() -> None:
+    row = {
+        "AuthorName": "- Inspiring Creative Writing -",
+        "AuthorWebsite": "https://tansielexington.com",
+        "ContactPageURL": "https://tansielexington.com",
+        "AuthorEmail": "tansie@tansielexington.com",
+        "AuthorEmailSourceURL": "https://tansielexington.com",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://tansielexington.com",
+        "Location": "",
+    }
+
+    assert not row_is_agent_hunt_qualified(row)
+    assert not row_qualifies_for_master(row, policy="strict", validation_profile="agent_hunt")
+
+
+def test_agent_hunt_profile_defaults_apply_goal_preset() -> None:
+    args = Namespace(
+        validation_profile="agent_hunt",
+        goal_total=100,
+        goal_final=0,
+        max_runs=20,
+        max_stale_runs=5,
+        batch_min=10,
+        batch_max=20,
+        target=40,
+        min_candidates=20,
+        require_location_proof=False,
+        us_only=False,
+        listing_strict=False,
+        merge_policy="strict",
+    )
+
+    apply_validation_profile_defaults(args)
+
+    assert args.validation_profile == "agent_hunt"
+    assert args.goal_final == 20
+
+
+def test_write_scouted_rows_outputs_three_columns_without_header(tmp_path) -> None:
+    output_path = tmp_path / "scouted.csv"
+    rows = [
+        {
+            "AuthorName": "Jane Doe",
+            "AuthorEmail": "Jane@Example.com",
+            "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+            "SourceURL": "https://janedoeauthor.com/about",
+        }
+    ]
+
+    count = write_scouted_rows(output_path, rows)
+
+    assert count == 1
+    assert output_path.read_text(encoding="utf-8").strip() == (
+        "Jane Doe,jane@example.com,https://janedoeauthor.com/contact"
+    )
+
+
+def test_build_agent_hunt_stats_reports_scout_progress_and_domains() -> None:
+    scout_row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://janedoeauthor.com/about",
+        "BookTitle": "",
+        "BookTitleStatus": "missing_or_weak",
+        "BookTitleMethod": "fallback",
+        "Location": "",
+        "IndieProofStrength": "directory",
+        "ListingStatus": "missing",
+        "RecencyStatus": "missing",
+    }
+    dead_row = {
+        "AuthorName": "Dead Row",
+        "SourceURL": "https://dead.example/about",
+        "BookTitle": "Nope",
+        "BookTitleStatus": "ok",
+        "Location": "Dublin, Ireland",
+        "AuthorEmail": "dead@example.com",
+        "AuthorEmailSourceURL": "https://dead.example/about",
+        "EmailQuality": "same_domain",
+    }
+
+    result = build_agent_hunt_stats(
+        validated_rows=[scout_row, dead_row],
+        validator_reject_reasons={"page_fetch_failed_404": 2},
+        target=20,
+    )
+
+    assert result["scouted_progress"] == 1
+    assert result["scouted_rows_written"] == 1
+    assert result["strict_rows_written"] == 0
+    assert result["top_reject_reasons"]["page_fetch_failed_404"] == 2
+    assert result["top_reject_reasons"]["non_us_location"] == 1
+    assert result["scouted_source_domains"][0]["domain"] == "janedoeauthor.com"
+
+
+def test_build_rotating_queries_expands_safely_after_stale_runs() -> None:
+    fresh_queries = build_rotating_queries(1, stale_runs=0)
+    stale_queries = build_rotating_queries(2, stale_runs=2)
+
+    assert len(stale_queries) >= len(fresh_queries)
+    assert fresh_queries != stale_queries
+
+
+def test_rotate_candidate_groups_rotates_directory_priority() -> None:
+    groups = [
+        [{"CandidateURL": "https://epic.example"}],
+        [{"CandidateURL": "https://ian.example"}],
+        [{"CandidateURL": "https://iabx.example"}],
+    ]
+
+    rotated = rotate_candidate_groups(groups, 1)
+
+    assert [group[0]["CandidateURL"] for group in rotated] == [
+        "https://ian.example",
+        "https://iabx.example",
+        "https://epic.example",
+    ]
 
 
 def test_astra_outbound_profile_defaults_apply_strict_run_preset() -> None:
@@ -1027,15 +1301,16 @@ def test_split_rows_by_merge_policy_keeps_staged_rows_in_queue() -> None:
             "AuthorName": "Jane Doe",
             "AuthorWebsite": "https://janedoeauthor.com",
             "ContactPageURL": "https://janedoeauthor.com/contact",
-            "BookTitleStatus": "ok",
-            "BookTitleMethod": "jsonld_book",
+            "AuthorEmail": "jane@janedoeauthor.com",
+            "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+            "EmailQuality": "same_domain",
             "RecencyStatus": "verified",
         },
         {
             "AuthorName": "John Doe",
             "AuthorWebsite": "https://johndoeauthor.com",
             "ContactPageURL": "https://johndoeauthor.com/contact",
-            "BookTitleStatus": "missing_or_weak",
+            "AuthorEmail": "",
             "RecencyStatus": "missing",
         },
     ]
@@ -1046,12 +1321,11 @@ def test_split_rows_by_merge_policy_keeps_staged_rows_in_queue() -> None:
     assert [row["AuthorName"] for row in queue_rows] == ["John Doe"]
 
 
-def test_write_verified_rows_outputs_four_columns_without_header(tmp_path) -> None:
+def test_write_verified_rows_outputs_three_columns_without_header(tmp_path) -> None:
     output_path = tmp_path / "verified.csv"
     rows = [
         {
             "AuthorName": "Jane Doe",
-            "BookTitle": "Skyfall",
             "AuthorEmail": "Jane@Example.com",
             "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
         }
@@ -1061,7 +1335,7 @@ def test_write_verified_rows_outputs_four_columns_without_header(tmp_path) -> No
 
     assert count == 1
     assert output_path.read_text(encoding="utf-8").strip() == (
-        "Jane Doe,Skyfall,jane@example.com,https://janedoeauthor.com/contact"
+        "Jane Doe,jane@example.com,https://janedoeauthor.com/contact"
     )
 
 
@@ -1204,7 +1478,75 @@ def test_orchestrate_candidate_replacements_stops_when_runtime_budget_is_exhaust
     )
 
     assert result["runtime_exhausted"] is True
-    assert result["verified_progress"] == 0
+
+
+def test_orchestrate_candidate_replacements_uses_agent_hunt_progress_gate() -> None:
+    candidate_rows = [{"CandidateURL": f"https://author{i}.example"} for i in range(1, 5)]
+    seen: list[list[str]] = []
+
+    scout_row = {
+        "AuthorName": "Scout Row",
+        "AuthorWebsite": "https://scout.example",
+        "ContactPageURL": "https://scout.example/contact",
+        "AuthorEmail": "scout@example.com",
+        "AuthorEmailSourceURL": "https://scout.example/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://scout.example/contact",
+        "BookTitle": "Skyfall",
+        "BookTitleStatus": "ok",
+        "BookTitleMethod": "source_title",
+        "Location": "",
+    }
+    staged_row = {
+        "AuthorName": "Stage Only",
+        "AuthorWebsite": "https://stage.example",
+        "ContactPageURL": "https://stage.example/contact",
+        "AuthorEmail": "",
+        "SourceURL": "https://stage.example/contact",
+        "BookTitle": "Weak",
+        "BookTitleStatus": "ok",
+        "Location": "",
+    }
+
+    def fake_validate_slice(slice_rows, slice_index, remaining_runtime):  # noqa: ANN001
+        seen.append([row["CandidateURL"] for row in slice_rows])
+        if slice_index == 1:
+            return {
+                "validated_rows": [staged_row],
+                "stats": {
+                    "total_candidates": 1,
+                    "kept_rows": 1,
+                    "reject_reasons": {},
+                    "candidate_state_counts": {"needs_email_proof": 1},
+                    "planned_action_counts": {"try_email_proof": 1},
+                    "stage_timings": {"prefilter_seconds": 0.1, "verify_seconds": 0.2},
+                    "batch_runtime_exceeded": False,
+                },
+            }
+        return {
+            "validated_rows": [scout_row],
+            "stats": {
+                "total_candidates": 1,
+                "kept_rows": 1,
+                "reject_reasons": {},
+                "candidate_state_counts": {"verified": 1},
+                "planned_action_counts": {"mark_verified": 1},
+                "stage_timings": {"prefilter_seconds": 0.1, "verify_seconds": 0.2},
+                "batch_runtime_exceeded": False,
+            },
+        }
+
+    result = orchestrate_candidate_replacements(
+        candidate_rows,
+        target_verified=1,
+        max_candidates_per_slice=1,
+        max_total_runtime=120.0,
+        validate_slice=fake_validate_slice,
+        qualifies_for_progress=row_is_agent_hunt_qualified,
+    )
+
+    assert seen == [["https://author1.example"], ["https://author2.example"]]
+    assert result["verified_progress"] == 1
     assert result["processed_candidates"] == 2
 
 
@@ -2620,6 +2962,28 @@ def test_row_meets_fully_verified_profile_uses_specific_listing_reason_when_blan
     assert reason == "listing_not_found"
 
 
+def test_row_meets_fully_verified_profile_does_not_require_book_title() -> None:
+    ok, reason = row_meets_fully_verified_profile(
+        author_name="Jane Doe",
+        book_title="",
+        book_title_status="missing_or_weak",
+        book_title_method="fallback",
+        author_email="jane@janedoeauthor.com",
+        author_email_quality="same_domain",
+        author_email_record={"visible_text": "true"},
+        location="Austin, TX",
+        indie_proof_strength="onsite",
+        listing_status="verified",
+        listing_fail_reason="",
+        recency_status="verified",
+        listing_title="",
+        require_us_location=True,
+        location_decision="ok",
+    )
+    assert ok is True
+    assert reason == ""
+
+
 def test_stats_aggregation_prefers_specific_listing_reason_over_generic() -> None:
     reject_counts = Counter(
         {
@@ -2896,6 +3260,30 @@ def test_classify_location_evidence_accepts_author_tied_us_phrases() -> None:
     assert result["decision"] == "ok"
     assert result["location"] == "Portland, Oregon"
 
+    nav_noisy = classify_location_evidence(
+        text=(
+            "Author Zack Argyle SIGN UP FOR THE NEWSLETTER Store Blog SPFBO Art About Contact "
+            "Zack Argyle lives just outside of Seattle, WA, USA, with his wife and two children."
+        ),
+        source_url="https://www.zackargyle.com/about",
+        source_kind="about_page",
+        author_name="Zack Argyle",
+    )
+    assert nav_noisy["decision"] == "ok"
+    assert nav_noisy["location"] == "Zack Argyle lives just outside of Seattle, WA, USA"
+
+    first_person = classify_location_evidence(
+        text=(
+            "I love to work in watercolor pencils, acrylic and oil paints. "
+            "I live in Medford, NJ with my husband and three kids."
+        ),
+        source_url="https://www.tamikareedwrites.com/",
+        source_kind="page",
+        author_name="Tamika Reed",
+    )
+    assert first_person["decision"] == "ok"
+    assert first_person["location"] == "I live in Medford, NJ"
+
 
 def test_classify_location_evidence_rejects_generic_usa_and_footer_false_positives() -> None:
     assert classify_location_evidence(
@@ -2910,6 +3298,20 @@ def test_classify_location_evidence_rejects_generic_usa_and_footer_false_positiv
         source_url="https://janedoeauthor.com/contact",
         source_kind="contact_page",
         author_name="Jane Doe",
+    )["decision"] == "publisher_location_only"
+
+    assert classify_location_evidence(
+        text="E.G. Radcliff 154 West Park Avenue #141 | Elmhurst, IL 60126 | info@egradcliff.com",
+        source_url="https://www.egradcliff.com/about",
+        source_kind="about_page",
+        author_name="E. G. Radcliff",
+    )["decision"] == "publisher_location_only"
+
+    assert classify_location_evidence(
+        text="Another Books and Beers event in beautiful Howell, NJ. Authors from across New Jersey attend.",
+        source_url="https://tomkranzbooks.com/",
+        source_kind="page",
+        author_name="Tom Kranz",
     )["decision"] == "publisher_location_only"
 
 

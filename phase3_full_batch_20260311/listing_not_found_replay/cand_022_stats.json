@@ -1,0 +1,173 @@
+{
+  "generated_at_utc": "2026-03-11T13:56:29Z",
+  "validation_profile": "strict_full",
+  "total_candidates": 1,
+  "kept_rows": 0,
+  "reject_reasons": {
+    "no_visible_author_email": 1
+  },
+  "listing_status_counts": {},
+  "book_title_method_counts": {},
+  "book_title_confidence_counts": {},
+  "book_title_status_counts": {},
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {},
+  "recency_status_counts": {},
+  "email_quality_counts": {},
+  "leads_with_author_email": 0,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 1.7956,
+    "verify_seconds": 1.2869
+  },
+  "prefilter_candidates": 1,
+  "verify_candidates": 1,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_022_stats_domain_cache.jsonl",
+  "location_debug_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_022_stats_location_debug.jsonl",
+  "listing_debug_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_022_stats_listing_debug.jsonl",
+  "near_miss_location_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_022_near.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "no_location_signal": 1
+  },
+  "location_method_counts": {
+    "none": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://www.gardnersart.com",
+      "candidate_domain": "gardnersart.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "no_location_signal",
+      "selected_location": "",
+      "selected_source_url": "https://www.epicindie.net/authordirectory",
+      "selected_method": "",
+      "selected_snippet": "",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "missing_strict_email",
+      "recovery_candidate_urls": [
+        "https://www.gardnersart.com/about-author",
+        "https://www.gardnersart.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.gardnersart.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.gardnersart.com/shop/book/7WSHVX6MUB5ELJTQPLDDQCMJ",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_not_found": 1
+  },
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "needs_email_proof": 1
+  },
+  "planned_action_counts": {
+    "try_email_proof": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://www.gardnersart.com",
+      "candidate_domain": "gardnersart.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "https://www.epicindie.net/authordirectory",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "D.L Gardner books The website of indie fantasy author D.L. Gardner Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "no_visible_author_email",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:no_location_signal",
+        "try_listing_proof:missing",
+        "try_recency_proof:missing",
+        "try_email_proof:missing"
+      ]
+    }
+  ],
+  "per_domain": {
+    "gardnersart.com": {
+      "fetch_count": 4,
+      "total_seconds": 2.4678,
+      "avg_latency": 0.6169,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7956,
+      "verify_seconds": 1.2869,
+      "dominant_phase": "prefilter"
+    }
+  },
+  "candidate_budget_burn_count": 1,
+  "top_domain_budget_burn": [
+    {
+      "domain": "gardnersart.com",
+      "fetch_count": 4,
+      "total_seconds": 2.4678,
+      "avg_latency": 0.6169,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7956,
+      "verify_seconds": 1.2869,
+      "dominant_phase": "prefilter"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://www.gardnersart.com",
+      "candidate_domain": "gardnersart.com",
+      "fetch_count": 4,
+      "total_seconds": 2.4678,
+      "prefilter_seconds": 1.7956,
+      "verify_seconds": 1.2869,
+      "dominant_phase": "prefilter",
+      "reject_reason": "no_visible_author_email",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "missing_strict_email",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "no_visible_author_email",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "max_fetches_per_domain": 16,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 90.0,
+  "max_concurrency": 4
+}

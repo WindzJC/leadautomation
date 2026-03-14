@@ -1,0 +1,235 @@
+{
+  "generated_at_utc": "2026-03-12T14:42:16Z",
+  "validation_profile": "agent_hunt",
+  "total_candidates": 1,
+  "kept_rows": 1,
+  "reject_reasons": {},
+  "listing_status_counts": {
+    "missing": 1
+  },
+  "book_title_method_counts": {
+    "fallback": 1
+  },
+  "book_title_confidence_counts": {
+    "weak": 1
+  },
+  "book_title_status_counts": {
+    "missing_or_weak": 1
+  },
+  "book_title_downgraded": 1,
+  "book_title_downgrade_reasons": {
+    "no_title_candidate": 1
+  },
+  "indie_proof_strength_counts": {
+    "both": 1
+  },
+  "recency_status_counts": {
+    "verified": 1
+  },
+  "email_quality_counts": {
+    "same_domain": 1
+  },
+  "leads_with_author_email": 1,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 1.9172,
+    "verify_seconds": 2.8939
+  },
+  "prefilter_candidates": 1,
+  "verify_candidates": 1,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_slice_011_stats_location_debug.jsonl",
+  "listing_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_slice_011_stats_listing_debug.jsonl",
+  "near_miss_location_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_slice_011_near_miss_location.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "publisher_location_only": 1
+  },
+  "location_method_counts": {
+    "weak_us_signal": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "http://www.marilynpeake.com",
+      "candidate_domain": "marilynpeake.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "publisher_location_only",
+      "selected_location": "USA",
+      "selected_source_url": "https://www.marilynpeake.com/bio",
+      "selected_method": "weak_us_signal",
+      "selected_snippet": "raphs Newsletter Sign-Up Blog Contact More... Use tab to navigate through the menu items. USA Today and Wall Street Journal Bestselling Author Marilyn Peake writes Science Fiction and",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.marilynpeake.com/about-author",
+        "https://www.marilynpeake.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "http://www.marilynpeake.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "USA",
+          "snippet": "raphs Newsletter Sign-Up Blog Contact More... Use tab to navigate through the menu items. USA Today and Wall Street Journal Bestselling Author Marilyn Peake writes Science Fiction and",
+          "method": "weak_us_signal",
+          "source_url": "https://www.marilynpeake.com/bio",
+          "source_kind": "bio_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.marilynpeake.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.marilynpeake.com/newsletter",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.marilynpeake.com/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_not_found": 1
+  },
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "verified": 1
+  },
+  "planned_action_counts": {
+    "mark_verified": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "http://www.marilynpeake.com",
+      "candidate_domain": "marilynpeake.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "ct More... Use tab to navigate through the menu items. Marilyn Peake can be contacted at: author@marilynpeake.com Copyright (c) 2024 Marilyn Peake bottom of page",
+      "best_email_source_url": "https://www.marilynpeake.com/contact",
+      "best_location_snippet": "raphs Newsletter Sign-Up Blog Contact More... Use tab to navigate through the menu items. USA Today and Wall Street Journal Bestselling Author Marilyn Peake writes Science Fiction and",
+      "best_location_source_url": "https://www.marilynpeake.com/bio",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "Marilyn Peake - Home top of page Home Bio Books All Books Science Fantasy YA Paranormal Mystery GameLit Paranormal Romance Science Fiction Zombies/Science Fiction Children's Fantas",
+      "best_recency_source_url": "http://www.marilynpeake.com",
+      "best_indie_snippet": "Marilyn Peake Website of indie fantasy author Marilyn Peake. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:verified"
+      ]
+    }
+  ],
+  "candidate_outcome_records": [
+    {
+      "candidate_url": "http://www.marilynpeake.com",
+      "candidate_domain": "marilynpeake.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 11,
+      "total_seconds": 3.2192,
+      "prefilter_seconds": 1.9172,
+      "verify_seconds": 2.8939,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "per_domain": {
+    "marilynpeake.com": {
+      "fetch_count": 11,
+      "total_seconds": 3.2192,
+      "avg_latency": 0.2927,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.9172,
+      "verify_seconds": 2.8939,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 1,
+  "top_domain_budget_burn": [
+    {
+      "domain": "marilynpeake.com",
+      "fetch_count": 11,
+      "total_seconds": 3.2192,
+      "avg_latency": 0.2927,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.9172,
+      "verify_seconds": 2.8939,
+      "dominant_phase": "verify"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "http://www.marilynpeake.com",
+      "candidate_domain": "marilynpeake.com",
+      "fetch_count": 11,
+      "total_seconds": 3.2192,
+      "prefilter_seconds": 1.9172,
+      "verify_seconds": 2.8939,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "triage_candidate",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "max_fetches_per_domain": 14,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 751.5014,
+  "max_concurrency": 4
+}

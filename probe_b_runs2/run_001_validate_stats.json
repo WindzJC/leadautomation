@@ -1,0 +1,10 @@
+{
+  "generated_at_utc": "2026-03-07T20:44:37Z",
+  "total_candidates": 2,
+  "kept_rows": 0,
+  "reject_reasons": {
+    "bad_author_name": 1,
+    "page_fetch_failed": 1
+  },
+  "listing_status_counts": {}
+}

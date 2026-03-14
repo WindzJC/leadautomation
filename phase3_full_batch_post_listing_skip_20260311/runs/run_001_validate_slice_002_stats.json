@@ -1,0 +1,1360 @@
+{
+  "generated_at_utc": "2026-03-11T14:14:50Z",
+  "validation_profile": "strict_full",
+  "total_candidates": 20,
+  "kept_rows": 0,
+  "reject_reasons": {
+    "no_strong_book_title": 1,
+    "no_visible_author_email": 4,
+    "page_fetch_failed_other": 1,
+    "non_us_location": 7,
+    "listing_interstitial_or_redirect_state": 1,
+    "page_fetch_failed_robots_disallow": 1,
+    "time_budget_exceeded": 1,
+    "bad_author_name": 1,
+    "publisher_location_only": 1,
+    "famous_signal": 1,
+    "page_fetch_failed_403": 1
+  },
+  "listing_status_counts": {},
+  "book_title_method_counts": {},
+  "book_title_confidence_counts": {},
+  "book_title_status_counts": {},
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {},
+  "recency_status_counts": {},
+  "email_quality_counts": {},
+  "leads_with_author_email": 0,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 85.2577,
+    "verify_seconds": 36.9071
+  },
+  "prefilter_candidates": 16,
+  "verify_candidates": 16,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_slice_002_stats_location_debug.jsonl",
+  "listing_debug_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_slice_002_stats_listing_debug.jsonl",
+  "near_miss_location_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_slice_002_near_miss_location.csv",
+  "near_miss_location_rows": 1,
+  "location_decision_counts": {
+    "publisher_location_only": 4,
+    "no_location_signal": 1,
+    "non_us_location": 7,
+    "weak_us_signal": 1,
+    "ok": 1
+  },
+  "location_method_counts": {
+    "footer": 3,
+    "none": 1,
+    "broad_phrase": 6,
+    "author_city_state": 2,
+    "weak_us_signal": 1,
+    "directory": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://ctphipps.com",
+      "candidate_domain": "ctphipps.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "Lords of Dragon Keep, Guardians of Dragon Keep",
+      "selected_source_url": "https://ctphipps.com",
+      "selected_method": "footer",
+      "selected_snippet": "s, I\u2019m pleased to say that one of my epics has been completed. THE DARK UNDERMASTER SAGA (Lords of Dragon Keep, Guardians of Dragon Keep, and Wizards of Dragon Keep) has been finished with the third book. WIZARDS OF DRAGON KEE",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://ctphipps.com/about-author",
+        "https://ctphipps.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Lords of Dragon Keep, Guardians of Dragon Keep",
+          "snippet": "s, I\u2019m pleased to say that one of my epics has been completed. THE DARK UNDERMASTER SAGA (Lords of Dragon Keep, Guardians of Dragon Keep, and Wizards of Dragon Keep) has been finished with the third book. WIZARDS OF DRAGON KEE",
+          "method": "footer",
+          "source_url": "https://ctphipps.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "United States",
+          "snippet": "demy space-opera Spotlight Straight Outta Fangton Supervillainy Saga Tales of the Al-Azif United States of Monsters vampires World-Building Wraith Knight Writing Blog at WordPress.com. Comment",
+          "method": "weak_us_signal",
+          "source_url": "https://ctphipps.com/2015/07/21/author-blurb-by-stevie-kopas/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "United States",
+          "snippet": "ang, Handsome Jack, and the Red Skull with a bit of Lex Luthor\u2019s time as President of the United States. Charles Omega is meant to represent the worst of political corruption and authority as w",
+          "method": "weak_us_signal",
+          "source_url": "https://ctphipps.com/blog/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.gardnersart.com",
+      "candidate_domain": "gardnersart.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "no_location_signal",
+      "selected_location": "",
+      "selected_source_url": "https://www.epicindie.net/authordirectory",
+      "selected_method": "",
+      "selected_snippet": "",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "missing_strict_email",
+      "recovery_candidate_urls": [
+        "https://www.gardnersart.com/about-author",
+        "https://www.gardnersart.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.gardnersart.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.gardnersart.com/shop/book/7WSHVX6MUB5ELJTQPLDDQCMJ",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://erynnlehtonenwriting.com",
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "the University of British Columbia, you can usually find me typing away at my ne",
+      "selected_source_url": "https://erynnlehtonenwriting.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "k animating stuffed animals yet! Ever since graduating with my degree in creative writing from the University of British Columbia, you can usually find me typing away at my next fantasy novel like my life depends on it. Other times, I\u2019m locked inside a book, be tha",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://erynnlehtonenwriting.com/about-author",
+        "https://erynnlehtonenwriting.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the University of British Columbia, you can usually find me typing away at my ne",
+          "snippet": "k animating stuffed animals yet! Ever since graduating with my degree in creative writing from the University of British Columbia, you can usually find me typing away at my next fantasy novel like my life depends on it. Other times, I\u2019m locked inside a book, be tha",
+          "method": "broad_phrase",
+          "source_url": "https://erynnlehtonenwriting.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "More View More Erynn Lehtonen One day, Erynn",
+          "snippet": "-16-0 Experience the Entire Lunar Insurrection Series! View More View More View More View More View More Erynn Lehtonen One day, Erynn\u2019s army of fluffy minions will take over the world. But, well, she hasn\u2019t had any luck ani",
+          "method": "footer",
+          "source_url": "https://erynnlehtonenwriting.com/books/academy-of-souls/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "From The Mists of Arathia Balancing Life, Writing",
+          "snippet": "o reduce spam. Learn how your comment data is processed. Search for: Recent Posts Excerpt From The Mists of Arathia Balancing Life, Writing, and Mental Endurance Art of the Yokai Calling Cover The Evolution of a Book\u2019s Cover Desi",
+          "method": "footer",
+          "source_url": "https://erynnlehtonenwriting.com/authorrr/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "you! Follow Follow Follow Name Email Address Subject Subject Ghostwriting Line a",
+          "snippet": "ust click the button below! CONTACT ME Contact me today! Got a question? I'd love to hear from you! Follow Follow Follow Name Email Address Subject Subject Ghostwriting Line and Developmental Editing My Books General Inquiries Message Privacy Policy Privacy Policy",
+          "method": "broad_phrase",
+          "source_url": "https://erynnlehtonenwriting.com/contact/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "In the past, I didn",
+          "snippet": "ds that share the perspectives and experiences of people suffering from mental illnesses. In the past, I didn\u2019t share anything about these goals on my blog or social media. And though this will chang",
+          "method": "footer",
+          "source_url": "https://erynnlehtonenwriting.com/newsletter/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://afstewart.ca",
+      "candidate_domain": "afstewart.ca",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "me ( https://storyoriginapp",
+      "selected_source_url": "https://afstewart.ca",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "over. You can buy through other retailers ( https://books2read.com/u/31eR0l ) or directly from me ( https://storyoriginapp.com/directsaleebooks/2d455554-9a18-11ee-a8ca-5770db750631 ) Or you can sign up to my news",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://bsky.app/about-author",
+        "https://bsky.app/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "me ( https://storyoriginapp",
+          "snippet": "over. You can buy through other retailers ( https://books2read.com/u/31eR0l ) or directly from me ( https://storyoriginapp.com/directsaleebooks/2d455554-9a18-11ee-a8ca-5770db750631 ) Or you can sign up to my news",
+          "method": "broad_phrase",
+          "source_url": "https://afstewart.ca",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://afstewart.ca/books/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": ", or",
+          "snippet": "gnup Merchandise and Books Services Podcast Open Search Contact If you\u2019d like to say hello, or ask me a question, you can use this handy form. However, if you\u2019re trying to sell me some",
+          "method": "weak_us_signal",
+          "source_url": "https://afstewart.ca/about/contact/",
+          "source_kind": "about_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "weak_us_signal",
+      "selected_location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+      "selected_source_url": "https://shelbyhild.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://shelbyhild.com/about-author",
+        "https://shelbyhild.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+          "snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+          "method": "broad_phrase",
+          "source_url": "https://shelbyhild.com",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.kovakillian.com",
+      "candidate_domain": "kovakillian.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "the inside",
+      "selected_source_url": "https://www.kovakillian.com/books",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "d a lot of heart. Learn More Buy \u200b A fallen emperor. A feral blade. And a kingdom rotting from the inside. They weren\u2019t ready for love, but it busted in like the Kool-Aid Man with vengeance and a",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.kovakillian.com/about-author",
+        "https://www.kovakillian.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": ", or",
+          "snippet": "rth Solmara The Shimmer The Warehouse Content Warnings About Magic & myth, portals & peril, or steel-toed sweetness. Same heart, different vibes. Solmara Dark, Moody And Cozy with Swee",
+          "method": "weak_us_signal",
+          "source_url": "https://www.kovakillian.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the inside",
+          "snippet": "d a lot of heart. Learn More Buy \u200b A fallen emperor. A feral blade. And a kingdom rotting from the inside. They weren\u2019t ready for love, but it busted in like the Kool-Aid Man with vengeance and a",
+          "method": "broad_phrase",
+          "source_url": "https://www.kovakillian.com/books",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Whatever the world, Kova",
+          "snippet": "ng under ridiculous sunsets, wandering Renaissance faires, or headbanging at metal shows. Whatever the world, Kova\u2019s stories are brimming with magic, heart, and just the right amount of mischief. Get in T",
+          "method": "footer",
+          "source_url": "https://www.kovakillian.com/about-me",
+          "source_kind": "about_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.zackargyle.com",
+      "candidate_domain": "zackargyle.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "Zack Argyle lives just outside of Seattle, WA, USA",
+      "selected_source_url": "https://www.zackargyle.com/about",
+      "selected_method": "author_city_state",
+      "selected_snippet": "Author Zack Argyle SIGN UP FOR THE NEWSLETTER Store Blog SPFBO Art About Contact Zack Argyle lives just outside of Seattle, WA, USA, with his wife and two children. He has a degree in Electrical Engineering and works full",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": true,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.zackargyle.com/about-author",
+        "https://www.zackargyle.com/about-the-author",
+        "https://www.zackargyle.com/bio",
+        "https://www.zackargyle.com/author",
+        "https://www.zackargyle.com/about",
+        "https://www.zackargyle.com/contact"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.zackargyle.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.zackargyle.com/books",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Zack Argyle lives just outside of Seattle, WA, USA",
+          "snippet": "Author Zack Argyle SIGN UP FOR THE NEWSLETTER Store Blog SPFBO Art About Contact Zack Argyle lives just outside of Seattle, WA, USA, with his wife and two children. He has a degree in Electrical Engineering and works full",
+          "method": "author_city_state",
+          "source_url": "https://www.zackargyle.com/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.zackargyle.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.zackargyle.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://mhwoodscourt.com",
+      "candidate_domain": "mhwoodscourt.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "United States",
+      "selected_source_url": "https://mhwoodscourt.com",
+      "selected_method": "weak_us_signal",
+      "selected_snippet": "ooks by M. H. Woodscourt Home About Books Shop Events Bonus Stories Log in Country/region United States | USD $ Search Australia AUD $ Austria EUR \u20ac Belgium EUR \u20ac Canada CAD $ Czechia CZK K\u010d De",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "missing_strict_email",
+      "recovery_candidate_urls": [
+        "https://mhwoodscourt.com/about-author",
+        "https://mhwoodscourt.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "United States",
+          "snippet": "ooks by M. H. Woodscourt Home About Books Shop Events Bonus Stories Log in Country/region United States | USD $ Search Australia AUD $ Austria EUR \u20ac Belgium EUR \u20ac Canada CAD $ Czechia CZK K\u010d De",
+          "method": "weak_us_signal",
+          "source_url": "https://mhwoodscourt.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "death and finds new life - but can he forsake his birthright to save his people?",
+          "snippet": "magical realm to stop a dread lord - but will it cost him his life? A spoiled prince runs from death and finds new life - but can he forsake his birthright to save his people? Shop Now Adult/Science-Fantasy Record of the Sentinel Seer Technology meets high fantasy",
+          "method": "broad_phrase",
+          "source_url": "https://mhwoodscourt.com/pages/books",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "United States",
+          "snippet": "ooks by M. H. Woodscourt Home About Books Shop Events Bonus Stories Log in Country/region United States | USD $ Search Australia AUD $ Austria EUR \u20ac Belgium EUR \u20ac Canada CAD $ Czechia CZK K\u010d De",
+          "method": "weak_us_signal",
+          "source_url": "https://mhwoodscourt.com/pages/contact",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.ejfisch.com",
+      "candidate_domain": "ejfisch.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "the last person she ever dreamed of asking for help",
+      "selected_source_url": "https://www.ejfisch.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "and find the real killer. Hunted by the very people who trained her, she seeks assistance from the last person she ever dreamed of asking for help... learn more RONAN ZIVA PAYVAN BOOK 3 In this hit finale, Ziva is faced with a choice: p",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.ejfisch.com/about-author",
+        "https://www.ejfisch.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the last person she ever dreamed of asking for help",
+          "snippet": "and find the real killer. Hunted by the very people who trained her, she seeks assistance from the last person she ever dreamed of asking for help... learn more RONAN ZIVA PAYVAN BOOK 3 In this hit finale, Ziva is faced with a choice: p",
+          "method": "broad_phrase",
+          "source_url": "https://www.ejfisch.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "AuthorLifeMonth, Book Barbarian",
+          "snippet": "#AuthorLifeMonth, Book Barbarian, and Forged From The Stars \u2014 EJ Fisch /*this code is for the scrolly button*/ Top /*this",
+          "method": "footer",
+          "source_url": "https://www.ejfisch.com/announcements/2016/2/3/authorlifemonth-book-barbarian-and-forged-from-the-stars",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": ", or",
+          "snippet": "es Glossary About Me Contact Newsletter Contact Use the form below to get in touch with me, or use the links to contact me via email / social media. NOTE: Despite the various book revi",
+          "method": "weak_us_signal",
+          "source_url": "https://www.ejfisch.com/contact",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://arhenle.com",
+      "candidate_domain": "arhenle.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "Fiction, Non-Fiction",
+      "selected_source_url": "https://arhenle.com",
+      "selected_method": "footer",
+      "selected_snippet": "Alea Henle \u2013 Fiction, Non-Fiction, and more Alea Henle Fiction, Non-Fiction, and more About Fiction (Fantasy) Non-Fiction C",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://aleahenle.com/about-author",
+        "https://aleahenle.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Fiction, Non-Fiction",
+          "snippet": "Alea Henle \u2013 Fiction, Non-Fiction, and more Alea Henle Fiction, Non-Fiction, and more About Fiction (Fantasy) Non-Fiction C",
+          "method": "footer",
+          "source_url": "https://arhenle.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Alea Henle Alea Henle Fiction, Non-Fiction",
+          "snippet": "Contact \u2013 Alea Henle Alea Henle Fiction, Non-Fiction, and more About Fiction (Fantasy) Non-Fiction Contact Newsletter Blog (Postcards & More)",
+          "method": "footer",
+          "source_url": "https://aleahenle.com/contact/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Alea Henle Alea Henle Fiction, Non-Fiction",
+          "snippet": "Newsletter \u2013 Alea Henle Alea Henle Fiction, Non-Fiction, and more About Fiction (Fantasy) Non-Fiction Contact Newsletter Blog (Postcards & More)",
+          "method": "footer",
+          "source_url": "https://aleahenle.com/newsletter/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_interstitial_or_redirect_state": 1
+  },
+  "listing_debug_samples": [
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "validation_profile": "strict_full",
+      "listing_status": "unverified",
+      "reject_reason": "listing_interstitial_or_redirect_state",
+      "best_listing_candidate_url": "https://www.amazon.com/gp/product/B09H7PWL14/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0",
+      "best_listing_page_kind": "amazon_product",
+      "best_listing_evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+      "best_listing_title": "",
+      "listing_title_hints": [],
+      "listing_recovery_candidate_urls": [],
+      "listing_attempts": [
+        {
+          "url": "https://www.amazon.com/gp/product/B09H7PWL14/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0",
+          "page_kind": "amazon_product",
+          "reason": "listing_interstitial_or_redirect_state",
+          "evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+          "fetch_failure_reason": "",
+          "status_code": "200",
+          "listing_title": ""
+        }
+      ]
+    }
+  ],
+  "candidate_state_counts": {
+    "verified": 1,
+    "needs_email_proof": 9,
+    "dead_end": 8,
+    "needs_listing_proof": 1,
+    "needs_location_proof": 1
+  },
+  "planned_action_counts": {
+    "mark_verified": 1,
+    "try_email_proof": 9,
+    "stop_dead_end": 8,
+    "try_listing_proof": 1,
+    "try_location_proof": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://ctphipps.com",
+      "candidate_domain": "ctphipps.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": ". Facebook C.T. Phipps Fanclub: https://www.facebook.com/groups/1491731877784498/ E-mail: charlie_the_cat_pooka @ yahoo.com You can follow C.T. Phipps on Facebook here . C.T. Phipps has a Patreon with merchandisin",
+      "best_email_source_url": "https://ctphipps.com/blog/",
+      "best_location_snippet": "s, I\u2019m pleased to say that one of my epics has been completed. THE DARK UNDERMASTER SAGA (Lords of Dragon Keep, Guardians of Dragon Keep, and Wizards of Dragon Keep) has been finished with the third book. WIZARDS OF DRAGON KEE",
+      "best_location_source_url": "https://ctphipps.com",
+      "best_listing_snippet": " Link: https://www.amazon.com/dp/B0DJDKDP29 The Rules of Supervillainy 1-6 is on sale for $1.49 on August 26th, 2025 April 26, 2025 / C.T. Phipps / Leave a comment Hey, folks, I have a ",
+      "best_listing_source_url": "https://www.amazon.com/Wizards-Dragon-Keep-Dark-Undermaster-ebook/dp/B0G2KWM2P2/",
+      "best_recency_snippet": "Bibliography and Links Contact Search Search for: Wizards of Dragon Keep is now available February 7, 2026 February 7, 2026 / C.T. Phipps / Leave a comment Hey folks, I\u2019m pleased to say that one o",
+      "best_recency_source_url": "https://ctphipps.com",
+      "best_indie_snippet": "C.T. Phipps Website of indie sci-fi author and EPIC contributor C.T. Phipps. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "no_strong_book_title",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:verified",
+        "try_recency_proof:verified",
+        "try_email_proof:verified"
+      ]
+    },
+    {
+      "candidate_url": "https://www.gardnersart.com",
+      "candidate_domain": "gardnersart.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "https://www.epicindie.net/authordirectory",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "D.L Gardner books The website of indie fantasy author D.L. Gardner Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "no_visible_author_email",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:no_location_signal",
+        "try_listing_proof:missing",
+        "try_recency_proof:missing",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://slynnhelton.com",
+      "candidate_domain": "slynnhelton.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "page_fetch_failed_other",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://erynnlehtonenwriting.com",
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "k animating stuffed animals yet! Ever since graduating with my degree in creative writing from the University of British Columbia, you can usually find me typing away at my next fantasy novel like my life depends on it. Other times, I\u2019m locked inside a book, be tha",
+      "best_location_source_url": "https://erynnlehtonenwriting.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://afstewart.ca",
+      "candidate_domain": "afstewart.ca",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "over. You can buy through other retailers ( https://books2read.com/u/31eR0l ) or directly from me ( https://storyoriginapp.com/directsaleebooks/2d455554-9a18-11ee-a8ca-5770db750631 ) Or you can sign up to my news",
+      "best_location_source_url": "https://afstewart.ca",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+      "best_location_source_url": "https://shelbyhild.com",
+      "best_listing_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+      "best_listing_source_url": "https://www.amazon.com/gp/product/B09H7PWL14/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "listing_interstitial_or_redirect_state",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:weak_us_signal",
+        "try_listing_proof:unverified"
+      ]
+    },
+    {
+      "candidate_url": "https://www.Derricksmythe.com",
+      "candidate_domain": "derricksmythe.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "page_fetch_failed_robots_disallow",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://daankatz.com",
+      "candidate_domain": "daankatz.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "time_budget_exceeded",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://www.kovakillian.com",
+      "candidate_domain": "kovakillian.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "check your spam folder for your first email! Amazon Barnes & Noble Goodreads Get in touch Kova@kovakillian.com The Hearth Solmara The Shimmer The Warehouse Content Warnings About \u00a92020 by Kova Killian",
+      "best_email_source_url": "https://www.kovakillian.com",
+      "best_location_snippet": "d a lot of heart. Learn More Buy \u200b A fallen emperor. A feral blade. And a kingdom rotting from the inside. They weren\u2019t ready for love, but it busted in like the Kool-Aid Man with vengeance and a",
+      "best_location_source_url": "https://www.kovakillian.com/books",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://www.amycampbell.info",
+      "candidate_domain": "amycampbell.info",
+      "current_state": "dead_end",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "bad_author_name",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    }
+  ],
+  "per_domain": {
+    "afstewart.ca": {
+      "fetch_count": 4,
+      "total_seconds": 0.9077,
+      "avg_latency": 0.2269,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7019,
+      "verify_seconds": 0.9582,
+      "dominant_phase": "verify"
+    },
+    "aleahenle.com": {
+      "fetch_count": 2,
+      "total_seconds": 2.6958,
+      "avg_latency": 1.3479,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "amazon.com": {
+      "fetch_count": 9,
+      "total_seconds": 7.0902,
+      "avg_latency": 0.7878,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "amycampbell.info": {
+      "fetch_count": 4,
+      "total_seconds": 2.4843,
+      "avg_latency": 0.6211,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7811,
+      "verify_seconds": 1.3969,
+      "dominant_phase": "prefilter"
+    },
+    "arhenle.com": {
+      "fetch_count": 2,
+      "total_seconds": 5.6882,
+      "avg_latency": 2.8441,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.6989,
+      "verify_seconds": 3.3267,
+      "dominant_phase": "prefilter"
+    },
+    "ctphipps.com": {
+      "fetch_count": 4,
+      "total_seconds": 0.7507,
+      "avg_latency": 0.1877,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.5815,
+      "verify_seconds": 1.6412,
+      "dominant_phase": "verify"
+    },
+    "daankatz.com": {
+      "fetch_count": 1,
+      "total_seconds": 33.6612,
+      "avg_latency": 33.6612,
+      "timeout_count": 0,
+      "prefilter_seconds": 33.6613,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "derricksmythe.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.3862,
+      "avg_latency": 0.1931,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.3863,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "ejfisch.com": {
+      "fetch_count": 4,
+      "total_seconds": 2.1063,
+      "avg_latency": 0.5266,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.6855,
+      "verify_seconds": 1.126,
+      "dominant_phase": "prefilter"
+    },
+    "erynnlehtonenwriting.com": {
+      "fetch_count": 8,
+      "total_seconds": 9.2317,
+      "avg_latency": 1.154,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.7048,
+      "verify_seconds": 3.8307,
+      "dominant_phase": "prefilter"
+    },
+    "gardnersart.com": {
+      "fetch_count": 4,
+      "total_seconds": 2.7113,
+      "avg_latency": 0.6778,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.9146,
+      "verify_seconds": 1.408,
+      "dominant_phase": "prefilter"
+    },
+    "jaimieschock.com": {
+      "fetch_count": 3,
+      "total_seconds": 1.7423,
+      "avg_latency": 0.5808,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.5527,
+      "verify_seconds": 2.8101,
+      "dominant_phase": "verify"
+    },
+    "jamesewisher.com": {
+      "fetch_count": 12,
+      "total_seconds": 7.0599,
+      "avg_latency": 0.5883,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.2307,
+      "verify_seconds": 5.8077,
+      "dominant_phase": "verify"
+    },
+    "kellannetta.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.7731,
+      "avg_latency": 0.3865,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7732,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "kovakillian.com": {
+      "fetch_count": 5,
+      "total_seconds": 1.1518,
+      "avg_latency": 0.2304,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.9455,
+      "verify_seconds": 0.9117,
+      "dominant_phase": "prefilter"
+    },
+    "legendsofkalda.com": {
+      "fetch_count": 8,
+      "total_seconds": 2.9549,
+      "avg_latency": 0.3694,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.4672,
+      "verify_seconds": 1.1806,
+      "dominant_phase": "prefilter"
+    },
+    "lisamgreen.com": {
+      "fetch_count": 7,
+      "total_seconds": 8.1753,
+      "avg_latency": 1.1679,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.0342,
+      "verify_seconds": 3.0913,
+      "dominant_phase": "prefilter"
+    },
+    "ljcohen.net": {
+      "fetch_count": 4,
+      "total_seconds": 2.7999,
+      "avg_latency": 0.7,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.1252,
+      "verify_seconds": 1.2983,
+      "dominant_phase": "prefilter"
+    },
+    "mhwoodscourt.com": {
+      "fetch_count": 8,
+      "total_seconds": 1.984,
+      "avg_latency": 0.248,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.5619,
+      "verify_seconds": 1.1913,
+      "dominant_phase": "prefilter"
+    },
+    "shelbyhild.com": {
+      "fetch_count": 2,
+      "total_seconds": 4.4155,
+      "avg_latency": 2.2078,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.4216,
+      "verify_seconds": 0.5841,
+      "dominant_phase": "prefilter"
+    },
+    "slynnhelton.com": {
+      "fetch_count": 2,
+      "total_seconds": 6.592,
+      "avg_latency": 3.296,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.5924,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "zackargyle.com": {
+      "fetch_count": 10,
+      "total_seconds": 0.9403,
+      "avg_latency": 0.094,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.4373,
+      "verify_seconds": 6.3442,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 20,
+  "top_domain_budget_burn": [
+    {
+      "domain": "daankatz.com",
+      "fetch_count": 1,
+      "total_seconds": 33.6612,
+      "avg_latency": 33.6612,
+      "timeout_count": 0,
+      "prefilter_seconds": 33.6613,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "erynnlehtonenwriting.com",
+      "fetch_count": 8,
+      "total_seconds": 9.2317,
+      "avg_latency": 1.154,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.7048,
+      "verify_seconds": 3.8307,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "lisamgreen.com",
+      "fetch_count": 7,
+      "total_seconds": 8.1753,
+      "avg_latency": 1.1679,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.0342,
+      "verify_seconds": 3.0913,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "amazon.com",
+      "fetch_count": 9,
+      "total_seconds": 7.0902,
+      "avg_latency": 0.7878,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    {
+      "domain": "jamesewisher.com",
+      "fetch_count": 12,
+      "total_seconds": 7.0599,
+      "avg_latency": 0.5883,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.2307,
+      "verify_seconds": 5.8077,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "slynnhelton.com",
+      "fetch_count": 2,
+      "total_seconds": 6.592,
+      "avg_latency": 3.296,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.5924,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "arhenle.com",
+      "fetch_count": 2,
+      "total_seconds": 5.6882,
+      "avg_latency": 2.8441,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.6989,
+      "verify_seconds": 3.3267,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "shelbyhild.com",
+      "fetch_count": 2,
+      "total_seconds": 4.4155,
+      "avg_latency": 2.2078,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.4216,
+      "verify_seconds": 0.5841,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "legendsofkalda.com",
+      "fetch_count": 8,
+      "total_seconds": 2.9549,
+      "avg_latency": 0.3694,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.4672,
+      "verify_seconds": 1.1806,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "ljcohen.net",
+      "fetch_count": 4,
+      "total_seconds": 2.7999,
+      "avg_latency": 0.7,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.1252,
+      "verify_seconds": 1.2983,
+      "dominant_phase": "prefilter"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://daankatz.com",
+      "candidate_domain": "daankatz.com",
+      "fetch_count": 1,
+      "total_seconds": 33.6612,
+      "prefilter_seconds": 33.6613,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": ""
+    },
+    {
+      "candidate_url": "https://jamesewisher.com",
+      "candidate_domain": "jamesewisher.com",
+      "fetch_count": 13,
+      "total_seconds": 9.5393,
+      "prefilter_seconds": 5.2307,
+      "verify_seconds": 5.8077,
+      "dominant_phase": "verify",
+      "reject_reason": "no_visible_author_email",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "missing_strict_email",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "no_visible_author_email",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://erynnlehtonenwriting.com",
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "fetch_count": 8,
+      "total_seconds": 9.2317,
+      "prefilter_seconds": 6.7048,
+      "verify_seconds": 3.8307,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://arhenle.com",
+      "candidate_domain": "arhenle.com",
+      "fetch_count": 4,
+      "total_seconds": 8.384,
+      "prefilter_seconds": 5.6989,
+      "verify_seconds": 3.3267,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://lisamgreen.com",
+      "candidate_domain": "lisamgreen.com",
+      "fetch_count": 7,
+      "total_seconds": 8.1753,
+      "prefilter_seconds": 6.0342,
+      "verify_seconds": 3.0913,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://slynnhelton.com",
+      "candidate_domain": "slynnhelton.com",
+      "fetch_count": 2,
+      "total_seconds": 6.592,
+      "prefilter_seconds": 6.5924,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter",
+      "reject_reason": "page_fetch_failed_other",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "page_fetch_failed_other",
+      "last_attempted_action": ""
+    },
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "fetch_count": 3,
+      "total_seconds": 4.6925,
+      "prefilter_seconds": 4.4216,
+      "verify_seconds": 0.5841,
+      "dominant_phase": "prefilter",
+      "reject_reason": "listing_interstitial_or_redirect_state",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "strict_non_location_failure",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_listing_proof",
+      "next_action": "try_listing_proof",
+      "next_action_reason": "listing_interstitial_or_redirect_state",
+      "last_attempted_action": "try_listing_proof"
+    },
+    {
+      "candidate_url": "https://www.jaimieschock.com",
+      "candidate_domain": "jaimieschock.com",
+      "fetch_count": 4,
+      "total_seconds": 3.5608,
+      "prefilter_seconds": 1.5527,
+      "verify_seconds": 2.8101,
+      "dominant_phase": "verify",
+      "reject_reason": "no_visible_author_email",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "missing_strict_email",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "no_visible_author_email",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://www.zackargyle.com",
+      "candidate_domain": "zackargyle.com",
+      "fetch_count": 15,
+      "total_seconds": 3.0086,
+      "prefilter_seconds": 0.4373,
+      "verify_seconds": 6.3442,
+      "dominant_phase": "verify",
+      "reject_reason": "publisher_location_only",
+      "kept": false,
+      "location_recovery_attempted": true,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_location_proof",
+      "next_action": "try_location_proof",
+      "next_action_reason": "publisher_location_only",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://www.legendsofkalda.com",
+      "candidate_domain": "legendsofkalda.com",
+      "fetch_count": 8,
+      "total_seconds": 2.9549,
+      "prefilter_seconds": 2.4672,
+      "verify_seconds": 1.1806,
+      "dominant_phase": "prefilter",
+      "reject_reason": "famous_signal",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "famous_signal",
+      "last_attempted_action": "triage_candidate"
+    }
+  ],
+  "max_fetches_per_domain": 16,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 782.4019,
+  "max_concurrency": 4
+}

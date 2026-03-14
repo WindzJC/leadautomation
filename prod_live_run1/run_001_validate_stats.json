@@ -1,0 +1,22 @@
+{
+  "generated_at_utc": "2026-03-10T13:08:04Z",
+  "total_candidates": 6,
+  "kept_rows": 1,
+  "reject_reasons": {
+    "page_fetch_failed_other": 1,
+    "bad_book_title": 2,
+    "no_recency_proof": 1,
+    "page_fetch_failed_404": 1
+  },
+  "listing_status_counts": {
+    "missing": 1
+  },
+  "book_title_method_counts": {
+    "books_page_link": 1
+  },
+  "indie_proof_strength_counts": {
+    "both": 1
+  },
+  "email_quality_counts": {},
+  "leads_with_author_email": 0
+}

@@ -90,6 +90,7 @@ ASTRA_OUTBOUND_PROFILE = "astra_outbound"
 VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
+AGENT_HUNT_PROFILE = "agent_hunt"
 STRICT_VERIFIED_PROFILES = {
     "fully_verified",
     ASTRA_OUTBOUND_PROFILE,
@@ -729,6 +730,18 @@ AUTHOR_TIED_CITY_STATE_RE = re.compile(
         "|".join(re.escape(name.title()) for name in sorted(US_STATE_NAMES, key=len, reverse=True)),
     )
 )
+STRONG_AUTHOR_US_LOCATION_PATTERNS = [
+    re.compile(r"\bi\s+live\s+in\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\bi\s+am\s+based\s+in\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\bi'?m\s+based\s+in\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\bi\s+reside\s+in\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\bi\s+am\s+from\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\bi'?m\s+from\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\b[a-z][a-z .'-]{1,40}\s+lives(?:\s+just\s+outside\s+of|\s+outside\s+of|\s+in)\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\b[a-z][a-z .'-]{1,40}\s+is\s+based\s+in\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\b[a-z][a-z .'-]{1,40}\s+resides\s+in\s+([^.;|]{2,100})", re.IGNORECASE),
+    re.compile(r"\b[a-z][a-z .'-]{1,40}\s+is\s+from\s+([^.;|]{2,100})", re.IGNORECASE),
+]
 BROAD_LOCATION_PATTERNS = [
     re.compile(r"\bbased in\s+([^.;|]{2,80})", re.IGNORECASE),
     re.compile(r"\blocated in\s+([^.;|]{2,80})", re.IGNORECASE),
@@ -905,6 +918,9 @@ BAD_BOOK_TITLE_SNIPPETS = (
     "update",
     "official site",
     "imdb",
+    "skip to content",
+    "skip to main content",
+    "navigation menu",
     "author |",
     "writer |",
     "fantasy author |",
@@ -917,6 +933,7 @@ GENERIC_BOOK_TITLE_WORDS = {
     "book",
     "books",
     "home",
+    "menu",
     "search",
     "results",
     "author",
@@ -944,6 +961,12 @@ TITLE_NAV_LABELS = {
     "books",
     "author",
     "writer",
+    "menu",
+    "navigation menu",
+    "skip to",
+    "skip to content",
+    "skip to main content",
+    "main content",
     "follow the author",
     "follow author",
     "official site",
@@ -1187,13 +1210,14 @@ def parse_args() -> argparse.Namespace:
         choices=(
             "default",
             "fully_verified",
+            AGENT_HUNT_PROFILE,
             ASTRA_OUTBOUND_PROFILE,
             VERIFIED_NO_US_PROFILE,
             STRICT_INTERACTIVE_PROFILE,
             STRICT_FULL_PROFILE,
         ),
         default="default",
-        help="Validation profile: default keeps staged rows; fully_verified requires all outbound-ready proof gates; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+        help="Validation profile: default keeps staged rows; fully_verified requires all outbound-ready proof gates; agent_hunt uses staged validation and is intended for scout-mode orchestration in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
     args = parser.parse_args()
     apply_validation_profile_defaults(args)
@@ -2080,6 +2104,40 @@ def detect_author_tied_city_state(text: str, author_name: str = "") -> Tuple[str
     return "", ""
 
 
+def has_strong_author_tied_us_phrase(
+    snippet: str,
+    *,
+    found_location: str = "",
+    author_name: str = "",
+    source_kind: str = "",
+) -> bool:
+    compact = compact_text(snippet)
+    if not compact or not is_us_location(found_location):
+        return False
+    if source_kind not in {"page", "about_page", "bio_page", "author_page"}:
+        return False
+    lowered = compact.lower()
+    if snippet_has_business_or_event_location_context(lowered):
+        if not any(token in lowered for token in ("lives", "based in", "resides", "i live", "i'm based", "i am based", "i'm from", "i am from")):
+            return False
+    author_tokens = author_tokens_for_context(author_name)
+    has_author_name = bool(author_tokens and sum(1 for token in author_tokens if token in lowered) >= min(2, len(author_tokens)))
+    has_bio_pronoun = any(token in lowered for token in (" i live in ", " i'm based in ", " i am based in ", " i reside in ", " i'm from ", " i am from "))
+    has_family_bio = any(token in lowered for token in (" with his ", " with her ", " with their ", " with my ", " wife", " husband", " children", " kids"))
+    for pattern in STRONG_AUTHOR_US_LOCATION_PATTERNS:
+        match = pattern.search(compact)
+        if not match:
+            continue
+        value = compact_text(match.group(1)).strip(" .,-")
+        if not is_us_location(value):
+            continue
+        if has_bio_pronoun:
+            return True
+        if has_author_name and (has_family_bio or source_kind in {"about_page", "bio_page", "author_page"}):
+            return True
+    return False
+
+
 def classify_location_evidence(
     *,
     text: str,
@@ -2098,7 +2156,14 @@ def classify_location_evidence(
             source_kind=source_kind,
             method=method,
         )
-        if location_context_is_publisher_only(snippet or text, source_kind) or snippet_has_business_or_event_location_context(snippet or text):
+        if has_strong_author_tied_us_phrase(
+            snippet or text,
+            found_location=found,
+            author_name=author_name,
+            source_kind=source_kind,
+        ):
+            decision = "ok"
+        elif location_context_is_publisher_only(snippet or text, source_kind) or snippet_has_business_or_event_location_context(snippet or text):
             decision = "publisher_location_only"
         elif method == "footer" and not author_context:
             decision = "publisher_location_only" if source_kind in {"contact_page", "press_media_page", "page"} else "location_ambiguous"
@@ -2655,6 +2720,7 @@ def clean_book_title_candidate(value: str) -> str:
     cleaned = compact_text(value)
     prefixes = (
         "menu",
+        "navigation menu",
         "home",
         "books",
         "series",
@@ -2666,6 +2732,9 @@ def clean_book_title_candidate(value: str) -> str:
         "view all",
         "previous",
         "next",
+        "skip to",
+        "skip to content",
+        "skip to main content",
         "search",
         "search for",
         "bibliography and links",
@@ -3065,10 +3134,6 @@ def row_meets_fully_verified_profile(
 ) -> Tuple[bool, str]:
     if not is_plausible_author_name(author_name):
         return False, "bad_author_name"
-    if not book_title or (book_title_status or "").strip().lower() != "ok":
-        return False, "no_strong_book_title"
-    if (book_title_method or "").strip() not in STRICT_MASTER_TITLE_METHODS:
-        return False, "no_strong_book_title"
     if not author_email or not email_quality_is_fully_verified(author_email_quality):
         return False, "no_visible_author_email"
     if not email_record_is_visible_text(author_email_record):

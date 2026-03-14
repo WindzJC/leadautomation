@@ -1,0 +1,972 @@
+{
+  "run_tag": "run_005",
+  "batch_index": 5,
+  "generated_at_utc": "2026-03-11T04:03:03Z",
+  "pipeline_exit_code": 0,
+  "pipeline_stdout_log": "runs/run_005_pipeline.stdout.log",
+  "pipeline_stderr_log": "runs/run_005_pipeline.stderr.log",
+  "merge_policy": "strict",
+  "validation_profile": "fully_verified",
+  "counts": {
+    "harvested_candidates": 80,
+    "candidates": 79,
+    "validated": 0,
+    "final": 0,
+    "verified": 0,
+    "pre_verify_rows": 0,
+    "kept_rows_after_gate": 0,
+    "master_merge_candidates": 0,
+    "queue_only_candidates": 0,
+    "suppressed_pre_validate_total": 1,
+    "added_to_master": 0,
+    "added_to_queue": 0,
+    "master_total": 1,
+    "goal_qualified_total": 0,
+    "queue_total": 29,
+    "verified_output_rows": 0
+  },
+  "harvested_candidates": {
+    "total": 80,
+    "per_query": {
+      "epic:author-directory": 70,
+      "iabx:author-directory": 10
+    },
+    "per_source": {
+      "epic_directory": 70,
+      "iabx_directory": 10
+    },
+    "top_domains": [
+      {
+        "domain": "msolney.com",
+        "count": 1
+      },
+      {
+        "domain": "nilesbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.rmgarino.com",
+        "count": 1
+      },
+      {
+        "domain": "www.tamikareedwrites.com",
+        "count": 1
+      },
+      {
+        "domain": "www.davidgreenwriter.com",
+        "count": 1
+      },
+      {
+        "domain": "www.boobearbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.leeconleyauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.susenedwardsauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "authordiannagunn.com",
+        "count": 1
+      },
+      {
+        "domain": "tomkranzbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.mamminabooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.vncbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "authorjackadkins.com",
+        "count": 1
+      },
+      {
+        "domain": "authormrosepeluso.com",
+        "count": 1
+      },
+      {
+        "domain": "www.elizabethkleinauthor.com",
+        "count": 1
+      }
+    ]
+  },
+  "candidates": {
+    "total": 79,
+    "per_query": {
+      "epic:author-directory": 69,
+      "iabx:author-directory": 10
+    },
+    "per_source": {
+      "epic_directory": 69,
+      "iabx_directory": 10
+    },
+    "top_domains": [
+      {
+        "domain": "nilesbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.rmgarino.com",
+        "count": 1
+      },
+      {
+        "domain": "www.tamikareedwrites.com",
+        "count": 1
+      },
+      {
+        "domain": "www.davidgreenwriter.com",
+        "count": 1
+      },
+      {
+        "domain": "www.boobearbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.leeconleyauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.susenedwardsauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "authordiannagunn.com",
+        "count": 1
+      },
+      {
+        "domain": "tomkranzbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.mamminabooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.vncbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "authorjackadkins.com",
+        "count": 1
+      },
+      {
+        "domain": "authormrosepeluso.com",
+        "count": 1
+      },
+      {
+        "domain": "www.elizabethkleinauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.jannabluebooks.com",
+        "count": 1
+      }
+    ]
+  },
+  "harvest": {
+    "generated_at_utc": "2026-03-11T03:58:51Z",
+    "target": 40,
+    "min_candidates": 80,
+    "effective_target": 80,
+    "google_cse_status": "other",
+    "google_cse_http_status": 0,
+    "google_cse_error_reason": "",
+    "google_cse_error_message": "",
+    "counts": {
+      "harvested_candidates": 80,
+      "directory_goal_before_web_fallback": 32,
+      "deterministic_goal": 80
+    },
+    "per_source": {
+      "epic_directory": 70,
+      "iabx_directory": 10
+    },
+    "top_domains": [
+      {
+        "domain": "msolney.com",
+        "count": 1
+      },
+      {
+        "domain": "nilesbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.rmgarino.com",
+        "count": 1
+      },
+      {
+        "domain": "www.tamikareedwrites.com",
+        "count": 1
+      },
+      {
+        "domain": "www.davidgreenwriter.com",
+        "count": 1
+      },
+      {
+        "domain": "www.boobearbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.leeconleyauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "www.susenedwardsauthor.com",
+        "count": 1
+      },
+      {
+        "domain": "authordiannagunn.com",
+        "count": 1
+      },
+      {
+        "domain": "tomkranzbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.mamminabooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.vncbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "authorjackadkins.com",
+        "count": 1
+      },
+      {
+        "domain": "authormrosepeluso.com",
+        "count": 1
+      },
+      {
+        "domain": "www.elizabethkleinauthor.com",
+        "count": 1
+      }
+    ],
+    "harvest_shortfall_reason": ""
+  },
+  "pre_validate_suppression": {
+    "suppressed_pre_validate_total": 1,
+    "suppressed_pre_validate_by_reason": {
+      "author_site_domain": 1
+    }
+  },
+  "validator": {
+    "generated_at_utc": "2026-03-11T04:03:02Z",
+    "validation_profile": "fully_verified",
+    "total_candidates": 79,
+    "kept_rows": 0,
+    "reject_reasons": {
+      "page_fetch_failed_other": 2,
+      "non_us_or_missing_location": 59,
+      "no_valid_listing": 4,
+      "page_fetch_failed_404": 2,
+      "bad_author_name": 5,
+      "page_fetch_failed_robots_disallow": 5,
+      "page_fetch_failed_403": 1,
+      "no_visible_author_email": 1
+    },
+    "listing_status_counts": {},
+    "book_title_method_counts": {},
+    "book_title_confidence_counts": {},
+    "book_title_status_counts": {},
+    "book_title_downgraded": 0,
+    "book_title_downgrade_reasons": {},
+    "indie_proof_strength_counts": {},
+    "recency_status_counts": {},
+    "email_quality_counts": {},
+    "leads_with_author_email": 0,
+    "fully_verified_rows": 0,
+    "stage_timings": {
+      "prefilter_seconds": 157.028,
+      "verify_seconds": 93.6638
+    },
+    "prefilter_candidates": 69,
+    "verify_candidates": 69,
+    "batch_runtime_exceeded": false,
+    "cache_hits": {
+      "sitemap": 69
+    },
+    "domain_cache_path": "runs/run_005_domain_cache.jsonl",
+    "per_domain": {
+      "abherron.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.7889,
+        "avg_latency": 0.263,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5393,
+        "verify_seconds": 0.8967
+      },
+      "afstewart.ca": {
+        "fetch_count": 3,
+        "total_seconds": 0.8426,
+        "avg_latency": 0.2809,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5939,
+        "verify_seconds": 0.9735
+      },
+      "aleahenle.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.2574,
+        "avg_latency": 0.6287,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.0,
+        "verify_seconds": 0.0
+      },
+      "allauthor.com": {
+        "fetch_count": 1,
+        "total_seconds": 1.3631,
+        "avg_latency": 1.3631,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.0,
+        "verify_seconds": 0.0
+      },
+      "amazon.com": {
+        "fetch_count": 1,
+        "total_seconds": 0.4259,
+        "avg_latency": 0.4259,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.0,
+        "verify_seconds": 0.0
+      },
+      "amycampbell.info": {
+        "fetch_count": 3,
+        "total_seconds": 1.393,
+        "avg_latency": 0.4643,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.8329,
+        "verify_seconds": 1.2502
+      },
+      "andrewdmeredith.com": {
+        "fetch_count": 2,
+        "total_seconds": 5.2996,
+        "avg_latency": 2.6498,
+        "timeout_count": 0,
+        "prefilter_seconds": 4.214,
+        "verify_seconds": 1.3929
+      },
+      "annatsp.com": {
+        "fetch_count": 4,
+        "total_seconds": 2.3719,
+        "avg_latency": 0.593,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.2722,
+        "verify_seconds": 2.0765
+      },
+      "arhenle.com": {
+        "fetch_count": 1,
+        "total_seconds": 5.227,
+        "avg_latency": 5.227,
+        "timeout_count": 0,
+        "prefilter_seconds": 5.2363,
+        "verify_seconds": 1.8869
+      },
+      "armoredhistory.net": {
+        "fetch_count": 3,
+        "total_seconds": 0.7619,
+        "avg_latency": 0.254,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5183,
+        "verify_seconds": 0.8799
+      },
+      "asthelilyflies.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.7282,
+        "avg_latency": 0.2427,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5229,
+        "verify_seconds": 0.8467
+      },
+      "authordiannagunn.com": {
+        "fetch_count": 3,
+        "total_seconds": 6.0798,
+        "avg_latency": 2.0266,
+        "timeout_count": 0,
+        "prefilter_seconds": 3.6853,
+        "verify_seconds": 3.015
+      },
+      "authorjackadkins.com": {
+        "fetch_count": 3,
+        "total_seconds": 6.8029,
+        "avg_latency": 2.2676,
+        "timeout_count": 0,
+        "prefilter_seconds": 3.7409,
+        "verify_seconds": 3.697
+      },
+      "authormrosepeluso.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.2833,
+        "avg_latency": 0.1417,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.2835,
+        "verify_seconds": 0.0
+      },
+      "boobearbooks.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.7894,
+        "avg_latency": 0.8947,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.7895,
+        "verify_seconds": 0.0
+      },
+      "bryantimothymitchell.com": {
+        "fetch_count": 4,
+        "total_seconds": 1.7434,
+        "avg_latency": 0.4358,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.1064,
+        "verify_seconds": 1.5829
+      },
+      "catrinrussell.com": {
+        "fetch_count": 3,
+        "total_seconds": 1.9136,
+        "avg_latency": 0.6379,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.4623,
+        "verify_seconds": 1.1023
+      },
+      "cfwelburn.com": {
+        "fetch_count": 3,
+        "total_seconds": 10.195,
+        "avg_latency": 3.3983,
+        "timeout_count": 0,
+        "prefilter_seconds": 5.1975,
+        "verify_seconds": 5.6372
+      },
+      "chrishanger.net": {
+        "fetch_count": 3,
+        "total_seconds": 2.2244,
+        "avg_latency": 0.7415,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.5405,
+        "verify_seconds": 2.2166
+      },
+      "ctphipps.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.6798,
+        "avg_latency": 0.2266,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4722,
+        "verify_seconds": 0.9564
+      },
+      "daankatz.com": {
+        "fetch_count": 4,
+        "total_seconds": 2.8051,
+        "avg_latency": 0.7013,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.5469,
+        "verify_seconds": 2.2377
+      },
+      "davidgreenwriter.com": {
+        "fetch_count": 1,
+        "total_seconds": 0.4876,
+        "avg_latency": 0.4876,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5153,
+        "verify_seconds": 0.0125
+      },
+      "daynaward.com": {
+        "fetch_count": 4,
+        "total_seconds": 2.4045,
+        "avg_latency": 0.6011,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.8475,
+        "verify_seconds": 2.542
+      },
+      "derricksmythe.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.3566,
+        "avg_latency": 0.1783,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.3567,
+        "verify_seconds": 0.0
+      },
+      "egradcliff.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.7039,
+        "avg_latency": 0.352,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5862,
+        "verify_seconds": 0.4559
+      },
+      "ejfisch.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.5509,
+        "avg_latency": 0.7755,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.3681,
+        "verify_seconds": 0.5461
+      },
+      "elizabethkleinauthor.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.1407,
+        "avg_latency": 0.5703,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.8887,
+        "verify_seconds": 0.5795
+      },
+      "enthralledbylove.com": {
+        "fetch_count": 4,
+        "total_seconds": 1.1194,
+        "avg_latency": 0.2798,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.7817,
+        "verify_seconds": 1.4145
+      },
+      "ericpcaillibot.com": {
+        "fetch_count": 3,
+        "total_seconds": 2.0365,
+        "avg_latency": 0.6788,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.4635,
+        "verify_seconds": 1.1983
+      },
+      "erynnlehtonenwriting.com": {
+        "fetch_count": 3,
+        "total_seconds": 1.9233,
+        "avg_latency": 0.6411,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.4489,
+        "verify_seconds": 1.1247
+      },
+      "gardnersart.com": {
+        "fetch_count": 3,
+        "total_seconds": 1.8107,
+        "avg_latency": 0.6036,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.0927,
+        "verify_seconds": 1.6288
+      },
+      "glassauthor.com": {
+        "fetch_count": 3,
+        "total_seconds": 3.6493,
+        "avg_latency": 1.2164,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.9327,
+        "verify_seconds": 2.0283
+      },
+      "iankanebooks.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.6457,
+        "avg_latency": 0.8229,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.4397,
+        "verify_seconds": 0.5622
+      },
+      "jaimieschock.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.1596,
+        "avg_latency": 0.5798,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.9584,
+        "verify_seconds": 0.5299
+      },
+      "jamesewisher.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.3196,
+        "avg_latency": 0.6598,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.1493,
+        "verify_seconds": 0.5216
+      },
+      "jannabluebooks.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.4947,
+        "avg_latency": 0.2474,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4948,
+        "verify_seconds": 0.0
+      },
+      "jayswillis.net": {
+        "fetch_count": 4,
+        "total_seconds": 6.6679,
+        "avg_latency": 1.667,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.5888,
+        "verify_seconds": 6.0421
+      },
+      "jcrycroft.com": {
+        "fetch_count": 4,
+        "total_seconds": 9.1522,
+        "avg_latency": 2.288,
+        "timeout_count": 0,
+        "prefilter_seconds": 4.0192,
+        "verify_seconds": 6.0784
+      },
+      "jjthornbooks.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.6331,
+        "avg_latency": 0.3166,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5432,
+        "verify_seconds": 0.4403
+      },
+      "johnpalladino.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.3069,
+        "avg_latency": 0.1534,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.307,
+        "verify_seconds": 0.0
+      },
+      "jslockard.com": {
+        "fetch_count": 1,
+        "total_seconds": 1.1769,
+        "avg_latency": 1.1769,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.1821,
+        "verify_seconds": 0.0016
+      },
+      "jturiano.com": {
+        "fetch_count": 1,
+        "total_seconds": 1.1694,
+        "avg_latency": 1.1694,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.1697,
+        "verify_seconds": 0.0003
+      },
+      "kaie.space": {
+        "fetch_count": 2,
+        "total_seconds": 0.8791,
+        "avg_latency": 0.4395,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5669,
+        "verify_seconds": 0.6637
+      },
+      "keandrews.org": {
+        "fetch_count": 3,
+        "total_seconds": 0.9029,
+        "avg_latency": 0.301,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.6708,
+        "verify_seconds": 0.9201
+      },
+      "kellannetta.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.6115,
+        "avg_latency": 0.3058,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.6117,
+        "verify_seconds": 0.0
+      },
+      "kilpack.net": {
+        "fetch_count": 1,
+        "total_seconds": 0.9229,
+        "avg_latency": 0.9229,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.9376,
+        "verify_seconds": 1.6892
+      },
+      "kovakillian.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.8496,
+        "avg_latency": 0.2832,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5988,
+        "verify_seconds": 0.9284
+      },
+      "leeconleyauthor.com": {
+        "fetch_count": 1,
+        "total_seconds": 0.487,
+        "avg_latency": 0.487,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4999,
+        "verify_seconds": 0.0059
+      },
+      "legendsofkalda.com": {
+        "fetch_count": 4,
+        "total_seconds": 1.452,
+        "avg_latency": 0.363,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.7975,
+        "verify_seconds": 1.6735
+      },
+      "leighsaunders.com": {
+        "fetch_count": 2,
+        "total_seconds": 2.1729,
+        "avg_latency": 1.0864,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.9354,
+        "verify_seconds": 0.5757
+      },
+      "lesleesheu.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.6667,
+        "avg_latency": 0.3334,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4811,
+        "verify_seconds": 0.4938
+      },
+      "lisamgreen.com": {
+        "fetch_count": 3,
+        "total_seconds": 2.7117,
+        "avg_latency": 0.9039,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.2031,
+        "verify_seconds": 2.1509
+      },
+      "ljcohen.net": {
+        "fetch_count": 2,
+        "total_seconds": 1.7593,
+        "avg_latency": 0.8797,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.4138,
+        "verify_seconds": 0.6602
+      },
+      "mailto": {
+        "fetch_count": 2,
+        "total_seconds": 0.174,
+        "avg_latency": 0.087,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.0,
+        "verify_seconds": 0.0
+      },
+      "mamminabooks.com": {
+        "fetch_count": 1,
+        "total_seconds": 0.3133,
+        "avg_latency": 0.3133,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.3251,
+        "verify_seconds": 0.0029
+      },
+      "marilynpeake.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.0158,
+        "avg_latency": 0.5079,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.8466,
+        "verify_seconds": 0.5018
+      },
+      "marktimmony.com": {
+        "fetch_count": 3,
+        "total_seconds": 2.8435,
+        "avg_latency": 0.9478,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.7458,
+        "verify_seconds": 1.9194
+      },
+      "martinowton.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.4648,
+        "avg_latency": 0.7324,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.1764,
+        "verify_seconds": 0.5955
+      },
+      "mayadarjani.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.6623,
+        "avg_latency": 0.2208,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4647,
+        "verify_seconds": 0.8455
+      },
+      "melindakucsera.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.7458,
+        "avg_latency": 0.2486,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5056,
+        "verify_seconds": 0.9818
+      },
+      "mhwoodscourt.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.7049,
+        "avg_latency": 0.235,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4436,
+        "verify_seconds": 0.97
+      },
+      "miketconley.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.5493,
+        "avg_latency": 0.2746,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.4481,
+        "verify_seconds": 0.9183
+      },
+      "nicholaspwilliams.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.9779,
+        "avg_latency": 0.9889,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.978,
+        "verify_seconds": 0.0
+      },
+      "nilesbooks.com": {
+        "fetch_count": 2,
+        "total_seconds": 49.5645,
+        "avg_latency": 24.7822,
+        "timeout_count": 0,
+        "prefilter_seconds": 49.5647,
+        "verify_seconds": 0.0
+      },
+      "philoddy.com": {
+        "fetch_count": 3,
+        "total_seconds": 2.4854,
+        "avg_latency": 0.8285,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.8264,
+        "verify_seconds": 1.3069
+      },
+      "rmgarino.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.8359,
+        "avg_latency": 0.2786,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.6092,
+        "verify_seconds": 0.9217
+      },
+      "robbwallace.co.uk": {
+        "fetch_count": 1,
+        "total_seconds": 2.4472,
+        "avg_latency": 2.4472,
+        "timeout_count": 0,
+        "prefilter_seconds": 2.5778,
+        "verify_seconds": 0.007
+      },
+      "robinlythgoe.com": {
+        "fetch_count": 6,
+        "total_seconds": 3.457,
+        "avg_latency": 0.5762,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.8133,
+        "verify_seconds": 2.9133
+      },
+      "runesnielsen.com": {
+        "fetch_count": 3,
+        "total_seconds": 1.098,
+        "avg_latency": 0.366,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.3408,
+        "verify_seconds": 1.4313
+      },
+      "shelbyhild.com": {
+        "fetch_count": 1,
+        "total_seconds": 3.6338,
+        "avg_latency": 3.6338,
+        "timeout_count": 0,
+        "prefilter_seconds": 3.6402,
+        "verify_seconds": 0.0021
+      },
+      "slynnhelton.com": {
+        "fetch_count": 2,
+        "total_seconds": 5.1112,
+        "avg_latency": 2.5556,
+        "timeout_count": 0,
+        "prefilter_seconds": 5.1117,
+        "verify_seconds": 0.0
+      },
+      "stephenjtaylor.com": {
+        "fetch_count": 4,
+        "total_seconds": 9.5966,
+        "avg_latency": 2.3991,
+        "timeout_count": 0,
+        "prefilter_seconds": 5.3722,
+        "verify_seconds": 5.2121
+      },
+      "stevewestenra.com": {
+        "fetch_count": 2,
+        "total_seconds": 3.3292,
+        "avg_latency": 1.6646,
+        "timeout_count": 0,
+        "prefilter_seconds": 3.3293,
+        "verify_seconds": 0.0
+      },
+      "substack.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.6824,
+        "avg_latency": 0.3412,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.199,
+        "verify_seconds": 0.8098
+      },
+      "susanaimaginario.com": {
+        "fetch_count": 4,
+        "total_seconds": 4.0025,
+        "avg_latency": 1.0006,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.832,
+        "verify_seconds": 3.2625
+      },
+      "susenedwardsauthor.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.7573,
+        "avg_latency": 0.3786,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.6064,
+        "verify_seconds": 0.4836
+      },
+      "tamikareedwrites.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.7367,
+        "avg_latency": 0.3683,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5991,
+        "verify_seconds": 0.4581
+      },
+      "tansielexington.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.3637,
+        "avg_latency": 0.1819,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.3102,
+        "verify_seconds": 0.3811
+      },
+      "taowebsites.com": {
+        "fetch_count": 2,
+        "total_seconds": 1.3086,
+        "avg_latency": 0.6543,
+        "timeout_count": 0,
+        "prefilter_seconds": 1.1262,
+        "verify_seconds": 0.5729
+      },
+      "tigerhebert.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.7707,
+        "avg_latency": 0.2569,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.534,
+        "verify_seconds": 0.8839
+      },
+      "tomkranzbooks.com": {
+        "fetch_count": 2,
+        "total_seconds": 0.5607,
+        "avg_latency": 0.2804,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5122,
+        "verify_seconds": 0.391
+      },
+      "vncbooks.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.8391,
+        "avg_latency": 0.2797,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.5622,
+        "verify_seconds": 0.9447
+      },
+      "zackargyle.com": {
+        "fetch_count": 3,
+        "total_seconds": 0.4378,
+        "avg_latency": 0.1459,
+        "timeout_count": 0,
+        "prefilter_seconds": 0.2215,
+        "verify_seconds": 0.8296
+      }
+    },
+    "max_fetches_per_domain": 14,
+    "max_seconds_per_domain": 25.0,
+    "max_timeouts_per_domain": 2,
+    "max_total_runtime": 900.0,
+    "max_concurrency": 4
+  },
+  "google_cse_status": "other"
+}

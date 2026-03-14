@@ -1,0 +1,13 @@
+{
+  "generated_at_utc": "2026-03-09T12:19:46Z",
+  "total_candidates": 5,
+  "kept_rows": 2,
+  "reject_reasons": {
+    "page_fetch_failed": 1,
+    "no_indie_proof": 1,
+    "bad_book_title": 1
+  },
+  "listing_status_counts": {
+    "missing": 2
+  }
+}

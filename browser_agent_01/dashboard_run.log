@@ -1,0 +1,29 @@
+[INFO] batch 1: using 28 rotated queries
+[INFO] batch 1/1: running pipeline
+[OK] wrote 60 candidates to /mnt/d/VS/lead finder automation/browser_agent_01/runs/run_001_candidates.csv
+[INFO] batch 1: suppressed 0 pre-validate candidates, kept 60 of 60
+[INFO] batch 1: intake scoring avg -5.58, top band {'0_19': 3, 'lt_0': 57}
+[INFO] processed 10/20 candidates, kept 7
+[INFO] processed 20/20 candidates, kept 13
+[INFO] reject counts: bad_author_name=2, page_fetch_failed_other=1, fetch_budget_exceeded=1, page_fetch_failed_robots_disallow=1, enterprise_or_famous=1, page_fetch_failed_403=1
+[OK] wrote 13 validated prospects to /mnt/d/VS/lead finder automation/browser_agent_01/runs/run_001_validate_slice_001_validated.csv
+[INFO] processed 10/20 candidates, kept 8
+[INFO] processed 20/20 candidates, kept 17
+[INFO] reject counts: time_budget_exceeded=3
+[OK] wrote 17 validated prospects to /mnt/d/VS/lead finder automation/browser_agent_01/runs/run_001_validate_slice_002_validated.csv
+[INFO] reject counts: bad_author_name=3, time_budget_exceeded=2, page_fetch_failed_robots_disallow=2, fetch_budget_exceeded=1, page_fetch_failed_404=1
+[OK] wrote 11 validated prospects to /mnt/d/VS/lead finder automation/browser_agent_01/runs/run_001_validate_slice_003_validated.csv
+[OK] wrote 20 rows to /mnt/d/VS/lead finder automation/browser_agent_01/runs/run_001_final.csv
+[INFO] wrote 1 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/author_email_book.csv
+[INFO] wrote 1 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/scouted_leads.csv
+[INFO] wrote 0 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/fully_verified_leads.csv
+[INFO] wrote 19 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/contact_queue.csv
+[INFO] wrote 0 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/near_miss_location.csv
+[INFO] batch 1: got 20 rows, merged 1 to master, queued 19, added 1 new, total 1/20
+[OK] wrote 1 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/author_email_book.csv
+[OK] wrote 1 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/scouted_leads.csv
+[OK] wrote 0 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/fully_verified_leads.csv
+[OK] wrote 19 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/contact_queue.csv
+[OK] wrote 0 rows -> /mnt/d/VS/lead finder automation/browser_agent_01/near_miss_location.csv
+[OK] done: 1 goal-qualified leads -> /mnt/d/VS/lead finder automation/browser_agent_01/leads_full.csv
+[INFO] target not reached (1/20). Increase --max-runs or broaden inputs.

@@ -1,0 +1,103 @@
+{
+  "run_tag": "run_010",
+  "batch_index": 10,
+  "generated_at_utc": "2026-03-06T05:01:15Z",
+  "pipeline_exit_code": 0,
+  "counts": {
+    "candidates": 42,
+    "validated": 2,
+    "final": 2,
+    "verified": 0,
+    "pre_verify_rows": 2,
+    "kept_rows_after_gate": 2,
+    "added_to_master": 0,
+    "master_total": 4
+  },
+  "candidates": {
+    "total": 42,
+    "per_query": {
+      "\"2026\" \"mystery\" \"kindle direct publishing\" \"author website\"": 7,
+      "\"horror\" \"self-published author\" \"contact\" \"amazon.com\"": 7,
+      "\"horror\" \"self-published author\" \"barnesandnoble.com\" \"paperback\"": 6,
+      "\"horror\" \"self-published author\" \"contact@\" \"author website\"": 5,
+      "\"horror\" \"indie author\" \"mailto:\" \"contact\"": 5,
+      "goodreads:genres:indie:outbound:p1": 3,
+      "\"horror\" \"independently published\" \"author website\" \"contact\"": 3,
+      "goodreads:genres:indie:p1": 2,
+      "\"kindle direct publishing\" \"author website\" \"amazon.com\"": 2,
+      "\"mystery\" \"independently published\" \"author website\" \"contact\"": 2
+    },
+    "top_domains": [
+      {
+        "domain": "www.gatewaybowl.com",
+        "count": 7
+      },
+      {
+        "domain": "www.anthropic.com",
+        "count": 5
+      },
+      {
+        "domain": "www.goodreads.com",
+        "count": 3
+      },
+      {
+        "domain": "www.seroundtable.com",
+        "count": 2
+      },
+      {
+        "domain": "susanee.com",
+        "count": 1
+      },
+      {
+        "domain": "cuddlebuggery.com",
+        "count": 1
+      },
+      {
+        "domain": "mlwangbooks.com",
+        "count": 1
+      },
+      {
+        "domain": "www.amazon.com",
+        "count": 1
+      },
+      {
+        "domain": "www.target.com",
+        "count": 1
+      },
+      {
+        "domain": "en.m.wiktionary.org",
+        "count": 1
+      },
+      {
+        "domain": "www.timeanddate.com",
+        "count": 1
+      },
+      {
+        "domain": "www.calendar-365.com",
+        "count": 1
+      },
+      {
+        "domain": "www.almanac.com",
+        "count": 1
+      },
+      {
+        "domain": "www.calendardate.com",
+        "count": 1
+      },
+      {
+        "domain": "www.calendarr.com",
+        "count": 1
+      }
+    ]
+  },
+  "validator": {
+    "generated_at_utc": "2026-03-06T05:01:14Z",
+    "total_candidates": 42,
+    "kept_rows": 2,
+    "reject_reasons": {
+      "no_valid_listing": 32,
+      "page_fetch_failed": 5,
+      "bad_author_name": 3
+    }
+  }
+}

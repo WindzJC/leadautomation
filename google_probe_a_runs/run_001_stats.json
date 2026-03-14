@@ -1,0 +1,72 @@
+{
+  "run_tag": "run_001",
+  "batch_index": 1,
+  "generated_at_utc": "2026-03-07T21:27:55Z",
+  "pipeline_exit_code": 0,
+  "pipeline_stdout_log": "google_probe_a_runs/run_001_pipeline.stdout.log",
+  "pipeline_stderr_log": "google_probe_a_runs/run_001_pipeline.stderr.log",
+  "counts": {
+    "harvested_candidates": 2,
+    "candidates": 2,
+    "validated": 0,
+    "final": 0,
+    "verified": 0,
+    "pre_verify_rows": 0,
+    "kept_rows_after_gate": 0,
+    "suppressed_pre_validate_total": 0,
+    "added_to_master": 0,
+    "master_total": 6
+  },
+  "harvested_candidates": {
+    "total": 2,
+    "per_query": {
+      "\"kindle direct publishing\" \"author website\"": 2
+    },
+    "per_source": {
+      "web_search": 2
+    },
+    "top_domains": [
+      {
+        "domain": "www.amazon.com",
+        "count": 1
+      },
+      {
+        "domain": "www.target.com",
+        "count": 1
+      }
+    ]
+  },
+  "candidates": {
+    "total": 2,
+    "per_query": {
+      "\"kindle direct publishing\" \"author website\"": 2
+    },
+    "per_source": {
+      "web_search": 2
+    },
+    "top_domains": [
+      {
+        "domain": "www.amazon.com",
+        "count": 1
+      },
+      {
+        "domain": "www.target.com",
+        "count": 1
+      }
+    ]
+  },
+  "pre_validate_suppression": {
+    "suppressed_pre_validate_total": 0,
+    "suppressed_pre_validate_by_reason": {}
+  },
+  "validator": {
+    "generated_at_utc": "2026-03-07T21:27:55Z",
+    "total_candidates": 2,
+    "kept_rows": 0,
+    "reject_reasons": {
+      "bad_author_name": 1,
+      "page_fetch_failed": 1
+    },
+    "listing_status_counts": {}
+  }
+}

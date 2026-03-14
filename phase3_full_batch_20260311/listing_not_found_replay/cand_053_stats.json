@@ -1,0 +1,192 @@
+{
+  "generated_at_utc": "2026-03-11T14:02:26Z",
+  "validation_profile": "strict_full",
+  "total_candidates": 1,
+  "kept_rows": 0,
+  "reject_reasons": {
+    "non_us_location": 1
+  },
+  "listing_status_counts": {},
+  "book_title_method_counts": {},
+  "book_title_confidence_counts": {},
+  "book_title_status_counts": {},
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {},
+  "recency_status_counts": {},
+  "email_quality_counts": {},
+  "leads_with_author_email": 0,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 9.1102,
+    "verify_seconds": 11.8495
+  },
+  "prefilter_candidates": 1,
+  "verify_candidates": 1,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_053_stats_domain_cache.jsonl",
+  "location_debug_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_053_stats_location_debug.jsonl",
+  "listing_debug_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_053_stats_listing_debug.jsonl",
+  "near_miss_location_path": "phase3_full_batch_20260311/listing_not_found_replay/cand_053_near.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "non_us_location": 1
+  },
+  "location_method_counts": {
+    "broad_phrase": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://jcrycroft.com",
+      "candidate_domain": "jcrycroft.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "our relationships, to the natural world, to political structures \u2013 make some thi",
+      "selected_source_url": "https://jcrycroft.com/about-us/",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "e world in reach. But it also means that I know that the ways that we talk about things \u2013 from our relationships, to the natural world, to political structures \u2013 make some things imaginable, realistic, realisable, normal, real. And others unimaginable, unrealistic,",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://jcrycroft.com/about-author",
+        "https://jcrycroft.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jcrycroft.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": ", or",
+          "snippet": "e demonic hordes seeming to do the same, Gelen is forced to choose: is she first a soldier, or a mother? Toggle menu visibility. Built with BoldGrid Powered By DreamHost",
+          "method": "weak_us_signal",
+          "source_url": "https://jcrycroft.com/books/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "our relationships, to the natural world, to political structures \u2013 make some thi",
+          "snippet": "e world in reach. But it also means that I know that the ways that we talk about things \u2013 from our relationships, to the natural world, to political structures \u2013 make some things imaginable, realistic, realisable, normal, real. And others unimaginable, unrealistic,",
+          "method": "broad_phrase",
+          "source_url": "https://jcrycroft.com/about-us/",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jcrycroft.com/contact-us/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jcrycroft.com/newsletter/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {},
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "dead_end": 1
+  },
+  "planned_action_counts": {
+    "stop_dead_end": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://jcrycroft.com",
+      "candidate_domain": "jcrycroft.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "t Toggle menu visibility. Home About Contact Books Newsletter Extras Contact DIRECT Email contact@jcrycroft.com Toggle menu visibility. Built with BoldGrid Powered By DreamHost",
+      "best_email_source_url": "https://jcrycroft.com/contact-us/",
+      "best_location_snippet": "e world in reach. But it also means that I know that the ways that we talk about things \u2013 from our relationships, to the natural world, to political structures \u2013 make some things imaginable, realistic, realisable, normal, real. And others unimaginable, unrealistic,",
+      "best_location_source_url": "https://jcrycroft.com/about-us/",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:non_us_location"
+      ]
+    }
+  ],
+  "per_domain": {
+    "jcrycroft.com": {
+      "fetch_count": 12,
+      "total_seconds": 19.6877,
+      "avg_latency": 1.6406,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.1102,
+      "verify_seconds": 11.8495,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 1,
+  "top_domain_budget_burn": [
+    {
+      "domain": "jcrycroft.com",
+      "fetch_count": 12,
+      "total_seconds": 19.6877,
+      "avg_latency": 1.6406,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.1102,
+      "verify_seconds": 11.8495,
+      "dominant_phase": "verify"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://jcrycroft.com",
+      "candidate_domain": "jcrycroft.com",
+      "fetch_count": 12,
+      "total_seconds": 19.6877,
+      "prefilter_seconds": 9.1102,
+      "verify_seconds": 11.8495,
+      "dominant_phase": "verify",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    }
+  ],
+  "max_fetches_per_domain": 16,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 90.0,
+  "max_concurrency": 4
+}

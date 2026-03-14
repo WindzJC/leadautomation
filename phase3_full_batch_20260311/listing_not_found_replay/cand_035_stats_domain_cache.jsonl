@@ -1,0 +1,1 @@
+{"domain": "kellannetta.com", "origin": "https://www.kellannetta.com", "robots_mode": "allow_all", "robots_text": "", "robots_expiry_ts": 1773323875.412942, "sitemap_urls": [], "fetch_failures": [{"url": "https://www.kellannetta.com", "reason": "403", "status_code": 403}, {"url": "http://www.kellannetta.com", "reason": "403", "status_code": 403}]}

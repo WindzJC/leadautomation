@@ -1,0 +1,8 @@
+"site:amazon.com" "/dp/" "independently published"
+"site:barnesandnoble.com" "/w/" "independently published"
+"indie author" "official website" "contact"
+"self-published author" "newsletter"
+"kindle direct publishing" "author website"
+"ingramspark" "author website"
+"fantasy" "indie author" "contact"
+"romance" "indie author" "contact"

@@ -18,6 +18,7 @@ ASTRA_OUTBOUND_PROFILE = "astra_outbound"
 VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
+AGENT_HUNT_PROFILE = "agent_hunt"
 
 
 def normalize_validation_profile(value: str) -> str:
@@ -42,6 +43,8 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
             args.max_seconds_per_domain = 25.0
         if float(getattr(args, "max_total_runtime", 900.0) or 0.0) == 900.0:
             args.max_total_runtime = 900.0
+        return
+    if profile == AGENT_HUNT_PROFILE:
         return
     if profile != ASTRA_OUTBOUND_PROFILE:
         return
@@ -238,13 +241,14 @@ def parse_args() -> argparse.Namespace:
         choices=(
             "default",
             "fully_verified",
+            AGENT_HUNT_PROFILE,
             ASTRA_OUTBOUND_PROFILE,
             VERIFIED_NO_US_PROFILE,
             STRICT_INTERACTIVE_PROFILE,
             STRICT_FULL_PROFILE,
         ),
         default="default",
-        help="Validation profile: default keeps staged rows; fully_verified hard-gates outbound-ready rows; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+        help="Validation profile: default keeps staged rows; fully_verified hard-gates outbound-ready rows; agent_hunt keeps staged validation but is intended for scout-mode ranking/export in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
     parser.add_argument("--min-final", type=int, default=20, help="Expected minimum final rows.")
     parser.add_argument("--max-final", type=int, default=40, help="Maximum final rows.")

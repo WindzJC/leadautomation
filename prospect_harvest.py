@@ -1500,6 +1500,11 @@ def interleave_candidate_groups(*groups: List[Dict[str, str]]) -> List[Dict[str,
     return out
 
 
+def rotate_candidate_groups(groups: List[List[Dict[str, str]]], offset: int) -> List[List[Dict[str, str]]]:
+    non_empty = [group for group in groups if group]
+    return rotate_values(non_empty, offset)
+
+
 def first_heading_text(node: BeautifulSoup) -> str:
     for selector in ("h1", "h2", "h3", "h4", "strong"):
         heading = node.find(selector)
@@ -1935,21 +1940,39 @@ def harvest(
             session=session,
             timeout=max(1.0, goodreads_timeout),
         )
-        add_rows(interleave_candidate_groups(epic_rows, iabx_rows))
+        initial_ian_page_budget = min(4, max(2, 2 + (rotation_offset % 3)))
+        ian_rows = extract_ian_directory_candidates(
+            session=session,
+            timeout=max(1.0, goodreads_timeout),
+            rotation_offset=rotation_offset,
+            page_budget=initial_ian_page_budget,
+            outbound_per_profile=max(1, goodreads_outbound_per_url or 2),
+        )
+        add_rows(
+            interleave_candidate_groups(
+                *rotate_candidate_groups([epic_rows, ian_rows, iabx_rows], rotation_offset)
+            )
+        )
         if len(out) < deterministic_goal and time_budget_remaining():
             shortfall = max(0, deterministic_goal - len(out))
-            ian_page_budget = min(10, max(2, 1 + shortfall // 12))
-            add_rows(
-                interleave_candidate_groups(
-                    extract_ian_directory_candidates(
-                        session=session,
-                        timeout=max(1.0, goodreads_timeout),
-                        rotation_offset=rotation_offset,
-                        page_budget=ian_page_budget,
-                        outbound_per_profile=max(1, goodreads_outbound_per_url or 2),
+            expanded_ian_page_budget = min(10, max(initial_ian_page_budget + 1, 1 + shortfall // 12))
+            if expanded_ian_page_budget > initial_ian_page_budget:
+                add_rows(
+                    interleave_candidate_groups(
+                        *rotate_candidate_groups(
+                            [
+                                extract_ian_directory_candidates(
+                                    session=session,
+                                    timeout=max(1.0, goodreads_timeout),
+                                    rotation_offset=rotation_offset + 1,
+                                    page_budget=expanded_ian_page_budget,
+                                    outbound_per_profile=max(1, goodreads_outbound_per_url or 2),
+                                )
+                            ],
+                            rotation_offset,
+                        )
                     )
                 )
-            )
 
         if len(out) < deterministic_goal and include_openlibrary and time_budget_remaining():
             openlibrary_quota = min(max_openlibrary_candidates, max(6, int(round(effective_target * 0.1))))

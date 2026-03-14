@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from dashboard.data_loader import (
+    SCOUTED_EXPORT_COLUMNS,
     VERIFIED_EXPORT_COLUMNS,
     build_candidate_index,
     discover_run_contexts,
@@ -48,6 +49,7 @@ def test_load_context_outputs_reads_verified_queue_and_near_miss(tmp_path: Path)
     runs_dir = run_root / "runs"
     runs_dir.mkdir(parents=True)
     _write(run_root / "fully_verified_leads.csv", "A Writer,A Book,a@example.com,https://example.com/about\n")
+    _write(run_root / "scouted_leads.csv", "Scout Writer,scout@example.com,https://example.com/scout\n")
     _write(
         run_root / "contact_queue.csv",
         "AuthorName,BookTitle,AuthorEmail,ContactURL,SourceURL\n"
@@ -58,7 +60,7 @@ def test_load_context_outputs_reads_verified_queue_and_near_miss(tmp_path: Path)
         "AuthorName,BookTitle,AuthorEmail,SourceURL,RejectReason,BestLocationSnippet,CandidateRecoveryURLs\n"
         "A Writer,A Book,a@example.com,https://example.com/about,publisher_location_only,\"Bio text\",https://example.com/about\n",
     )
-    _write(run_root / "author_email_book.csv", "a@example.com,A Writer,A Book,https://example.com/about,https://source,https://listing\n")
+    _write(run_root / "author_email_source.csv", "A Writer,a@example.com,https://example.com/about\n")
 
     context = resolve_context(str(run_root))
     assert context is not None
@@ -66,11 +68,14 @@ def test_load_context_outputs_reads_verified_queue_and_near_miss(tmp_path: Path)
     outputs = load_context_outputs(context)
 
     assert outputs["fully_verified_leads"] == [
-        dict(zip(VERIFIED_EXPORT_COLUMNS, ["A Writer", "A Book", "a@example.com", "https://example.com/about"]))
+        dict(zip(VERIFIED_EXPORT_COLUMNS, ["A Writer", "a@example.com", "https://example.com/about"]))
+    ]
+    assert outputs["scouted_leads"] == [
+        dict(zip(SCOUTED_EXPORT_COLUMNS, ["Scout Writer", "scout@example.com", "https://example.com/scout"]))
     ]
     assert outputs["contact_queue"][0]["AuthorName"] == "A Writer"
     assert outputs["near_miss_location"][0]["RejectReason"] == "publisher_location_only"
-    assert outputs["author_email_book_rows"] == 1
+    assert outputs["lead_export_rows"] == 1
 
 
 def test_load_run_bundle_and_build_candidate_index(tmp_path: Path) -> None:

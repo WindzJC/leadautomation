@@ -1,0 +1,145 @@
+[
+  {
+    "idx": 4,
+    "candidate_url": "https://www.tamikareedwrites.com/",
+    "source_url": "https://www.iabx.org/author-directory",
+    "source_title": "Tamika Reed",
+    "source_snippet": "Author Directory | Independent Authors Book Experience (IABX) author directory listing for Tamika Reed",
+    "reject_reasons": {
+      "no_strong_book_title": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 8,
+    "candidate_url": "http://www.susenedwardsauthor.com/",
+    "source_url": "https://www.iabx.org/author-directory",
+    "source_title": "Susen Edwards",
+    "source_snippet": "Author Directory | Independent Authors Book Experience (IABX) author directory listing for Susen Edwards",
+    "reject_reasons": {
+      "no_strong_book_title": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 18,
+    "candidate_url": "http://www.glassauthor.com",
+    "source_url": "https://www.iabx.org/author-directory",
+    "source_title": "N Joseph Glass",
+    "source_snippet": "Author Directory | Independent Authors Book Experience (IABX) author directory listing for N Joseph Glass",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 22,
+    "candidate_url": "https://www.gardnersart.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "D.L Gardner books",
+    "source_snippet": "D.L Gardner books The website of indie fantasy author D.L. Gardner Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 33,
+    "candidate_url": "https://mhwoodscourt.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "M.H. Woodscourt Books",
+    "source_snippet": "M.H. Woodscourt Books Website of indie fantasy author M.H. Woodscourt. Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 41,
+    "candidate_url": "http://martinowton.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "Martin Owton",
+    "source_snippet": "Martin Owton Website of indie fantasy author Martin Owton. Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 42,
+    "candidate_url": "http://www.marilynpeake.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "Marilyn Peake",
+    "source_snippet": "Marilyn Peake Website of indie fantasy author Marilyn Peake. Visit",
+    "reject_reasons": {
+      "no_strong_book_title": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 47,
+    "candidate_url": "https://miketconley.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "Mike Conley",
+    "source_snippet": "Mike Conley Website of indie fantasy author Mike Conely. Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 62,
+    "candidate_url": "https://jturiano.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "John Turiano",
+    "source_snippet": "John Turiano Website of indi sci-fi author John Turiano Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 64,
+    "candidate_url": "https://andrewdmeredith.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "Andrew D MEREDITH",
+    "source_snippet": "Andrew D MEREDITH The website of indie author Andrew D Meredith. Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  },
+  {
+    "idx": 67,
+    "candidate_url": "https://www.annatsp.com",
+    "source_url": "https://www.epicindie.net/authordirectory",
+    "source_title": "Anna Tan",
+    "source_snippet": "Anna Tan Website of indie author Anna Tan Visit",
+    "reject_reasons": {
+      "no_visible_author_email": 1
+    },
+    "listing_reject_reason_counts": {
+      "listing_not_found": 1
+    }
+  }
+]

@@ -1,0 +1,1409 @@
+{
+  "generated_at_utc": "2026-03-11T14:18:08Z",
+  "validation_profile": "strict_full",
+  "total_candidates": 20,
+  "kept_rows": 0,
+  "reject_reasons": {
+    "no_visible_author_email": 3,
+    "no_strong_book_title": 1,
+    "listing_interstitial_or_redirect_state": 2,
+    "bad_author_name": 1,
+    "time_budget_exceeded": 4,
+    "non_us_location": 9
+  },
+  "listing_status_counts": {},
+  "book_title_method_counts": {},
+  "book_title_confidence_counts": {},
+  "book_title_status_counts": {},
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {},
+  "recency_status_counts": {},
+  "email_quality_counts": {},
+  "leads_with_author_email": 0,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 159.2932,
+    "verify_seconds": 38.1975
+  },
+  "prefilter_candidates": 17,
+  "verify_candidates": 17,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_slice_003_stats_location_debug.jsonl",
+  "listing_debug_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_slice_003_stats_listing_debug.jsonl",
+  "near_miss_location_path": "phase3_full_batch_post_listing_skip_20260311/runs/run_001_validate_slice_003_near_miss_location.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "ok": 1,
+    "publisher_location_only": 5,
+    "non_us_location": 9
+  },
+  "location_method_counts": {
+    "text_phrase": 1,
+    "weak_us_signal": 1,
+    "broad_phrase": 9,
+    "footer": 3,
+    "author_city_state": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "http://martinowton.com",
+      "candidate_domain": "martinowton.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "ok",
+      "selected_location": "Southampton, Hampshire in",
+      "selected_source_url": "http://martinowton.com/biog.php",
+      "selected_method": "text_phrase",
+      "selected_snippet": "o w s o f f a e r i e f o r w r i t e r s l i n k s M A R T I N O W T O N Biography I was born in Southampton, Hampshire in 1958, and grew up on the edge of the New Forest. At the age of 13 I was lucky enough to wi",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "missing_strict_email",
+      "recovery_candidate_urls": [
+        "http://martinowton.com/about-author",
+        "http://martinowton.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Amazon: - Exile - Nandor There is an audiobook available of Exile",
+          "snippet": "adventure fantasy duology Exile and Nandor (collectively The Nandor Tales) are available from Amazon: - Exile - Nandor There is an audiobook available of Exile. Best-selling author Mark Lawrence said of Exile: \" I enjoyed the story. It was sword-swi",
+          "method": "broad_phrase",
+          "source_url": "http://martinowton.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "ok",
+          "location": "Southampton, Hampshire in",
+          "snippet": "o w s o f f a e r i e f o r w r i t e r s l i n k s M A R T I N O W T O N Biography I was born in Southampton, Hampshire in 1958, and grew up on the edge of the New Forest. At the age of 13 I was lucky enough to wi",
+          "method": "text_phrase",
+          "source_url": "http://martinowton.com/biog.php",
+          "source_kind": "bio_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "http://www.marilynpeake.com",
+      "candidate_domain": "marilynpeake.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "USA",
+      "selected_source_url": "https://www.marilynpeake.com/bio",
+      "selected_method": "weak_us_signal",
+      "selected_snippet": "raphs Newsletter Sign-Up Blog Contact More... Use tab to navigate through the menu items. USA Today and Wall Street Journal Bestselling Author Marilyn Peake writes Science Fiction and",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://www.marilynpeake.com/about-author",
+        "https://www.marilynpeake.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "http://www.marilynpeake.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "USA",
+          "snippet": "raphs Newsletter Sign-Up Blog Contact More... Use tab to navigate through the menu items. USA Today and Wall Street Journal Bestselling Author Marilyn Peake writes Science Fiction and",
+          "method": "weak_us_signal",
+          "source_url": "https://www.marilynpeake.com/bio",
+          "source_kind": "bio_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.marilynpeake.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.marilynpeake.com/newsletter",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://tansielexington.com",
+      "candidate_domain": "tansielexington.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "teaching music (private studio) for over 40 years",
+      "selected_source_url": "https://tansielexington.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "ng - - Inspiring Creative Writing - AUTHOR BIO A LITTLE ABOUT ME - I retired in July 2020 from teaching music (private studio) for over 40 years. - Professional musician, my working life. - I'm a full-time RV'er (on the road) with my",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://tansielexington.com/about-author",
+        "https://tansielexington.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "teaching music (private studio) for over 40 years",
+          "snippet": "ng - - Inspiring Creative Writing - AUTHOR BIO A LITTLE ABOUT ME - I retired in July 2020 from teaching music (private studio) for over 40 years. - Professional musician, my working life. - I'm a full-time RV'er (on the road) with my",
+          "method": "broad_phrase",
+          "source_url": "https://tansielexington.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "teaching music (private studio) for over 40 years",
+          "snippet": "ng - - Inspiring Creative Writing - AUTHOR BIO A LITTLE ABOUT ME - I retired in July 2020 from teaching music (private studio) for over 40 years. - Professional musician, my working life. - I'm a full-time RV'er (on the road) with my",
+          "method": "broad_phrase",
+          "source_url": "https://tansielexington.com/author-bio",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://tansielexington.com/contact",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://jslockard.com",
+      "candidate_domain": "jslockard.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "To Amazon Page A t almost seventeen, Eerin",
+      "selected_source_url": "https://jslockard.com",
+      "selected_method": "footer",
+      "selected_snippet": "ease take a look around. A Tangle of Sleuth and Thief Book 1 of the Weavers' Webs series. To Amazon Page A t almost seventeen, Eerin\u2019s teenage boy street-thief guise is getting harder to pull off, while the lamp lit alleyw",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://jslockard.com/about-author",
+        "https://jslockard.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "To Amazon Page A t almost seventeen, Eerin",
+          "snippet": "ease take a look around. A Tangle of Sleuth and Thief Book 1 of the Weavers' Webs series. To Amazon Page A t almost seventeen, Eerin\u2019s teenage boy street-thief guise is getting harder to pull off, while the lamp lit alleyw",
+          "method": "footer",
+          "source_url": "https://jslockard.com",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://miketconley.com",
+      "candidate_domain": "miketconley.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "Book One Tannin of Ironhaven Space, Aliens",
+      "selected_source_url": "https://miketconley.com",
+      "selected_method": "footer",
+      "selected_snippet": "- Afterverse book 2 Adam & Elese -An Afterverse Story Past the Fall Mystonia Chronicles - Book One Tannin of Ironhaven Space, Aliens & Fun coloring book Newsletter Beta & ARC Readers Afterverse Glossary The Team Friendlies",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "missing_strict_email",
+      "recovery_candidate_urls": [
+        "https://mailto:/about-author",
+        "https://mailto:/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Book One Tannin of Ironhaven Space, Aliens",
+          "snippet": "- Afterverse book 2 Adam & Elese -An Afterverse Story Past the Fall Mystonia Chronicles - Book One Tannin of Ironhaven Space, Aliens & Fun coloring book Newsletter Beta & ARC Readers Afterverse Glossary The Team Friendlies",
+          "method": "footer",
+          "source_url": "https://miketconley.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Book One Tannin of Ironhaven Space, Aliens",
+          "snippet": "- Afterverse book 2 Adam & Elese -An Afterverse Story Past the Fall Mystonia Chronicles - Book One Tannin of Ironhaven Space, Aliens & Fun coloring book Newsletter Beta & ARC Readers Afterverse Glossary The Team Friendlies",
+          "method": "footer",
+          "source_url": "https://miketconley.com/newsletter",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.armoredhistory.net",
+      "candidate_domain": "armoredhistory.net",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "obscurity and invaded the world of men to reclaim the domains it once ruled",
+      "selected_source_url": "https://www.armoredhistory.net/about",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "any horrors. Concurrently, a powerful and ancient civilization of nonhumans has reemerged from obscurity and invaded the world of men to reclaim the domains it once ruled. Earth's empires must now face this existential threat with brutality and military force.",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.armoredhistory.net/about-author",
+        "https://www.armoredhistory.net/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.armoredhistory.net",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Imperial Guardsman, Captain Shao Lian",
+          "snippet": "es of his own from across the nations to prepare for the greatest war in human history. \u200b Imperial Guardsman, Captain Shao Lian, then continues his quest to eradicate traitors from within the imperial bureaucracy and",
+          "method": "footer",
+          "source_url": "https://www.armoredhistory.net/books",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "obscurity and invaded the world of men to reclaim the domains it once ruled",
+          "snippet": "any horrors. Concurrently, a powerful and ancient civilization of nonhumans has reemerged from obscurity and invaded the world of men to reclaim the domains it once ruled. Earth's empires must now face this existential threat with brutality and military force.",
+          "method": "broad_phrase",
+          "source_url": "https://www.armoredhistory.net/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.armoredhistory.net/contact",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://melindakucsera.com",
+      "candidate_domain": "melindakucsera.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "her office as a magical storm bears down on them, driven by a mysterious entity",
+      "selected_source_url": "https://melindakucsera.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "SPELLS Curse Breaker\u2019s Companion (Book 3) Our heroes must rescue their scribe, this time from her office as a magical storm bears down on them, driven by a mysterious entity. Meanwhile, the multiverse they didn\u2019t know they lived in is collapsing, and time is runn",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://melindakucsera.com/about-author",
+        "https://melindakucsera.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "her office as a magical storm bears down on them, driven by a mysterious entity",
+          "snippet": "SPELLS Curse Breaker\u2019s Companion (Book 3) Our heroes must rescue their scribe, this time from her office as a magical storm bears down on them, driven by a mysterious entity. Meanwhile, the multiverse they didn\u2019t know they lived in is collapsing, and time is runn",
+          "method": "broad_phrase",
+          "source_url": "https://melindakucsera.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "their cave",
+          "snippet": "the epic fantasy books they star in. They\u2019d rather visit me through a portal conveniently located in their cave. Why am I here? I want to give you more fun adventures, more often, and create a communit",
+          "method": "broad_phrase",
+          "source_url": "https://melindakucsera.com/about/",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Melinda Kucsera is prohibited",
+          "snippet": "authorized use and/or duplication of the material on this site without written permission from Melinda Kucsera is prohibited. Website Powered by WordPress.com . Never Miss A Story Sign up for our weekly newsletter",
+          "method": "broad_phrase",
+          "source_url": "https://melindakucsera.com/contact/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "deletion, and he teams up with a digital dragon to fight an army of rogue charac",
+          "snippet": "stolen journal holds the key to survival. Ran returns to the real world to save his story from deletion, and he teams up with a digital dragon to fight an army of rogue characters. What sacrifices must they make to keep their story alive when an enemy wants to eras",
+          "method": "broad_phrase",
+          "source_url": "https://melindakucsera.com/newsletter-adventures/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.robinlythgoe.com",
+      "candidate_domain": "robinlythgoe.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "the tangled destiny laid out for him",
+      "selected_source_url": "https://www.robinlythgoe.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "h and Bone , the story continues as Sherakai dan Tameko discovers there is no easy escape from the tangled destiny laid out for him. With the last and most terrible gift he is given, Sherakai must use every skill and ever",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://robinlythgoe.com/about-author",
+        "https://robinlythgoe.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the tangled destiny laid out for him",
+          "snippet": "h and Bone , the story continues as Sherakai dan Tameko discovers there is no easy escape from the tangled destiny laid out for him. With the last and most terrible gift he is given, Sherakai must use every skill and ever",
+          "method": "broad_phrase",
+          "source_url": "https://www.robinlythgoe.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "the tangled destiny laid out for him",
+          "snippet": "h and Bone , the story continues as Sherakai dan Tameko discovers there is no easy escape from the tangled destiny laid out for him. With the last and most terrible gift he is given, Sherakai must use every skill and ever",
+          "method": "broad_phrase",
+          "source_url": "https://robinlythgoe.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "us on the first Friday of every month",
+          "snippet": "ithmatic, we promise! Now and then the faces change, but you can usually count on hearing from us on the first Friday of every month. A Drift of Quills ROBIN LYTHGOE Author of As the Crow Flies , and The Mage\u2019s Gift Series",
+          "method": "broad_phrase",
+          "source_url": "https://robinlythgoe.com/about/a-drift-of-quills/",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "qualifying purchases",
+          "snippet": "VER MISS A NEW RELEASE \u2013 FOLLOW ME ON BOOKBUB! Please note, as an Amazon Associate I earn from qualifying purchases. If you purchase something through one of those links it won\u2019t cost you a cent, but I\u2019ll",
+          "method": "broad_phrase",
+          "source_url": "https://robinlythgoe.com/contact/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "time to time! The second (also a short story) is based on the series Tales of a",
+          "snippet": "one of several written for the sheer fun of it. As a subscriber, you\u2019ll get more of these from time to time! The second (also a short story) is based on the series Tales of a Thief , and takes a peek into the life of Crow, who\u2019s \u201cthe best and most famous thief in a",
+          "method": "broad_phrase",
+          "source_url": "https://robinlythgoe.com/newsletter/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.daynaward.com",
+      "candidate_domain": "daynaward.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "Indie Book Addict Review from Paranormal Author Portland Jones Author Interview",
+      "selected_source_url": "https://www.daynaward.com/books/the-begotten-vampire-series/1-the-begotten",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "ct Book One Vampire The Begotten Kindle | Paperback | Hardcover Series Information Review from Indie Book Addict Review from Paranormal Author Portland Jones Author Interview with Samantha Evans When the death of a child heralds the birth of a monster, living night",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.daynaward.com/about-author",
+        "https://www.daynaward.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.daynaward.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Indie Book Addict Review from Paranormal Author Portland Jones Author Interview",
+          "snippet": "ct Book One Vampire The Begotten Kindle | Paperback | Hardcover Series Information Review from Indie Book Addict Review from Paranormal Author Portland Jones Author Interview with Samantha Evans When the death of a child heralds the birth of a monster, living night",
+          "method": "broad_phrase",
+          "source_url": "https://www.daynaward.com/books/the-begotten-vampire-series/1-the-begotten",
+          "source_kind": "page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "Enya to Eisbrecher, with healthy doses of folk metal in between",
+          "snippet": "gies, playing and modding computer games, and listening to multiple music genres\u2013anything from Enya to Eisbrecher, with healthy doses of folk metal in between. Privacy Policy Google Sites Report abuse Google Sites Report abuse",
+          "method": "broad_phrase",
+          "source_url": "https://www.daynaward.com/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "If you are a blogger, YouTuber",
+          "snippet": "book, please don't waste your time. If I want those services I will seek them out myself. If you are a blogger, YouTuber, horror and vampire story enthusiast, or just want to talk, I'd love to hear from you! Pl",
+          "method": "footer",
+          "source_url": "https://www.daynaward.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.daynaward.com/blog/site-updates",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://jcrycroft.com",
+      "candidate_domain": "jcrycroft.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "our relationships, to the natural world, to political structures \u2013 make some thi",
+      "selected_source_url": "https://jcrycroft.com/about-us/",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "e world in reach. But it also means that I know that the ways that we talk about things \u2013 from our relationships, to the natural world, to political structures \u2013 make some things imaginable, realistic, realisable, normal, real. And others unimaginable, unrealistic,",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://jcrycroft.com/about-author",
+        "https://jcrycroft.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jcrycroft.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": ", or",
+          "snippet": "e demonic hordes seeming to do the same, Gelen is forced to choose: is she first a soldier, or a mother? Toggle menu visibility. Built with BoldGrid Powered By DreamHost",
+          "method": "weak_us_signal",
+          "source_url": "https://jcrycroft.com/books/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "our relationships, to the natural world, to political structures \u2013 make some thi",
+          "snippet": "e world in reach. But it also means that I know that the ways that we talk about things \u2013 from our relationships, to the natural world, to political structures \u2013 make some things imaginable, realistic, realisable, normal, real. And others unimaginable, unrealistic,",
+          "method": "broad_phrase",
+          "source_url": "https://jcrycroft.com/about-us/",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jcrycroft.com/contact-us/",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jcrycroft.com/newsletter/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_not_found": 1,
+    "listing_interstitial_or_redirect_state": 2
+  },
+  "listing_debug_samples": [
+    {
+      "candidate_url": "https://tansielexington.com",
+      "candidate_domain": "tansielexington.com",
+      "validation_profile": "strict_full",
+      "listing_status": "unverified",
+      "reject_reason": "listing_interstitial_or_redirect_state",
+      "best_listing_candidate_url": "https://www.amazon.com/Transformation-Sayaka-Kai-Story-Jor%C5%8Dgumo/dp/1737807807/ref=sr_1_1",
+      "best_listing_page_kind": "amazon_product",
+      "best_listing_evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+      "best_listing_title": "",
+      "listing_title_hints": [],
+      "listing_recovery_candidate_urls": [],
+      "listing_attempts": [
+        {
+          "url": "https://www.amazon.com/Transformation-Sayaka-Kai-Story-Jor%C5%8Dgumo/dp/1737807807/ref=sr_1_1",
+          "page_kind": "amazon_product",
+          "reason": "listing_interstitial_or_redirect_state",
+          "evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+          "fetch_failure_reason": "",
+          "status_code": "200",
+          "listing_title": ""
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://jslockard.com",
+      "candidate_domain": "jslockard.com",
+      "validation_profile": "strict_full",
+      "listing_status": "unverified",
+      "reject_reason": "listing_interstitial_or_redirect_state",
+      "best_listing_candidate_url": "https://www.amazon.com/gp/product/B0B4XXTRZH",
+      "best_listing_page_kind": "amazon_product",
+      "best_listing_evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+      "best_listing_title": "",
+      "listing_title_hints": [],
+      "listing_recovery_candidate_urls": [],
+      "listing_attempts": [
+        {
+          "url": "https://www.amazon.com/gp/product/B0B4XXTRZH",
+          "page_kind": "amazon_product",
+          "reason": "listing_interstitial_or_redirect_state",
+          "evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+          "fetch_failure_reason": "",
+          "status_code": "200",
+          "listing_title": ""
+        }
+      ]
+    }
+  ],
+  "candidate_state_counts": {
+    "needs_email_proof": 7,
+    "needs_listing_proof": 3,
+    "dead_end": 10
+  },
+  "planned_action_counts": {
+    "try_email_proof": 7,
+    "try_listing_proof": 3,
+    "stop_dead_end": 10
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "http://martinowton.com",
+      "candidate_domain": "martinowton.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "o w s o f f a e r i e f o r w r i t e r s l i n k s M A R T I N O W T O N Biography I was born in Southampton, Hampshire in 1958, and grew up on the edge of the New Forest. At the age of 13 I was lucky enough to wi",
+      "best_location_source_url": "http://martinowton.com/biog.php",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "me novel, \"Shadows of Faerie\", set in Southampton and the New Forest where I grew up, was published in 2019 by Crossroad Press . Goodreads reviews of Shadows are here . \"Deeper Shadows of F",
+      "best_recency_source_url": "http://martinowton.com",
+      "best_indie_snippet": "Martin Owton Website of indie fantasy author Martin Owton. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "no_visible_author_email",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:ok",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "http://www.marilynpeake.com",
+      "candidate_domain": "marilynpeake.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "ct More... Use tab to navigate through the menu items. Marilyn Peake can be contacted at: author@marilynpeake.com Copyright (c) 2024 Marilyn Peake bottom of page",
+      "best_email_source_url": "https://www.marilynpeake.com/contact",
+      "best_location_snippet": "raphs Newsletter Sign-Up Blog Contact More... Use tab to navigate through the menu items. USA Today and Wall Street Journal Bestselling Author Marilyn Peake writes Science Fiction and",
+      "best_location_source_url": "https://www.marilynpeake.com/bio",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "Marilyn Peake - Home top of page Home Bio Books All Books Science Fantasy YA Paranormal Mystery GameLit Paranormal Romance Science Fiction Zombies/Science Fiction Children's Fantas",
+      "best_recency_source_url": "http://www.marilynpeake.com",
+      "best_indie_snippet": "Marilyn Peake Website of indie fantasy author Marilyn Peake. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "no_strong_book_title",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:verified"
+      ]
+    },
+    {
+      "candidate_url": "https://tansielexington.com",
+      "candidate_domain": "tansielexington.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "PTCHA and the Google Privacy Policy and Terms of Service apply. Tansie Lexington - Author tansie@tansielexington.com Copyright \u00a9 2025 TansieLexingtonAUTHOR - All Rights Reserved. AUTHOR BIO MY 1ST NOVEL Pri",
+      "best_email_source_url": "https://tansielexington.com/contact",
+      "best_location_snippet": "ng - - Inspiring Creative Writing - AUTHOR BIO A LITTLE ABOUT ME - I retired in July 2020 from teaching music (private studio) for over 40 years. - Professional musician, my working life. - I'm a full-time RV'er (on the road) with my",
+      "best_location_source_url": "https://tansielexington.com",
+      "best_listing_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+      "best_listing_source_url": "https://www.amazon.com/Transformation-Sayaka-Kai-Story-Jor%C5%8Dgumo/dp/1737807807/ref=sr_1_1",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "listing_interstitial_or_redirect_state",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:unverified"
+      ]
+    },
+    {
+      "candidate_url": "https://jslockard.com",
+      "candidate_domain": "jslockard.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "ease take a look around. A Tangle of Sleuth and Thief Book 1 of the Weavers' Webs series. To Amazon Page A t almost seventeen, Eerin\u2019s teenage boy street-thief guise is getting harder to pull off, while the lamp lit alleyw",
+      "best_location_source_url": "https://jslockard.com",
+      "best_listing_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its a",
+      "best_listing_source_url": "https://www.amazon.com/gp/product/B0B4XXTRZH",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "listing_interstitial_or_redirect_state",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:unverified"
+      ]
+    },
+    {
+      "candidate_url": "https://robbwallace.co.uk",
+      "candidate_domain": "robbwallace.co.uk",
+      "current_state": "dead_end",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "bad_author_name",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    },
+    {
+      "candidate_url": "https://www.cfwelburn.com",
+      "candidate_domain": "cfwelburn.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "time_budget_exceeded",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://miketconley.com",
+      "candidate_domain": "miketconley.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "- Afterverse book 2 Adam & Elese -An Afterverse Story Past the Fall Mystonia Chronicles - Book One Tannin of Ironhaven Space, Aliens & Fun coloring book Newsletter Beta & ARC Readers Afterverse Glossary The Team Friendlies",
+      "best_location_source_url": "https://miketconley.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": " author spotlight, sharing info about an author I think you may like. Signing up for book release info will also give you an email when a new book is released by Mike Conley Signing up fo",
+      "best_recency_source_url": "https://miketconley.com/newsletter",
+      "best_indie_snippet": "Mike Conley Website of indie fantasy author Mike Conely. Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "no_visible_author_email",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://www.armoredhistory.net",
+      "candidate_domain": "armoredhistory.net",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "any horrors. Concurrently, a powerful and ancient civilization of nonhumans has reemerged from obscurity and invaded the world of men to reclaim the domains it once ruled. Earth's empires must now face this existential threat with brutality and military force.",
+      "best_location_source_url": "https://www.armoredhistory.net/about",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://catrinrussell.com",
+      "candidate_domain": "catrinrussell.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "time_budget_exceeded",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://melindakucsera.com",
+      "candidate_domain": "melindakucsera.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "SPELLS Curse Breaker\u2019s Companion (Book 3) Our heroes must rescue their scribe, this time from her office as a magical storm bears down on them, driven by a mysterious entity. Meanwhile, the multiverse they didn\u2019t know they lived in is collapsing, and time is runn",
+      "best_location_source_url": "https://melindakucsera.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    }
+  ],
+  "per_domain": {
+    "amazon.com": {
+      "fetch_count": 3,
+      "total_seconds": 2.1718,
+      "avg_latency": 0.7239,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "armoredhistory.net": {
+      "fetch_count": 8,
+      "total_seconds": 1.4395,
+      "avg_latency": 0.1799,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0972,
+      "verify_seconds": 1.2916,
+      "dominant_phase": "verify"
+    },
+    "asthelilyflies.com": {
+      "fetch_count": 6,
+      "total_seconds": 1.7986,
+      "avg_latency": 0.2998,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7208,
+      "verify_seconds": 2.0302,
+      "dominant_phase": "verify"
+    },
+    "bryantimothymitchell.com": {
+      "fetch_count": 13,
+      "total_seconds": 9.6487,
+      "avg_latency": 0.7422,
+      "timeout_count": 0,
+      "prefilter_seconds": 7.691,
+      "verify_seconds": 3.2668,
+      "dominant_phase": "prefilter"
+    },
+    "catrinrussell.com": {
+      "fetch_count": 1,
+      "total_seconds": 28.6066,
+      "avg_latency": 28.6066,
+      "timeout_count": 0,
+      "prefilter_seconds": 28.6067,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "cfwelburn.com": {
+      "fetch_count": 1,
+      "total_seconds": 29.1066,
+      "avg_latency": 29.1066,
+      "timeout_count": 0,
+      "prefilter_seconds": 29.1067,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "daynaward.com": {
+      "fetch_count": 6,
+      "total_seconds": 3.8784,
+      "avg_latency": 0.6464,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.1759,
+      "verify_seconds": 3.0178,
+      "dominant_phase": "verify"
+    },
+    "egradcliff.com": {
+      "fetch_count": 5,
+      "total_seconds": 1.0899,
+      "avg_latency": 0.218,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.8421,
+      "verify_seconds": 2.7419,
+      "dominant_phase": "verify"
+    },
+    "enthralledbylove.com": {
+      "fetch_count": 6,
+      "total_seconds": 1.1664,
+      "avg_latency": 0.1944,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.6875,
+      "verify_seconds": 1.9127,
+      "dominant_phase": "verify"
+    },
+    "jcrycroft.com": {
+      "fetch_count": 12,
+      "total_seconds": 16.6612,
+      "avg_latency": 1.3884,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.7425,
+      "verify_seconds": 8.1839,
+      "dominant_phase": "prefilter"
+    },
+    "jslockard.com": {
+      "fetch_count": 3,
+      "total_seconds": 2.3294,
+      "avg_latency": 0.7765,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.335,
+      "verify_seconds": 0.593,
+      "dominant_phase": "prefilter"
+    },
+    "mailto": {
+      "fetch_count": 2,
+      "total_seconds": 0.174,
+      "avg_latency": 0.087,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "marilynpeake.com": {
+      "fetch_count": 8,
+      "total_seconds": 2.5393,
+      "avg_latency": 0.3174,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.2278,
+      "verify_seconds": 1.269,
+      "dominant_phase": "prefilter"
+    },
+    "marktimmony.com": {
+      "fetch_count": 1,
+      "total_seconds": 29.9011,
+      "avg_latency": 29.9011,
+      "timeout_count": 0,
+      "prefilter_seconds": 29.9013,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "martinowton.com": {
+      "fetch_count": 3,
+      "total_seconds": 1.8235,
+      "avg_latency": 0.6078,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.5352,
+      "verify_seconds": 0.6024,
+      "dominant_phase": "prefilter"
+    },
+    "melindakucsera.com": {
+      "fetch_count": 5,
+      "total_seconds": 1.0481,
+      "avg_latency": 0.2096,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7395,
+      "verify_seconds": 1.3938,
+      "dominant_phase": "verify"
+    },
+    "miketconley.com": {
+      "fetch_count": 3,
+      "total_seconds": 0.7436,
+      "avg_latency": 0.2479,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.6443,
+      "verify_seconds": 0.914,
+      "dominant_phase": "verify"
+    },
+    "robbwallace.co.uk": {
+      "fetch_count": 7,
+      "total_seconds": 11.731,
+      "avg_latency": 1.6759,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.9162,
+      "verify_seconds": 2.4798,
+      "dominant_phase": "prefilter"
+    },
+    "robinlythgoe.com": {
+      "fetch_count": 7,
+      "total_seconds": 4.3326,
+      "avg_latency": 0.6189,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.6115,
+      "verify_seconds": 3.0103,
+      "dominant_phase": "verify"
+    },
+    "stephenjtaylor.com": {
+      "fetch_count": 2,
+      "total_seconds": 26.1808,
+      "avg_latency": 13.0904,
+      "timeout_count": 0,
+      "prefilter_seconds": 26.1868,
+      "verify_seconds": 0.3002,
+      "dominant_phase": "prefilter"
+    },
+    "tansielexington.com": {
+      "fetch_count": 6,
+      "total_seconds": 1.318,
+      "avg_latency": 0.2197,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.1437,
+      "verify_seconds": 1.5615,
+      "dominant_phase": "verify"
+    },
+    "tigerhebert.com": {
+      "fetch_count": 8,
+      "total_seconds": 4.0406,
+      "avg_latency": 0.5051,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.3815,
+      "verify_seconds": 3.6287,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 20,
+  "top_domain_budget_burn": [
+    {
+      "domain": "marktimmony.com",
+      "fetch_count": 1,
+      "total_seconds": 29.9011,
+      "avg_latency": 29.9011,
+      "timeout_count": 0,
+      "prefilter_seconds": 29.9013,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "cfwelburn.com",
+      "fetch_count": 1,
+      "total_seconds": 29.1066,
+      "avg_latency": 29.1066,
+      "timeout_count": 0,
+      "prefilter_seconds": 29.1067,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "catrinrussell.com",
+      "fetch_count": 1,
+      "total_seconds": 28.6066,
+      "avg_latency": 28.6066,
+      "timeout_count": 0,
+      "prefilter_seconds": 28.6067,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "stephenjtaylor.com",
+      "fetch_count": 2,
+      "total_seconds": 26.1808,
+      "avg_latency": 13.0904,
+      "timeout_count": 0,
+      "prefilter_seconds": 26.1868,
+      "verify_seconds": 0.3002,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "jcrycroft.com",
+      "fetch_count": 12,
+      "total_seconds": 16.6612,
+      "avg_latency": 1.3884,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.7425,
+      "verify_seconds": 8.1839,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "robbwallace.co.uk",
+      "fetch_count": 7,
+      "total_seconds": 11.731,
+      "avg_latency": 1.6759,
+      "timeout_count": 0,
+      "prefilter_seconds": 9.9162,
+      "verify_seconds": 2.4798,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "bryantimothymitchell.com",
+      "fetch_count": 13,
+      "total_seconds": 9.6487,
+      "avg_latency": 0.7422,
+      "timeout_count": 0,
+      "prefilter_seconds": 7.691,
+      "verify_seconds": 3.2668,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "robinlythgoe.com",
+      "fetch_count": 7,
+      "total_seconds": 4.3326,
+      "avg_latency": 0.6189,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.6115,
+      "verify_seconds": 3.0103,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "tigerhebert.com",
+      "fetch_count": 8,
+      "total_seconds": 4.0406,
+      "avg_latency": 0.5051,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.3815,
+      "verify_seconds": 3.6287,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "daynaward.com",
+      "fetch_count": 6,
+      "total_seconds": 3.8784,
+      "avg_latency": 0.6464,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.1759,
+      "verify_seconds": 3.0178,
+      "dominant_phase": "verify"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://marktimmony.com",
+      "candidate_domain": "marktimmony.com",
+      "fetch_count": 1,
+      "total_seconds": 29.9011,
+      "prefilter_seconds": 29.9013,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": ""
+    },
+    {
+      "candidate_url": "https://www.cfwelburn.com",
+      "candidate_domain": "cfwelburn.com",
+      "fetch_count": 1,
+      "total_seconds": 29.1066,
+      "prefilter_seconds": 29.1067,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": ""
+    },
+    {
+      "candidate_url": "https://catrinrussell.com",
+      "candidate_domain": "catrinrussell.com",
+      "fetch_count": 1,
+      "total_seconds": 28.6066,
+      "prefilter_seconds": 28.6067,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": ""
+    },
+    {
+      "candidate_url": "http://stephenjtaylor.com",
+      "candidate_domain": "stephenjtaylor.com",
+      "fetch_count": 2,
+      "total_seconds": 26.1808,
+      "prefilter_seconds": 26.1868,
+      "verify_seconds": 0.3002,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://jcrycroft.com",
+      "candidate_domain": "jcrycroft.com",
+      "fetch_count": 12,
+      "total_seconds": 16.6612,
+      "prefilter_seconds": 9.7425,
+      "verify_seconds": 8.1839,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://robbwallace.co.uk",
+      "candidate_domain": "robbwallace.co.uk",
+      "fetch_count": 7,
+      "total_seconds": 11.731,
+      "prefilter_seconds": 9.9162,
+      "verify_seconds": 2.4798,
+      "dominant_phase": "prefilter",
+      "reject_reason": "bad_author_name",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "bad_author_name",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://bryantimothymitchell.com",
+      "candidate_domain": "bryantimothymitchell.com",
+      "fetch_count": 13,
+      "total_seconds": 9.6487,
+      "prefilter_seconds": 7.691,
+      "verify_seconds": 3.2668,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://www.robinlythgoe.com",
+      "candidate_domain": "robinlythgoe.com",
+      "fetch_count": 7,
+      "total_seconds": 4.3326,
+      "prefilter_seconds": 2.6115,
+      "verify_seconds": 3.0103,
+      "dominant_phase": "verify",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://www.tigerhebert.com",
+      "candidate_domain": "tigerhebert.com",
+      "fetch_count": 8,
+      "total_seconds": 4.0406,
+      "prefilter_seconds": 1.3815,
+      "verify_seconds": 3.6287,
+      "dominant_phase": "verify",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://www.daynaward.com",
+      "candidate_domain": "daynaward.com",
+      "fetch_count": 6,
+      "total_seconds": 3.8784,
+      "prefilter_seconds": 2.1759,
+      "verify_seconds": 3.0178,
+      "dominant_phase": "verify",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    }
+  ],
+  "max_fetches_per_domain": 16,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 660.2371,
+  "max_concurrency": 4
+}

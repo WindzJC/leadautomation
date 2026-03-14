@@ -1,0 +1,207 @@
+{
+  "generated_at_utc": "2026-03-11T13:28:26Z",
+  "validation_profile": "strict_full",
+  "total_candidates": 1,
+  "kept_rows": 0,
+  "reject_reasons": {
+    "listing_wrong_format_or_incomplete": 1
+  },
+  "listing_status_counts": {},
+  "book_title_method_counts": {},
+  "book_title_confidence_counts": {},
+  "book_title_status_counts": {},
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {},
+  "recency_status_counts": {},
+  "email_quality_counts": {},
+  "leads_with_author_email": 0,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 3.9469,
+    "verify_seconds": 0.7946
+  },
+  "prefilter_candidates": 1,
+  "verify_candidates": 1,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "phase3_strict_full_batch_20260311/runs/run_001_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "phase3_strict_full_batch_20260311/runs/run_001_validate_slice_026_stats_location_debug.jsonl",
+  "listing_debug_path": "phase3_strict_full_batch_20260311/runs/run_001_validate_slice_026_stats_listing_debug.jsonl",
+  "near_miss_location_path": "phase3_strict_full_batch_20260311/runs/run_001_validate_slice_026_near_miss_location.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "weak_us_signal": 1
+  },
+  "location_method_counts": {
+    "broad_phrase": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "weak_us_signal",
+      "selected_location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+      "selected_source_url": "https://shelbyhild.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://shelbyhild.com/about-author",
+        "https://shelbyhild.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "weak_us_signal",
+          "location": "annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild S",
+          "snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+          "method": "broad_phrase",
+          "source_url": "https://shelbyhild.com",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_wrong_format_or_incomplete": 1
+  },
+  "listing_debug_samples": [
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "validation_profile": "strict_full",
+      "listing_status": "unverified",
+      "reject_reason": "listing_wrong_format_or_incomplete",
+      "best_listing_candidate_url": "https://www.amazon.com/gp/product/B09H7PWL14/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0",
+      "best_listing_page_kind": "amazon_product",
+      "best_listing_evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its affiliates",
+      "best_listing_title": "",
+      "listing_title_hints": [],
+      "listing_recovery_candidate_urls": [],
+      "listing_attempts": [
+        {
+          "url": "https://www.amazon.com/gp/product/B09H7PWL14/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0",
+          "page_kind": "amazon_product",
+          "reason": "listing_wrong_format_or_incomplete",
+          "evidence_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its affiliates",
+          "fetch_failure_reason": "",
+          "status_code": "200",
+          "listing_title": ""
+        }
+      ]
+    }
+  ],
+  "candidate_state_counts": {
+    "needs_listing_proof": 1
+  },
+  "planned_action_counts": {
+    "try_listing_proof": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "s final battle against the forces of darkness, will they be able to save the entire world from annihilation before it crumbles in on itself? Buy This Book Author Shelby Hild Shelby Hild is a Texas Christian University alumna who holds a B.A. in Writing and has a lo",
+      "best_location_source_url": "https://shelbyhild.com",
+      "best_listing_snippet": "Amazon.com Click the button below to continue shopping Continue shopping Conditions of Use Privacy Policy \u00a9 1996-2025, Amazon.com, Inc. or its affiliates",
+      "best_listing_source_url": "https://www.amazon.com/gp/product/B09H7PWL14/ref=dbs_a_def_rwt_hsch_vapi_tkin_p1_i0",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "listing_wrong_format_or_incomplete",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:weak_us_signal",
+        "try_listing_proof:unverified"
+      ]
+    }
+  ],
+  "per_domain": {
+    "amazon.com": {
+      "fetch_count": 1,
+      "total_seconds": 0.4839,
+      "avg_latency": 0.4839,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "shelbyhild.com": {
+      "fetch_count": 2,
+      "total_seconds": 3.941,
+      "avg_latency": 1.9705,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.9469,
+      "verify_seconds": 0.7946,
+      "dominant_phase": "prefilter"
+    }
+  },
+  "candidate_budget_burn_count": 1,
+  "top_domain_budget_burn": [
+    {
+      "domain": "shelbyhild.com",
+      "fetch_count": 2,
+      "total_seconds": 3.941,
+      "avg_latency": 1.9705,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.9469,
+      "verify_seconds": 0.7946,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "amazon.com",
+      "fetch_count": 1,
+      "total_seconds": 0.4839,
+      "avg_latency": 0.4839,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "fetch_count": 3,
+      "total_seconds": 4.425,
+      "prefilter_seconds": 3.9469,
+      "verify_seconds": 0.7946,
+      "dominant_phase": "prefilter",
+      "reject_reason": "listing_wrong_format_or_incomplete",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "strict_non_location_failure",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_listing_proof",
+      "next_action": "try_listing_proof",
+      "next_action_reason": "listing_wrong_format_or_incomplete",
+      "last_attempted_action": "try_listing_proof"
+    }
+  ],
+  "max_fetches_per_domain": 16,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 83.08440000000002,
+  "max_concurrency": 4
+}

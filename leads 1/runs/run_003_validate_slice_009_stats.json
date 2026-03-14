@@ -1,0 +1,248 @@
+{
+  "generated_at_utc": "2026-03-12T14:42:06Z",
+  "validation_profile": "agent_hunt",
+  "total_candidates": 1,
+  "kept_rows": 1,
+  "reject_reasons": {},
+  "listing_status_counts": {
+    "verified": 1
+  },
+  "book_title_method_counts": {
+    "books_index_card": 1
+  },
+  "book_title_confidence_counts": {
+    "strong": 1
+  },
+  "book_title_status_counts": {
+    "ok": 1
+  },
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {
+    "directory": 1
+  },
+  "recency_status_counts": {
+    "verified": 1
+  },
+  "email_quality_counts": {},
+  "leads_with_author_email": 0,
+  "fully_verified_rows": 0,
+  "stage_timings": {
+    "prefilter_seconds": 3.6584,
+    "verify_seconds": 4.7196
+  },
+  "prefilter_candidates": 1,
+  "verify_candidates": 1,
+  "batch_runtime_exceeded": false,
+  "cache_hits": {},
+  "domain_cache_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_stats_domain_cache.jsonl",
+  "location_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_slice_009_stats_location_debug.jsonl",
+  "listing_debug_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_slice_009_stats_listing_debug.jsonl",
+  "near_miss_location_path": "/mnt/d/VS/lead finder automation/leads 1/runs/run_003_validate_slice_009_near_miss_location.csv",
+  "near_miss_location_rows": 0,
+  "location_decision_counts": {
+    "publisher_location_only": 1
+  },
+  "location_method_counts": {
+    "broad_phrase": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://jamesewisher.com",
+      "candidate_domain": "jamesewisher.com",
+      "validation_profile": "agent_hunt",
+      "require_location_proof": false,
+      "us_only": false,
+      "final_decision": "publisher_location_only",
+      "selected_location": "the author",
+      "selected_source_url": "https://jamesewisher.com/books/malice/",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "against evil in Malice, the next exciting installment of The Aegis of Merlin. Buy direct from the author. Buy the Ebook: https://store.jamesewisher.com/b/RPXIQ Buy the Audiobook: https://store.j",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://jamesewisher.com/about-author",
+        "https://jamesewisher.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jamesewisher.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "the author",
+          "snippet": "against evil in Malice, the next exciting installment of The Aegis of Merlin. Buy direct from the author. Buy the Ebook: https://store.jamesewisher.com/b/RPXIQ Buy the Audiobook: https://store.j",
+          "method": "broad_phrase",
+          "source_url": "https://jamesewisher.com/books/malice/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jamesewisher.com/about/",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jamesewisher.com/books/the-dragon-empress/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://jamesewisher.com/",
+          "source_kind": "page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {},
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "verified": 1
+  },
+  "planned_action_counts": {
+    "mark_verified": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://jamesewisher.com",
+      "candidate_domain": "jamesewisher.com",
+      "current_state": "verified",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "against evil in Malice, the next exciting installment of The Aegis of Merlin. Buy direct from the author. Buy the Ebook: https://store.jamesewisher.com/b/RPXIQ Buy the Audiobook: https://store.j",
+      "best_location_source_url": "https://jamesewisher.com/books/malice/",
+      "best_listing_snippet": "the next exciting installment of The Aegis of Merlin. Buy direct from the author. Buy the Ebook: https://store.jamesewisher.com/b/RPXIQ Buy the Audiobook: https://store.jamesewisher.com",
+      "best_listing_source_url": "http://www.amazon.com/dp/B0C74QQM1C",
+      "best_recency_snippet": "Home - James E. Wisher Fantasy The Portal Wars Saga The SoulBound Saga The Dragonspire Chronicles Soul Force Saga The Aegis of Merlin Miscellaneous Fantasy Sci-Fi Rogue Star Blog J",
+      "best_recency_source_url": "https://jamesewisher.com",
+      "best_indie_snippet": "James E. Wisher Website of indie fantasy author James E. Wisher Visit",
+      "best_indie_source_url": "https://www.epicindie.net/authordirectory",
+      "reject_reason_if_any": "",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:verified",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    }
+  ],
+  "candidate_outcome_records": [
+    {
+      "candidate_url": "https://jamesewisher.com",
+      "candidate_domain": "jamesewisher.com",
+      "source_type": "epic_directory",
+      "source_query": "epic:author-directory",
+      "source_url": "https://www.epicindie.net/authordirectory",
+      "fetch_count": 15,
+      "total_seconds": 6.2783,
+      "prefilter_seconds": 3.6584,
+      "verify_seconds": 4.7196,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "per_domain": {
+    "amazon.com": {
+      "fetch_count": 1,
+      "total_seconds": 0.9195,
+      "avg_latency": 0.9195,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "jamesewisher.com": {
+      "fetch_count": 14,
+      "total_seconds": 5.3587,
+      "avg_latency": 0.3828,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.6584,
+      "verify_seconds": 4.7196,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 1,
+  "top_domain_budget_burn": [
+    {
+      "domain": "jamesewisher.com",
+      "fetch_count": 14,
+      "total_seconds": 5.3587,
+      "avg_latency": 0.3828,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.6584,
+      "verify_seconds": 4.7196,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "amazon.com",
+      "fetch_count": 1,
+      "total_seconds": 0.9195,
+      "avg_latency": 0.9195,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://jamesewisher.com",
+      "candidate_domain": "jamesewisher.com",
+      "fetch_count": 15,
+      "total_seconds": 6.2783,
+      "prefilter_seconds": 3.6584,
+      "verify_seconds": 4.7196,
+      "dominant_phase": "verify",
+      "reject_reason": "kept",
+      "kept": true,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "verified",
+      "next_action": "mark_verified",
+      "next_action_reason": "strict_proofs_satisfied",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "max_fetches_per_domain": 14,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 763.7322,
+  "max_concurrency": 4
+}

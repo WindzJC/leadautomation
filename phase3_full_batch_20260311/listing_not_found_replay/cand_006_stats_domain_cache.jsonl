@@ -1,0 +1,1 @@
+{"domain": "boobearbooks.com", "origin": "https://www.boobearbooks.com", "robots_mode": "allow_all", "robots_text": "", "robots_expiry_ts": 1773323682.8484397, "sitemap_urls": [], "fetch_failures": [{"url": "https://www.boobearbooks.com/", "reason": "404", "status_code": 404}, {"url": "http://www.boobearbooks.com/", "reason": "404", "status_code": 404}]}

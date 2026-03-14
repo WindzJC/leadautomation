@@ -1,0 +1,1520 @@
+{
+  "generated_at_utc": "2026-03-11T13:06:08Z",
+  "validation_profile": "strict_full",
+  "total_candidates": 80,
+  "kept_rows": 1,
+  "reject_reasons": {
+    "non_us_location": 15,
+    "time_budget_exceeded": 1,
+    "no_strong_book_title": 2,
+    "page_fetch_failed_404": 1,
+    "bad_author_name": 4,
+    "no_visible_author_email": 7,
+    "page_fetch_failed_robots_disallow": 3,
+    "page_fetch_failed_other": 1,
+    "publisher_location_only": 1,
+    "famous_signal": 1,
+    "page_fetch_failed_403": 1,
+    "batch_runtime_exceeded": 1
+  },
+  "listing_status_counts": {
+    "verified": 1
+  },
+  "book_title_method_counts": {
+    "listing_title_oracle": 1
+  },
+  "book_title_confidence_counts": {
+    "strong": 1
+  },
+  "book_title_status_counts": {
+    "ok": 1
+  },
+  "book_title_downgraded": 0,
+  "book_title_downgrade_reasons": {},
+  "indie_proof_strength_counts": {
+    "both": 1
+  },
+  "recency_status_counts": {
+    "verified": 1
+  },
+  "email_quality_counts": {
+    "labeled_off_domain": 1
+  },
+  "leads_with_author_email": 1,
+  "fully_verified_rows": 1,
+  "stage_timings": {
+    "prefilter_seconds": 153.5073,
+    "verify_seconds": 86.6001
+  },
+  "prefilter_candidates": 33,
+  "verify_candidates": 33,
+  "batch_runtime_exceeded": true,
+  "cache_hits": {},
+  "domain_cache_path": "strict_full_phase2_check_240_20260311/validate_stats_domain_cache.jsonl",
+  "location_debug_path": "strict_full_phase2_check_240_20260311/validate_stats_location_debug.jsonl",
+  "listing_debug_path": "strict_full_phase2_check_240_20260311/validate_stats_listing_debug.jsonl",
+  "near_miss_location_path": "strict_full_phase2_check_240_20260311/near_miss_location.csv",
+  "near_miss_location_rows": 1,
+  "location_decision_counts": {
+    "non_us_location": 15,
+    "no_location_signal": 2,
+    "publisher_location_only": 6,
+    "ok": 3,
+    "weak_us_signal": 1
+  },
+  "location_method_counts": {
+    "broad_phrase": 10,
+    "none": 2,
+    "directory": 1,
+    "footer": 9,
+    "author_city_state": 4,
+    "weak_us_signal": 1
+  },
+  "location_debug_samples": [
+    {
+      "candidate_url": "https://msolney.com/",
+      "candidate_domain": "msolney.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "readers",
+      "selected_source_url": "https://msolney.com/contact",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "cially during release periods, but I appreciate every message and genuinely enjoy hearing from readers. Use the form below and I\u2019ll get back to you as soon as possible. Matthew Your Email Your",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://msolney.com/about-author",
+        "https://msolney.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "publishing, reader engagement, and what actually works once the marketing noise",
+          "snippet": "ers exist purely to experiment, question, or think out loud. I also share lessons learned from publishing, reader engagement, and what actually works once the marketing noise is stripped away. Paid subscribers get deeper access, early... Read More Blog February 24,",
+          "method": "broad_phrase",
+          "source_url": "https://msolney.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "the series: The Empowered Ones The First Fear Buy Now About Praise for M",
+          "snippet": ".S. Olney About Books Other Writing Blog Events Mailing List Contact Press Kit Buy Direct From the series: The Empowered Ones The First Fear Buy Now About Praise for M.S. Olney\u2019s \u2018The Empowered Ones Series\u2019 \u2018A thrilling, action packed Fantasy adventure\u2019 \u2013 D",
+          "method": "broad_phrase",
+          "source_url": "https://msolney.com/books/the-first-fear",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://msolney.com/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "readers",
+          "snippet": "cially during release periods, but I appreciate every message and genuinely enjoy hearing from readers. Use the form below and I\u2019ll get back to you as soon as possible. Matthew Your Email Your",
+          "method": "broad_phrase",
+          "source_url": "https://msolney.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://msolney.com/mailing-list",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://nilesbooks.com/",
+      "candidate_domain": "nilesbooks.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "no_location_signal",
+      "selected_location": "",
+      "selected_source_url": "https://www.iabx.org/author-directory",
+      "selected_method": "",
+      "selected_snippet": "",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "http://www.nilesbooks.com/about-author",
+        "http://www.nilesbooks.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.iabx.org/author-directory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://nilesbooks.com/",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.rmgarino.com",
+      "candidate_domain": "rmgarino.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "Chaos Of Souls Series - Where Monsters, Magic",
+      "selected_source_url": "https://www.epicindie.net/authordirectory",
+      "selected_method": "directory",
+      "selected_snippet": "R.M. Garino R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.rmgarino.com/about-author",
+        "https://www.rmgarino.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "non_us_location",
+          "location": "Chaos Of Souls Series - Where Monsters, Magic",
+          "snippet": "R.M. Garino R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+          "method": "directory",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "The ChaoS oF SoulS SerieS Where Monsters, Magic",
+          "snippet": "giveaways and to keep a foot in the chaos! Join us... brainzzzz, uhm we mean bookssss... The ChaoS oF SoulS SerieS Where Monsters, Magic & Mayhem Come to Life the prequel Welcome to where the Chaos begins.\u200b \u200b Follow Malachite",
+          "method": "footer",
+          "source_url": "https://www.rmgarino.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS",
+          "snippet": "OF SOULS SERIES A READER'S GUIDE TO CHAOS REVIEWS BONUS CONTENT CHARACTERS OF CHAOS MAPS FROM CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS OF SOULS DELETED CHAPTERS & SCENES BLOG More Use tab to navigate through the menu items. A",
+          "method": "broad_phrase",
+          "source_url": "https://www.rmgarino.com/blog/categories/author-friends-and-blogs",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS",
+          "snippet": "OF SOULS SERIES A READER'S GUIDE TO CHAOS REVIEWS BONUS CONTENT CHARACTERS OF CHAOS MAPS FROM CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS OF SOULS DELETED CHAPTERS & SCENES BLOG More Use tab to navigate through the menu items. c",
+          "method": "broad_phrase",
+          "source_url": "https://www.rmgarino.com/contact",
+          "source_kind": "contact_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS",
+          "snippet": "OF SOULS SERIES A READER'S GUIDE TO CHAOS REVIEWS BONUS CONTENT CHARACTERS OF CHAOS MAPS FROM CHAOS IMAGES FOR THE CHAOS OF SOULS SERIES FAMILY CRESTS BOOK TRAILER FOR CHAOS OF SOULS DELETED CHAPTERS & SCENES BLOG More Use tab to navigate through the menu items. t",
+          "method": "broad_phrase",
+          "source_url": "https://www.rmgarino.com/about-the-newsletter",
+          "source_kind": "about_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.tamikareedwrites.com/",
+      "candidate_domain": "tamikareedwrites.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "I live in Medford, NJ",
+      "selected_source_url": "https://www.tamikareedwrites.com/",
+      "selected_method": "footer",
+      "selected_snippet": "g and creating ever since! I love to work in watercolor pencils, acrylic and oil paints. \u200bI live in Medford, NJ with my Husband and three kids (my personal critique group that's always honest!) How It",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "https://www.tamikareedwrites.com/about-author",
+        "https://www.tamikareedwrites.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.iabx.org/author-directory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "I live in Medford, NJ",
+          "snippet": "g and creating ever since! I love to work in watercolor pencils, acrylic and oil paints. \u200bI live in Medford, NJ with my Husband and three kids (my personal critique group that's always honest!) How It",
+          "method": "footer",
+          "source_url": "https://www.tamikareedwrites.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.tamikareedwrites.com/contact-mailing-list",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "County Galway on the west coast of Ireland",
+      "selected_source_url": "https://www.davidgreenwriter.com",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.davidgreenwriter.com/about-author",
+        "https://www.davidgreenwriter.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "County Galway on the west coast of Ireland",
+          "snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+          "method": "broad_phrase",
+          "source_url": "https://www.davidgreenwriter.com",
+          "source_kind": "page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "Author of Horror, Dark Fantasy, Historical Fiction",
+      "selected_source_url": "https://www.leeconleyauthor.com",
+      "selected_method": "footer",
+      "selected_snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.leeconleyauthor.com/about-author",
+        "https://www.leeconleyauthor.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Author of Horror, Dark Fantasy, Historical Fiction",
+          "snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+          "method": "footer",
+          "source_url": "https://www.leeconleyauthor.com",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.leeconleyauthor.com/post/author-interview-at-bookwormblues",
+          "source_kind": "author_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "http://www.susenedwardsauthor.com/",
+      "candidate_domain": "susenedwardsauthor.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A L",
+      "selected_source_url": "http://www.susenedwardsauthor.com/",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "kin' for Love What a Trip: A Novel Reviews of What a Trip Interviews and Articles Excerpt From What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A Little Story Contact Me More Home About Me News and Upcoming Events Lookin' for Love: A Nov",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "strict_non_location_failure",
+      "recovery_candidate_urls": [
+        "http://www.susenedwardsauthor.com/about-author",
+        "http://www.susenedwardsauthor.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.iabx.org/author-directory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A L",
+          "snippet": "kin' for Love What a Trip: A Novel Reviews of What a Trip Interviews and Articles Excerpt From What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A Little Story Contact Me More Home About Me News and Upcoming Events Lookin' for Love: A Nov",
+          "method": "broad_phrase",
+          "source_url": "http://www.susenedwardsauthor.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A L",
+          "snippet": "kin' for Love What a Trip: A Novel Reviews of What a Trip Interviews and Articles Excerpt From What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A Little Story Contact Me More Home About Me News and Upcoming Events Lookin' for Love: A Nov",
+          "method": "broad_phrase",
+          "source_url": "http://www.susenedwardsauthor.com/about-me-1",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A L",
+          "snippet": "kin' for Love What a Trip: A Novel Reviews of What a Trip Interviews and Articles Excerpt From What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A Little Story Contact Me More Home About Me News and Upcoming Events Lookin' for Love: A Nov",
+          "method": "broad_phrase",
+          "source_url": "http://www.susenedwardsauthor.com/contact-me",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://tomkranzbooks.com/",
+      "candidate_domain": "tomkranzbooks.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "publisher_location_only",
+      "selected_location": "Books and Beers event in beautiful Howell, NJ",
+      "selected_source_url": "https://tomkranzbooks.com/",
+      "selected_method": "author_city_state",
+      "selected_snippet": "lphia will be at the London Book Fair! INFO Horror & Sci Fi Books and Craft Beer! Another Books and Beers event in beautiful Howell, NJ INFO Pre-holiday gift ideas: Books! ShoAuthors from across New Jersey and environs will h",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "missing_strict_email",
+      "recovery_candidate_urls": [
+        "https://tomkranzbooks.com/about-author",
+        "https://tomkranzbooks.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.iabx.org/author-directory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Books and Beers event in beautiful Howell, NJ",
+          "snippet": "lphia will be at the London Book Fair! INFO Horror & Sci Fi Books and Craft Beer! Another Books and Beers event in beautiful Howell, NJ INFO Pre-holiday gift ideas: Books! ShoAuthors from across New Jersey and environs will h",
+          "method": "author_city_state",
+          "source_url": "https://tomkranzbooks.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Temple University",
+          "snippet": ", television, print, and online platforms. He holds a bachelor\u2019s degree in communications from Temple University. Tom's career as an author began in 2007 after leaving broadcasting. He has written eight",
+          "method": "broad_phrase",
+          "source_url": "https://tomkranzbooks.com/about",
+          "source_kind": "about_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://tomkranzbooks.com/contact",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://www.vncbooks.com/",
+      "candidate_domain": "vncbooks.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "You! I am available for in person or viral, zoom Skype or google classroom visit",
+      "selected_source_url": "https://www.vncbooks.com/contact-us",
+      "selected_method": "broad_phrase",
+      "selected_snippet": "intables Contact Me More Use tab to navigate through the menu items. I Would Love to Hear from You! I am available for in person or viral, zoom Skype or google classroom visits 201-618-5902 vncbooks@gmail.com Feel free to contact me with comments or suggestions! Ad",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://www.vncbooks.com/about-author",
+        "https://www.vncbooks.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.iabx.org/author-directory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "publisher_location_only",
+          "location": "Currently, I provide free zoom",
+          "snippet": "Writing is my passion because it allows me to educate and inspire. Read more > Service : Currently, I provide free zoom, google classroom and Skype meetings with students. Objective : Read and engage children",
+          "method": "footer",
+          "source_url": "https://www.vncbooks.com/",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.vncbooks.com/books",
+          "source_kind": "page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.vncbooks.com/authorvisits",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "You! I am available for in person or viral, zoom Skype or google classroom visit",
+          "snippet": "intables Contact Me More Use tab to navigate through the menu items. I Would Love to Hear from You! I am available for in person or viral, zoom Skype or google classroom visits 201-618-5902 vncbooks@gmail.com Feel free to contact me with comments or suggestions! Ad",
+          "method": "broad_phrase",
+          "source_url": "https://www.vncbooks.com/contact-us",
+          "source_kind": "contact_page"
+        }
+      ]
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "validation_profile": "strict_full",
+      "require_location_proof": true,
+      "us_only": true,
+      "final_decision": "non_us_location",
+      "selected_location": "Dungeons and Dragons, Top Secret, Vampire",
+      "selected_source_url": "https://authorjackadkins.com",
+      "selected_method": "footer",
+      "selected_snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+      "recovery_mode": "same_domain",
+      "recovery_attempted": false,
+      "recovery_skipped_reason": "",
+      "recovery_candidate_urls": [
+        "https://authorjackadkins.com/about-author",
+        "https://authorjackadkins.com/about-the-author"
+      ],
+      "attempts": [
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://www.epicindie.net/authordirectory",
+          "source_kind": "directory"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "Dungeons and Dragons, Top Secret, Vampire",
+          "snippet": "CK Jack Adkins has been spinning tales for over thirty years. He is a seasoned veteran of Dungeons and Dragons, Top Secret, Vampire, MechWarrior, and almost every RPG in between. Jack has finally gotten around to sharing",
+          "method": "footer",
+          "source_url": "https://authorjackadkins.com",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://authorjackadkins.com/product-category/books/e-book/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "my \u2026 Read more Categories Author Helps , Yon Blog Author Newsletters and How to",
+          "snippet": "ragons of Dorwine fantasy series I started creating minis that represented the characters from my \u2026 Read more Categories Author Helps , Yon Blog Author Newsletters and How to Swing Em February 27, 2023 February 20, 2023 by Author Jack Adkins Author Newsletters (a.k",
+          "method": "broad_phrase",
+          "source_url": "https://authorjackadkins.com/category/yon_blog/author-helps/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "no_location_signal",
+          "location": "",
+          "snippet": "",
+          "method": "",
+          "source_url": "https://authorjackadkins.com/contact/",
+          "source_kind": "author_page"
+        },
+        {
+          "decision": "non_us_location",
+          "location": "your newsletter is simply about sifting through hundreds of thousands of people",
+          "snippet": "lly enjoy your writing. They just don\u2019t know it yet. The process of adding to and pruning from your newsletter is simply about sifting through hundreds of thousands of people to find a group of those who will love your work and follow you forever. Author Newsletter",
+          "method": "broad_phrase",
+          "source_url": "https://authorjackadkins.com/author-newsletters-and-how-to-swing-em/",
+          "source_kind": "author_page"
+        }
+      ]
+    }
+  ],
+  "listing_reject_reason_counts": {
+    "listing_not_found": 6
+  },
+  "listing_debug_samples": [],
+  "candidate_state_counts": {
+    "dead_end": 19,
+    "needs_email_proof": 16,
+    "needs_listing_proof": 2,
+    "verified": 1,
+    "needs_location_proof": 1
+  },
+  "planned_action_counts": {
+    "stop_dead_end": 19,
+    "try_email_proof": 16,
+    "try_listing_proof": 2,
+    "mark_verified": 1,
+    "try_location_proof": 1
+  },
+  "proof_ledger_samples": [
+    {
+      "candidate_url": "https://msolney.com/",
+      "candidate_domain": "msolney.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "cially during release periods, but I appreciate every message and genuinely enjoy hearing from readers. Use the form below and I\u2019ll get back to you as soon as possible. Matthew Your Email Your",
+      "best_location_source_url": "https://msolney.com/contact",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://nilesbooks.com/",
+      "candidate_domain": "nilesbooks.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "try_listing_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "https://www.iabx.org/author-directory",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "time_budget_exceeded",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:no_location_signal",
+        "try_listing_proof:missing"
+      ]
+    },
+    {
+      "candidate_url": "https://www.rmgarino.com",
+      "candidate_domain": "rmgarino.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "R.M. Garino R.M. Garino The Website of Indie Fantasy Author R.M. Garino; Creator of the Chaos Of Souls Series - Where Monsters, Magic, & Mayhem reign! Visit",
+      "best_location_source_url": "https://www.epicindie.net/authordirectory",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://www.tamikareedwrites.com/",
+      "candidate_domain": "tamikareedwrites.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "ue group that's always honest!) How It Works Subscribe Thanks for submitting! Contact Me: tamikareedwrites@gmail.com \u00a92021 Tamika Reed bottom of page",
+      "best_email_source_url": "https://www.tamikareedwrites.com/",
+      "best_location_snippet": "g and creating ever since! I love to work in watercolor pencils, acrylic and oil paints. \u200bI live in Medford, NJ with my Husband and three kids (my personal critique group that's always honest!) How It",
+      "best_location_source_url": "https://www.tamikareedwrites.com/",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "Author Directory | Independent Authors Book Experience (IABX) author directory listing for Tamika Reed",
+      "best_indie_source_url": "https://www.iabx.org/author-directory",
+      "reject_reason_if_any": "no_strong_book_title",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:missing",
+        "try_recency_proof:missing",
+        "try_email_proof:verified"
+      ]
+    },
+    {
+      "candidate_url": "https://www.davidgreenwriter.com",
+      "candidate_domain": "davidgreenwriter.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "emotional, action-packed thrill rides. Hailing from the north-west of England, David now lives in County Galway on the west coast of Ireland. When not writing, David can be found wondering why he chooses to live in places where it",
+      "best_location_source_url": "https://www.davidgreenwriter.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "https://www.boobearbooks.com/",
+      "candidate_domain": "boobearbooks.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "page_fetch_failed_404",
+      "action_history": []
+    },
+    {
+      "candidate_url": "https://www.leeconleyauthor.com",
+      "candidate_domain": "leeconleyauthor.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "try_location_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "he menu items. Welcome to the official webpage of Lee C. Conley \u200b Author o f Series \u200b \u200b \u200b Author of Horror, Dark Fantasy, Historical Fiction, Sci-fi, & Dark Fiction. \u200b Wolves of Valour Publications Sign up to Lee's Mailing list He",
+      "best_location_source_url": "https://www.leeconleyauthor.com",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "non_us_location",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:non_us_location"
+      ]
+    },
+    {
+      "candidate_url": "http://www.susenedwardsauthor.com/",
+      "candidate_domain": "susenedwardsauthor.com",
+      "current_state": "needs_listing_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "t to know more? Send me an email. I promise to get back to you soon! Susen Edwards Author Susen@SusenEdwardsAuthor.com Get in Touch Get in Touch Name Email* Sign up for our email list for updates, promotions,",
+      "best_email_source_url": "http://www.susenedwardsauthor.com/contact-me",
+      "best_location_snippet": "kin' for Love What a Trip: A Novel Reviews of What a Trip Interviews and Articles Excerpt From What a Trip What a Trip Playlist Where to Buy What a Trip A Children's Story A Little Story Contact Me More Home About Me News and Upcoming Events Lookin' for Love: A Nov",
+      "best_location_source_url": "http://www.susenedwardsauthor.com/",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "SusenEdwardsAuthor - Home SusenEdwardsAuthor SusenEdwardsAuthor SusenEdwardsAuthor SusenEdwardsAuthor SusenEdwardsAuthor SusenEdwardsAuthor SusenEdwardsAuthor SusenEdwardsAuthor Ho",
+      "best_recency_source_url": "http://www.susenedwardsauthor.com/",
+      "best_indie_snippet": "Author Directory | Independent Authors Book Experience (IABX) author directory listing for Susen Edwards",
+      "best_indie_source_url": "https://www.iabx.org/author-directory",
+      "reject_reason_if_any": "no_strong_book_title",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:found",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:missing",
+        "try_recency_proof:verified",
+        "try_email_proof:verified"
+      ]
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "current_state": "dead_end",
+      "last_attempted_action": "triage_candidate",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "",
+      "best_location_source_url": "",
+      "best_listing_snippet": "",
+      "best_listing_source_url": "",
+      "best_recency_snippet": "",
+      "best_recency_source_url": "",
+      "best_indie_snippet": "",
+      "best_indie_source_url": "",
+      "reject_reason_if_any": "bad_author_name",
+      "action_history": [
+        "triage_candidate:prefilter_pass"
+      ]
+    },
+    {
+      "candidate_url": "https://tomkranzbooks.com/",
+      "candidate_domain": "tomkranzbooks.com",
+      "current_state": "needs_email_proof",
+      "last_attempted_action": "try_email_proof",
+      "best_email_snippet": "",
+      "best_email_source_url": "",
+      "best_location_snippet": "lphia will be at the London Book Fair! INFO Horror & Sci Fi Books and Craft Beer! Another Books and Beers event in beautiful Howell, NJ INFO Pre-holiday gift ideas: Books! ShoAuthors from across New Jersey and environs will h",
+      "best_location_source_url": "https://tomkranzbooks.com/",
+      "best_listing_snippet": " Outdoors Subscribe & Save Subscription Boxes Tools & Home Improvement Toys & Games Under $10 Video Games Search Amazon EN Hello, sign in Account & Lists Returns & Orders 0 Cart All A",
+      "best_listing_source_url": "https://www.amazon.com/dp/B09ZP11BZK",
+      "best_recency_snippet": "Tom Kranz Books | Fiction, Non-Fiction and Science-Fiction Home About Press and Articles Podcast Appearances MOVE Audiobooks Events Podcast Blog Contact Home About About Press and ",
+      "best_recency_source_url": "https://tomkranzbooks.com/",
+      "best_indie_snippet": "Author Directory | Independent Authors Book Experience (IABX) author directory listing for Thomas Kranz",
+      "best_indie_source_url": "https://www.iabx.org/author-directory",
+      "reject_reason_if_any": "no_visible_author_email",
+      "action_history": [
+        "triage_candidate:prefilter_pass",
+        "try_email_proof:missing",
+        "try_location_proof:publisher_location_only",
+        "try_listing_proof:verified",
+        "try_recency_proof:verified",
+        "try_email_proof:missing"
+      ]
+    }
+  ],
+  "per_domain": {
+    "afstewart.ca": {
+      "fetch_count": 4,
+      "total_seconds": 3.288,
+      "avg_latency": 0.822,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.0126,
+      "verify_seconds": 1.2299,
+      "dominant_phase": "prefilter"
+    },
+    "aleahenle.com": {
+      "fetch_count": 2,
+      "total_seconds": 2.3901,
+      "avg_latency": 1.195,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "amazon.com": {
+      "fetch_count": 7,
+      "total_seconds": 12.5187,
+      "avg_latency": 1.7884,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    "amycampbell.info": {
+      "fetch_count": 4,
+      "total_seconds": 2.4306,
+      "avg_latency": 0.6076,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7383,
+      "verify_seconds": 1.584,
+      "dominant_phase": "prefilter"
+    },
+    "arhenle.com": {
+      "fetch_count": 2,
+      "total_seconds": 6.7755,
+      "avg_latency": 3.3878,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.7853,
+      "verify_seconds": 3.22,
+      "dominant_phase": "prefilter"
+    },
+    "authordiannagunn.com": {
+      "fetch_count": 8,
+      "total_seconds": 10.6512,
+      "avg_latency": 1.3314,
+      "timeout_count": 0,
+      "prefilter_seconds": 8.2778,
+      "verify_seconds": 3.198,
+      "dominant_phase": "prefilter"
+    },
+    "authorjackadkins.com": {
+      "fetch_count": 13,
+      "total_seconds": 21.281,
+      "avg_latency": 1.637,
+      "timeout_count": 0,
+      "prefilter_seconds": 14.879,
+      "verify_seconds": 8.0715,
+      "dominant_phase": "prefilter"
+    },
+    "authormrosepeluso.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.3283,
+      "avg_latency": 0.1642,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.3284,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "boobearbooks.com": {
+      "fetch_count": 2,
+      "total_seconds": 2.3199,
+      "avg_latency": 1.16,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.3201,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "ctphipps.com": {
+      "fetch_count": 10,
+      "total_seconds": 3.6555,
+      "avg_latency": 0.3655,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.6247,
+      "verify_seconds": 8.3601,
+      "dominant_phase": "verify"
+    },
+    "daankatz.com": {
+      "fetch_count": 9,
+      "total_seconds": 7.4252,
+      "avg_latency": 0.825,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.5926,
+      "verify_seconds": 3.6344,
+      "dominant_phase": "prefilter"
+    },
+    "davidgreenwriter.com": {
+      "fetch_count": 6,
+      "total_seconds": 1.0576,
+      "avg_latency": 0.1763,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0854,
+      "verify_seconds": 0.0181,
+      "dominant_phase": "prefilter"
+    },
+    "derricksmythe.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.6551,
+      "avg_latency": 0.3276,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.6552,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "ejfisch.com": {
+      "fetch_count": 4,
+      "total_seconds": 2.2937,
+      "avg_latency": 0.5734,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.8542,
+      "verify_seconds": 1.345,
+      "dominant_phase": "prefilter"
+    },
+    "elizabethkleinauthor.com": {
+      "fetch_count": 4,
+      "total_seconds": 1.6015,
+      "avg_latency": 0.4004,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7219,
+      "verify_seconds": 1.7258,
+      "dominant_phase": "verify"
+    },
+    "erynnlehtonenwriting.com": {
+      "fetch_count": 8,
+      "total_seconds": 7.4891,
+      "avg_latency": 0.9361,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.961,
+      "verify_seconds": 4.2366,
+      "dominant_phase": "prefilter"
+    },
+    "gardnersart.com": {
+      "fetch_count": 4,
+      "total_seconds": 2.5923,
+      "avg_latency": 0.6481,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.9262,
+      "verify_seconds": 1.478,
+      "dominant_phase": "prefilter"
+    },
+    "glassauthor.com": {
+      "fetch_count": 4,
+      "total_seconds": 10.0112,
+      "avg_latency": 2.5028,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.1348,
+      "verify_seconds": 7.2909,
+      "dominant_phase": "verify"
+    },
+    "iankanebooks.com": {
+      "fetch_count": 11,
+      "total_seconds": 11.2895,
+      "avg_latency": 1.0263,
+      "timeout_count": 0,
+      "prefilter_seconds": 10.8512,
+      "verify_seconds": 3.5916,
+      "dominant_phase": "prefilter"
+    },
+    "jaimieschock.com": {
+      "fetch_count": 3,
+      "total_seconds": 1.8667,
+      "avg_latency": 0.6222,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.6634,
+      "verify_seconds": 4.2622,
+      "dominant_phase": "verify"
+    },
+    "jannabluebooks.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.3943,
+      "avg_latency": 0.1972,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.3945,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "kellannetta.com": {
+      "fetch_count": 2,
+      "total_seconds": 1.1407,
+      "avg_latency": 0.5704,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.1408,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "kovakillian.com": {
+      "fetch_count": 5,
+      "total_seconds": 1.0926,
+      "avg_latency": 0.2185,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.8698,
+      "verify_seconds": 1.1108,
+      "dominant_phase": "verify"
+    },
+    "leeconleyauthor.com": {
+      "fetch_count": 6,
+      "total_seconds": 0.9784,
+      "avg_latency": 0.1631,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.8422,
+      "verify_seconds": 0.5776,
+      "dominant_phase": "prefilter"
+    },
+    "legendsofkalda.com": {
+      "fetch_count": 8,
+      "total_seconds": 7.9054,
+      "avg_latency": 0.9882,
+      "timeout_count": 0,
+      "prefilter_seconds": 7.4531,
+      "verify_seconds": 1.3408,
+      "dominant_phase": "prefilter"
+    },
+    "lisamgreen.com": {
+      "fetch_count": 5,
+      "total_seconds": 5.8178,
+      "avg_latency": 1.1636,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.0854,
+      "verify_seconds": 1.5518,
+      "dominant_phase": "prefilter"
+    },
+    "ljcohen.net": {
+      "fetch_count": 4,
+      "total_seconds": 2.9962,
+      "avg_latency": 0.7491,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.2676,
+      "verify_seconds": 1.5492,
+      "dominant_phase": "prefilter"
+    },
+    "mamminabooks.com": {
+      "fetch_count": 2,
+      "total_seconds": 0.4353,
+      "avg_latency": 0.2176,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.4457,
+      "verify_seconds": 0.0026,
+      "dominant_phase": "prefilter"
+    },
+    "mhwoodscourt.com": {
+      "fetch_count": 8,
+      "total_seconds": 1.9735,
+      "avg_latency": 0.2467,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.4972,
+      "verify_seconds": 1.544,
+      "dominant_phase": "verify"
+    },
+    "msolney.com": {
+      "fetch_count": 6,
+      "total_seconds": 5.8888,
+      "avg_latency": 0.9815,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.5446,
+      "verify_seconds": 5.0108,
+      "dominant_phase": "verify"
+    },
+    "nilesbooks.com": {
+      "fetch_count": 1,
+      "total_seconds": 41.0119,
+      "avg_latency": 41.0119,
+      "timeout_count": 0,
+      "prefilter_seconds": 41.0689,
+      "verify_seconds": 0.4357,
+      "dominant_phase": "prefilter"
+    },
+    "rmgarino.com": {
+      "fetch_count": 8,
+      "total_seconds": 1.359,
+      "avg_latency": 0.1699,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.0058,
+      "verify_seconds": 1.6855,
+      "dominant_phase": "verify"
+    },
+    "runesnielsen.com": {
+      "fetch_count": 5,
+      "total_seconds": 2.3665,
+      "avg_latency": 0.4733,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.7256,
+      "verify_seconds": 1.9634,
+      "dominant_phase": "verify"
+    },
+    "shelbyhild.com": {
+      "fetch_count": 2,
+      "total_seconds": 4.6689,
+      "avg_latency": 2.3345,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.6743,
+      "verify_seconds": 2.3322,
+      "dominant_phase": "prefilter"
+    },
+    "slynnhelton.com": {
+      "fetch_count": 2,
+      "total_seconds": 5.0676,
+      "avg_latency": 2.5338,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.068,
+      "verify_seconds": 0.0,
+      "dominant_phase": "prefilter"
+    },
+    "susenedwardsauthor.com": {
+      "fetch_count": 4,
+      "total_seconds": 1.595,
+      "avg_latency": 0.3987,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.1977,
+      "verify_seconds": 1.2479,
+      "dominant_phase": "verify"
+    },
+    "tamikareedwrites.com": {
+      "fetch_count": 5,
+      "total_seconds": 0.8567,
+      "avg_latency": 0.1713,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7643,
+      "verify_seconds": 0.5172,
+      "dominant_phase": "prefilter"
+    },
+    "taowebsites.com": {
+      "fetch_count": 6,
+      "total_seconds": 2.2944,
+      "avg_latency": 0.3824,
+      "timeout_count": 0,
+      "prefilter_seconds": 2.1973,
+      "verify_seconds": 0.6227,
+      "dominant_phase": "prefilter"
+    },
+    "tomkranzbooks.com": {
+      "fetch_count": 4,
+      "total_seconds": 1.4594,
+      "avg_latency": 0.3648,
+      "timeout_count": 0,
+      "prefilter_seconds": 1.3134,
+      "verify_seconds": 3.6722,
+      "dominant_phase": "verify"
+    },
+    "vncbooks.com": {
+      "fetch_count": 6,
+      "total_seconds": 1.2481,
+      "avg_latency": 0.208,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.824,
+      "verify_seconds": 1.7081,
+      "dominant_phase": "verify"
+    },
+    "zackargyle.com": {
+      "fetch_count": 10,
+      "total_seconds": 1.5459,
+      "avg_latency": 0.1546,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.7151,
+      "verify_seconds": 6.4815,
+      "dominant_phase": "verify"
+    }
+  },
+  "candidate_budget_burn_count": 39,
+  "top_domain_budget_burn": [
+    {
+      "domain": "nilesbooks.com",
+      "fetch_count": 1,
+      "total_seconds": 41.0119,
+      "avg_latency": 41.0119,
+      "timeout_count": 0,
+      "prefilter_seconds": 41.0689,
+      "verify_seconds": 0.4357,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "authorjackadkins.com",
+      "fetch_count": 13,
+      "total_seconds": 21.281,
+      "avg_latency": 1.637,
+      "timeout_count": 0,
+      "prefilter_seconds": 14.879,
+      "verify_seconds": 8.0715,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "amazon.com",
+      "fetch_count": 7,
+      "total_seconds": 12.5187,
+      "avg_latency": 1.7884,
+      "timeout_count": 0,
+      "prefilter_seconds": 0.0,
+      "verify_seconds": 0.0,
+      "dominant_phase": "balanced"
+    },
+    {
+      "domain": "iankanebooks.com",
+      "fetch_count": 11,
+      "total_seconds": 11.2895,
+      "avg_latency": 1.0263,
+      "timeout_count": 0,
+      "prefilter_seconds": 10.8512,
+      "verify_seconds": 3.5916,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "authordiannagunn.com",
+      "fetch_count": 8,
+      "total_seconds": 10.6512,
+      "avg_latency": 1.3314,
+      "timeout_count": 0,
+      "prefilter_seconds": 8.2778,
+      "verify_seconds": 3.198,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "glassauthor.com",
+      "fetch_count": 4,
+      "total_seconds": 10.0112,
+      "avg_latency": 2.5028,
+      "timeout_count": 0,
+      "prefilter_seconds": 3.1348,
+      "verify_seconds": 7.2909,
+      "dominant_phase": "verify"
+    },
+    {
+      "domain": "legendsofkalda.com",
+      "fetch_count": 8,
+      "total_seconds": 7.9054,
+      "avg_latency": 0.9882,
+      "timeout_count": 0,
+      "prefilter_seconds": 7.4531,
+      "verify_seconds": 1.3408,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "erynnlehtonenwriting.com",
+      "fetch_count": 8,
+      "total_seconds": 7.4891,
+      "avg_latency": 0.9361,
+      "timeout_count": 0,
+      "prefilter_seconds": 4.961,
+      "verify_seconds": 4.2366,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "daankatz.com",
+      "fetch_count": 9,
+      "total_seconds": 7.4252,
+      "avg_latency": 0.825,
+      "timeout_count": 0,
+      "prefilter_seconds": 5.5926,
+      "verify_seconds": 3.6344,
+      "dominant_phase": "prefilter"
+    },
+    {
+      "domain": "arhenle.com",
+      "fetch_count": 2,
+      "total_seconds": 6.7755,
+      "avg_latency": 3.3878,
+      "timeout_count": 0,
+      "prefilter_seconds": 6.7853,
+      "verify_seconds": 3.22,
+      "dominant_phase": "prefilter"
+    }
+  ],
+  "top_candidate_budget_burn": [
+    {
+      "candidate_url": "https://nilesbooks.com/",
+      "candidate_domain": "nilesbooks.com",
+      "fetch_count": 1,
+      "total_seconds": 41.0119,
+      "prefilter_seconds": 41.0689,
+      "verify_seconds": 0.4357,
+      "dominant_phase": "prefilter",
+      "reject_reason": "time_budget_exceeded",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "strict_non_location_failure",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "time_budget_exceeded",
+      "last_attempted_action": "try_listing_proof"
+    },
+    {
+      "candidate_url": "https://authorjackadkins.com",
+      "candidate_domain": "authorjackadkins.com",
+      "fetch_count": 13,
+      "total_seconds": 21.281,
+      "prefilter_seconds": 14.879,
+      "verify_seconds": 8.0715,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "definitive_non_us_location",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://iankanebooks.com",
+      "candidate_domain": "iankanebooks.com",
+      "fetch_count": 12,
+      "total_seconds": 13.0663,
+      "prefilter_seconds": 10.8512,
+      "verify_seconds": 3.5916,
+      "dominant_phase": "prefilter",
+      "reject_reason": "no_visible_author_email",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "missing_strict_email",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "no_visible_author_email",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "http://authordiannagunn.com",
+      "candidate_domain": "authordiannagunn.com",
+      "fetch_count": 8,
+      "total_seconds": 10.6512,
+      "prefilter_seconds": 8.2778,
+      "verify_seconds": 3.198,
+      "dominant_phase": "prefilter",
+      "reject_reason": "bad_author_name",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "bad_author_name",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "http://www.glassauthor.com",
+      "candidate_domain": "glassauthor.com",
+      "fetch_count": 4,
+      "total_seconds": 10.0112,
+      "prefilter_seconds": 3.1348,
+      "verify_seconds": 7.2909,
+      "dominant_phase": "verify",
+      "reject_reason": "no_visible_author_email",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "missing_strict_email",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "no_visible_author_email",
+      "last_attempted_action": "try_email_proof"
+    },
+    {
+      "candidate_url": "https://arhenle.com",
+      "candidate_domain": "arhenle.com",
+      "fetch_count": 4,
+      "total_seconds": 9.1656,
+      "prefilter_seconds": 6.7853,
+      "verify_seconds": 3.22,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://www.legendsofkalda.com",
+      "candidate_domain": "legendsofkalda.com",
+      "fetch_count": 8,
+      "total_seconds": 7.9054,
+      "prefilter_seconds": 7.4531,
+      "verify_seconds": 1.3408,
+      "dominant_phase": "prefilter",
+      "reject_reason": "famous_signal",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "famous_signal",
+      "last_attempted_action": "triage_candidate"
+    },
+    {
+      "candidate_url": "https://erynnlehtonenwriting.com",
+      "candidate_domain": "erynnlehtonenwriting.com",
+      "fetch_count": 8,
+      "total_seconds": 7.4891,
+      "prefilter_seconds": 4.961,
+      "verify_seconds": 4.2366,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "missing_strict_email",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://daankatz.com",
+      "candidate_domain": "daankatz.com",
+      "fetch_count": 9,
+      "total_seconds": 7.4252,
+      "prefilter_seconds": 5.5926,
+      "verify_seconds": 3.6344,
+      "dominant_phase": "prefilter",
+      "reject_reason": "non_us_location",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "dead_end",
+      "next_action": "stop_dead_end",
+      "next_action_reason": "non_us_location",
+      "last_attempted_action": "try_location_proof"
+    },
+    {
+      "candidate_url": "https://shelbyhild.com",
+      "candidate_domain": "shelbyhild.com",
+      "fetch_count": 3,
+      "total_seconds": 6.465,
+      "prefilter_seconds": 4.6743,
+      "verify_seconds": 2.3322,
+      "dominant_phase": "prefilter",
+      "reject_reason": "no_visible_author_email",
+      "kept": false,
+      "location_recovery_attempted": false,
+      "listing_recovery_attempted": false,
+      "location_recovery_skipped_reason": "missing_strict_email",
+      "listing_recovery_skipped_reason": "",
+      "current_state": "needs_email_proof",
+      "next_action": "try_email_proof",
+      "next_action_reason": "no_visible_author_email",
+      "last_attempted_action": "try_email_proof"
+    }
+  ],
+  "max_fetches_per_domain": 16,
+  "max_seconds_per_domain": 25.0,
+  "max_timeouts_per_domain": 2,
+  "max_total_runtime": 240.0,
+  "max_concurrency": 4
+}

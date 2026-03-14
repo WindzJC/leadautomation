@@ -1,0 +1,14 @@
+{
+  "validation_profile": "agent_hunt",
+  "goal_final": 20,
+  "max_runs": 3,
+  "max_stale_runs": 3,
+  "listing_strict": false,
+  "target": 60,
+  "min_candidates": 40,
+  "max_candidates": 40,
+  "batch_min": 20,
+  "batch_max": 20,
+  "queries_file": "",
+  "run_folder_name": "leads 1"
+}

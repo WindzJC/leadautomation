@@ -17,6 +17,7 @@ import re
 import time
 import xml.etree.ElementTree as ET
 from collections import Counter
+from pathlib import Path
 from typing import Dict, Iterable, List, Optional, TypeVar
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
@@ -33,6 +34,7 @@ from lead_utils import (
     strip_tracking_query_params,
     url_matches_blocklist,
 )
+from pipeline_paths import csv_output, ensure_parent
 
 DEFAULT_QUERIES = [
     '"indie author" "official website"',
@@ -450,6 +452,14 @@ CANDIDATE_FIELDNAMES = [
     "DiscoveredAtUTC",
 ]
 
+DIRECTORY_REQUEST_TIMEOUT_CAP = 6.0
+IAN_LISTING_TIMEOUT_CAP = 5.0
+IAN_PROFILE_TIMEOUT_CAP = 4.0
+IAN_MAX_PROFILES_PER_PAGE = 6
+IAN_MAX_TOTAL_PROFILES = 18
+IAN_MAX_CONSECUTIVE_PROFILE_FAILURES = 3
+IAN_MAX_PROFILE_TIMEOUTS = 2
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Harvest candidate author/book URLs from web search.")
@@ -474,8 +484,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default="candidates.csv",
-        help="Output CSV path (default: candidates.csv).",
+        default=csv_output("candidates.csv"),
+        help="Output CSV path (default: outputs/csv/candidates.csv).",
     )
     parser.add_argument(
         "--stats-output",
@@ -1331,7 +1341,7 @@ def harvest_goodreads_candidates(
     include_outbound: bool,
 ) -> List[Dict[str, str]]:
     out: List[Dict[str, str]] = []
-    timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     visited_goodreads_pages = set()
 
     if not include_outbound or outbound_per_url <= 0:
@@ -1409,7 +1419,7 @@ def harvest_openlibrary_candidates(
     max_links_per_work: int,
 ) -> List[Dict[str, str]]:
     out: List[Dict[str, str]] = []
-    timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     subjects = rotate_values(list(OPENLIBRARY_SUBJECTS), rotation_offset)
 
     # Focus each run on a small rotating subject window to reduce duplicates.
@@ -1478,6 +1488,16 @@ def prioritize_directory_candidates(rows: List[Dict[str, str]]) -> List[Dict[str
     return [item[2] for item in scored]
 
 
+def clamp_request_timeout(timeout: float, cap: float, deadline_monotonic: float = 0.0) -> float:
+    effective_timeout = max(0.75, min(max(0.0, timeout), cap))
+    if deadline_monotonic > 0:
+        remaining = deadline_monotonic - time.monotonic()
+        if remaining <= 0.25:
+            return 0.0
+        effective_timeout = min(effective_timeout, max(0.75, remaining))
+    return effective_timeout
+
+
 def interleave_candidate_groups(*groups: List[Dict[str, str]]) -> List[Dict[str, str]]:
     pending = [list(group) for group in groups if group]
     out: List[Dict[str, str]] = []
@@ -1517,7 +1537,7 @@ def extract_epic_directory_candidates(
     session: requests.Session,
     timeout: float,
 ) -> List[Dict[str, str]]:
-    timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     try:
         resp = session.get(EPIC_DIRECTORY_URL, timeout=timeout)
         resp.raise_for_status()
@@ -1661,10 +1681,38 @@ def extract_ian_directory_candidates(
     rotation_offset: int,
     page_budget: int,
     outbound_per_profile: int,
+    page_offset: int = 0,
+    deadline_monotonic: float = 0.0,
+    max_profiles_per_page: int = 0,
+    max_total_profiles: int = 0,
+    max_consecutive_profile_failures: int = 0,
+    max_profile_timeouts: int = 0,
 ) -> List[Dict[str, str]]:
-    timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    selected_page_budget = max(1, page_budget)
+    selected_page_offset = max(0, page_offset)
+    selected_profiles_per_page = max(1, max_profiles_per_page or IAN_MAX_PROFILES_PER_PAGE)
+    selected_total_profiles = max(
+        selected_profiles_per_page,
+        max_total_profiles or min(IAN_MAX_TOTAL_PROFILES, selected_page_budget * selected_profiles_per_page),
+    )
+    selected_consecutive_profile_failures = max(
+        1,
+        max_consecutive_profile_failures or IAN_MAX_CONSECUTIVE_PROFILE_FAILURES,
+    )
+    selected_profile_timeouts = max(1, max_profile_timeouts or IAN_MAX_PROFILE_TIMEOUTS)
+
+    if deadline_monotonic <= 0:
+        deadline_monotonic = time.monotonic() + max(
+            6.0,
+            min(18.0, float(selected_page_budget * max(2, selected_profiles_per_page // 2))),
+        )
+
+    directory_timeout = clamp_request_timeout(timeout, DIRECTORY_REQUEST_TIMEOUT_CAP, deadline_monotonic)
+    if directory_timeout <= 0:
+        return []
     try:
-        resp = session.get(INDEPENDENT_AUTHOR_NETWORK_DIRECTORY_URL, timeout=timeout)
+        resp = session.get(INDEPENDENT_AUTHOR_NETWORK_DIRECTORY_URL, timeout=directory_timeout)
         resp.raise_for_status()
     except requests.RequestException as exc:
         print(f"[WARN] Independent Author Network directory failed: {describe_request_exception(exc)}")
@@ -1674,15 +1722,24 @@ def extract_ian_directory_candidates(
     listing_pages = extract_ian_listing_pages(INDEPENDENT_AUTHOR_NETWORK_DIRECTORY_URL, directory_soup)
     if len(listing_pages) > 1:
         listing_pages = [listing_pages[0]] + rotate_values(listing_pages[1:], rotation_offset)
+    listing_pages = listing_pages[selected_page_offset : selected_page_offset + selected_page_budget]
 
     out: List[Dict[str, str]] = []
     seen = set()
-    for listing_url in listing_pages[: max(1, page_budget)]:
+    attempted_profiles = 0
+    consecutive_profile_failures = 0
+    profile_timeout_count = 0
+    source_stalled = False
+
+    for listing_url in listing_pages:
+        listing_timeout = clamp_request_timeout(timeout, IAN_LISTING_TIMEOUT_CAP, deadline_monotonic)
+        if listing_timeout <= 0 or attempted_profiles >= selected_total_profiles:
+            break
         try:
             if listing_url == INDEPENDENT_AUTHOR_NETWORK_DIRECTORY_URL:
                 listing_soup = directory_soup
             else:
-                listing_resp = session.get(listing_url, timeout=timeout)
+                listing_resp = session.get(listing_url, timeout=listing_timeout)
                 listing_resp.raise_for_status()
                 listing_soup = BeautifulSoup(listing_resp.text, "html.parser")
         except requests.RequestException as exc:
@@ -1690,12 +1747,29 @@ def extract_ian_directory_candidates(
             continue
 
         profile_links = rotate_values(extract_ian_profile_links(listing_url, listing_soup), rotation_offset)
-        for profile_url in profile_links:
+        for profile_url in profile_links[:selected_profiles_per_page]:
+            if attempted_profiles >= selected_total_profiles:
+                break
+            profile_timeout = clamp_request_timeout(timeout, IAN_PROFILE_TIMEOUT_CAP, deadline_monotonic)
+            if profile_timeout <= 0:
+                source_stalled = True
+                break
+            attempted_profiles += 1
             try:
-                profile_resp = session.get(profile_url, timeout=timeout)
+                profile_resp = session.get(profile_url, timeout=profile_timeout)
                 profile_resp.raise_for_status()
-            except requests.RequestException:
+            except requests.RequestException as exc:
+                consecutive_profile_failures += 1
+                if isinstance(exc, requests.Timeout):
+                    profile_timeout_count += 1
+                if (
+                    consecutive_profile_failures >= selected_consecutive_profile_failures
+                    or profile_timeout_count >= selected_profile_timeouts
+                ):
+                    source_stalled = True
+                    break
                 continue
+            consecutive_profile_failures = 0
             profile_soup = BeautifulSoup(profile_resp.text, "html.parser")
             source_title = extract_ian_profile_title(profile_soup)
             source_snippet = extract_ian_profile_snippet(profile_soup)
@@ -1723,6 +1797,8 @@ def extract_ian_directory_candidates(
                         source_snippet=source_snippet,
                     )
                 )
+        if source_stalled:
+            break
     return prioritize_directory_candidates(out)
 
 
@@ -1730,7 +1806,7 @@ def extract_iabx_directory_candidates(
     session: requests.Session,
     timeout: float,
 ) -> List[Dict[str, str]]:
-    timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     try:
         resp = session.get(IABX_DIRECTORY_URL, timeout=timeout)
         resp.raise_for_status()
@@ -1874,7 +1950,7 @@ def harvest(
         normalized_row["CandidateURL"] = url
         normalized_row["SourceType"] = infer_source_type(row)
         if not normalized_row["DiscoveredAtUTC"]:
-            normalized_row["DiscoveredAtUTC"] = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+            normalized_row["DiscoveredAtUTC"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
         seen.add(url)
         per_domain_counts[domain] = per_domain_counts.get(domain, 0) + 1
         source_counts[normalized_row["SourceType"]] += 1
@@ -1900,6 +1976,13 @@ def harvest(
     def time_budget_remaining() -> bool:
         return (time.monotonic() - started_at) < time_budget_seconds
 
+    def allocate_source_deadline(*, floor_seconds: float, fraction: float, ceiling_seconds: float) -> float:
+        remaining = max(0.0, time_budget_seconds - (time.monotonic() - started_at))
+        if remaining <= 0.25:
+            return time.monotonic()
+        slice_seconds = min(ceiling_seconds, max(floor_seconds, remaining * fraction))
+        return time.monotonic() + min(slice_seconds, remaining)
+
     if use_google:
         for query in queries:
             if len(out) >= effective_target or not time_budget_remaining():
@@ -1918,7 +2001,7 @@ def harvest(
                 print(f"[WARN] Google CSE query failed: {query!r}: {describe_request_exception(exc)}")
                 results = []
 
-            timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+            timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             add_rows(
                 (
                     make_candidate_row(
@@ -1932,6 +2015,8 @@ def harvest(
             )
             time.sleep(max(0.0, pause_seconds))
     else:
+        ian_outbound_per_profile = max(1, min(2, goodreads_outbound_per_url or 2))
+        ian_profiles_per_page = max(4, min(IAN_MAX_PROFILES_PER_PAGE, 2 + ian_outbound_per_profile * 2))
         epic_rows = extract_epic_directory_candidates(
             session=session,
             timeout=max(1.0, goodreads_timeout),
@@ -1946,31 +2031,43 @@ def harvest(
             timeout=max(1.0, goodreads_timeout),
             rotation_offset=rotation_offset,
             page_budget=initial_ian_page_budget,
-            outbound_per_profile=max(1, goodreads_outbound_per_url or 2),
+            outbound_per_profile=ian_outbound_per_profile,
+            deadline_monotonic=allocate_source_deadline(
+                floor_seconds=6.0,
+                fraction=0.3,
+                ceiling_seconds=14.0,
+            ),
+            max_profiles_per_page=ian_profiles_per_page,
+            max_total_profiles=min(IAN_MAX_TOTAL_PROFILES, initial_ian_page_budget * ian_profiles_per_page),
+            max_consecutive_profile_failures=IAN_MAX_CONSECUTIVE_PROFILE_FAILURES,
+            max_profile_timeouts=IAN_MAX_PROFILE_TIMEOUTS,
         )
         add_rows(
             interleave_candidate_groups(
                 *rotate_candidate_groups([epic_rows, ian_rows, iabx_rows], rotation_offset)
             )
         )
-        if len(out) < deterministic_goal and time_budget_remaining():
+        if ian_rows and len(out) < deterministic_goal and time_budget_remaining():
             shortfall = max(0, deterministic_goal - len(out))
             expanded_ian_page_budget = min(10, max(initial_ian_page_budget + 1, 1 + shortfall // 12))
             if expanded_ian_page_budget > initial_ian_page_budget:
                 add_rows(
-                    interleave_candidate_groups(
-                        *rotate_candidate_groups(
-                            [
-                                extract_ian_directory_candidates(
-                                    session=session,
-                                    timeout=max(1.0, goodreads_timeout),
-                                    rotation_offset=rotation_offset + 1,
-                                    page_budget=expanded_ian_page_budget,
-                                    outbound_per_profile=max(1, goodreads_outbound_per_url or 2),
-                                )
-                            ],
-                            rotation_offset,
-                        )
+                    extract_ian_directory_candidates(
+                        session=session,
+                        timeout=max(1.0, goodreads_timeout),
+                        rotation_offset=rotation_offset + 1,
+                        page_budget=expanded_ian_page_budget - initial_ian_page_budget,
+                        outbound_per_profile=ian_outbound_per_profile,
+                        page_offset=initial_ian_page_budget,
+                        deadline_monotonic=allocate_source_deadline(
+                            floor_seconds=4.0,
+                            fraction=0.2,
+                            ceiling_seconds=8.0,
+                        ),
+                        max_profiles_per_page=ian_profiles_per_page,
+                        max_total_profiles=min(IAN_MAX_TOTAL_PROFILES, expanded_ian_page_budget * ian_profiles_per_page),
+                        max_consecutive_profile_failures=IAN_MAX_CONSECUTIVE_PROFILE_FAILURES,
+                        max_profile_timeouts=IAN_MAX_PROFILE_TIMEOUTS,
                     )
                 )
 
@@ -2073,7 +2170,7 @@ def harvest(
                 if fallback:
                     results = fallback
 
-            timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+            timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             add_rows(
                 (
                     make_candidate_row(
@@ -2100,7 +2197,7 @@ def harvest(
             harvest_shortfall_reason = "search_sources_exhausted"
 
     stats = {
-        "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "target": target,
         "min_candidates": min_candidates,
         "effective_target": effective_target,
@@ -2132,6 +2229,7 @@ def describe_request_exception(exc: requests.RequestException) -> str:
 
 
 def write_csv(path: str, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(Path(path))
     with open(path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=CANDIDATE_FIELDNAMES)
         writer.writeheader()
@@ -2167,6 +2265,7 @@ def main() -> int:
     )
     write_csv(args.output, rows)
     if args.stats_output:
+        ensure_parent(Path(args.stats_output))
         with open(args.stats_output, "w", encoding="utf-8") as fh:
             json.dump(stats, fh, indent=2, ensure_ascii=True)
     print(f"[OK] wrote {len(rows)} candidates to {args.output}")

@@ -6,6 +6,7 @@ from pathlib import Path
 from dashboard.data_loader import (
     SCOUTED_EXPORT_COLUMNS,
     VERIFIED_EXPORT_COLUMNS,
+    build_funnel_rows,
     build_candidate_index,
     discover_run_contexts,
     filter_rows,
@@ -81,7 +82,11 @@ def test_load_context_outputs_reads_verified_queue_and_near_miss(tmp_path: Path)
 def test_load_run_bundle_and_build_candidate_index(tmp_path: Path) -> None:
     run_root = tmp_path / "strict_full_post_locationfix_20260312"
     runs_dir = run_root / "runs"
+    outputs_csv = run_root / "outputs" / "csv"
+    outputs_json = run_root / "outputs" / "json"
     runs_dir.mkdir(parents=True)
+    outputs_csv.mkdir(parents=True)
+    outputs_json.mkdir(parents=True)
 
     _write(runs_dir / "run_001_stats.json", json.dumps({"harvested_candidates": 80}))
     _write(
@@ -89,9 +94,29 @@ def test_load_run_bundle_and_build_candidate_index(tmp_path: Path) -> None:
         json.dumps({"reject_reasons": {"non_us_location": 3}, "verified_progress": 1}),
     )
     _write(
+        outputs_json / "run_manifest_run_001.json",
+        json.dumps(
+            {
+                "counts": {
+                    "harvested_candidates": 80,
+                    "filtered_candidates": 40,
+                    "validated": 10,
+                    "final": 6,
+                    "added_to_master": 4,
+                },
+                "rejected_reason_counts": {"non_us_author": 2},
+            }
+        ),
+    )
+    _write(
         runs_dir / "run_001_validated.csv",
         "AuthorName,SourceURL,AuthorWebsite,ContactURL,ListingURL\n"
         "A Writer,https://example.com/about,https://example.com,https://example.com/contact,\n",
+    )
+    _write(
+        outputs_csv / "rejected_run_001.csv",
+        "RunID,AuthorName,BookTitle,CandidateURL,CandidateDomain,SourceURL,BookURL,Email,Confidence,PrimaryFailReason,FailReasons,RejectReason,CurrentState,NextAction,NextActionReason,EmailSnippet,USSnippet,IndieSnippet,ListingSnippet\n"
+        "run_001,A Writer,Skyfall,https://example.com/about,example.com,https://example.com/about,https://amazon.com/dp/123,a@example.com,weak,non_us_author,non_us_author,non_us_location,dead_end,stop_dead_end,non_us_location,,,indie,\n",
     )
     _write(
         runs_dir / "run_001_validate_stats_listing_debug.jsonl",
@@ -123,13 +148,18 @@ def test_load_run_bundle_and_build_candidate_index(tmp_path: Path) -> None:
 
     bundle = load_run_bundle(context, "001")
     candidate_index = build_candidate_index(bundle)
+    funnel_rows = build_funnel_rows(bundle)
 
     assert bundle["stats"]["harvested_candidates"] == 80
     assert bundle["validate_stats"]["verified_progress"] == 1
+    assert bundle["run_manifest"]["counts"]["filtered_candidates"] == 40
+    assert bundle["rejected_rows"][0]["PrimaryFailReason"] == "non_us_author"
     assert len(candidate_index) == 1
     assert candidate_index[0]["candidate_domain"] == "example.com"
     assert candidate_index[0]["listing_debug"]["reject_reason"] == "listing_not_found"
     assert candidate_index[0]["location_debug"]["final_decision"] == "ok"
+    assert funnel_rows[0]["stage"] == "Harvested"
+    assert funnel_rows[1]["stage"] == "Filtered"
 
 
 def test_filter_rows_matches_requested_fields() -> None:

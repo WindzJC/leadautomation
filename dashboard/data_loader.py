@@ -27,6 +27,18 @@ class RunContext:
         return self.name
 
 
+def resolve_runs_path(root: Path) -> Path | None:
+    candidates = [
+        root / "runs",
+        root / "outputs" / "runs",
+        root / "outputs" / "logs" / "runs",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
 def _latest_mtime(path: Path) -> float:
     latest = path.stat().st_mtime
     for child in path.rglob("*"):
@@ -48,8 +60,8 @@ def discover_run_contexts(base_dir: Path | None = None) -> list[RunContext]:
     )
     seen: set[Path] = set()
     for context_root in search_roots:
-        runs_dir = context_root / "runs"
-        if context_root in seen or not runs_dir.is_dir():
+        runs_dir = resolve_runs_path(context_root)
+        if context_root in seen or runs_dir is None:
             continue
         seen.add(context_root)
         name = "project-root" if context_root == root else context_root.name
@@ -70,8 +82,8 @@ def resolve_context(path_value: str | None = None) -> RunContext | None:
         contexts = discover_run_contexts(PROJECT_ROOT)
         return contexts[0] if contexts else None
     root_path = Path(path_value).expanduser().resolve()
-    runs_path = root_path / "runs"
-    if not runs_path.is_dir():
+    runs_path = resolve_runs_path(root_path)
+    if runs_path is None:
         return None
     return RunContext(
         name=root_path.name or "project-root",
@@ -192,15 +204,27 @@ def count_nonempty_lines(path: Path) -> int:
         return 0
 
 
+def resolve_csv_path(root: Path, name: str) -> Path:
+    preferred = root / "outputs" / "csv" / name
+    legacy = root / name
+    return preferred if preferred.exists() or not legacy.exists() else legacy
+
+
+def resolve_json_path(root: Path, name: str) -> Path:
+    preferred = root / "outputs" / "json" / name
+    legacy = root / name
+    return preferred if preferred.exists() or not legacy.exists() else legacy
+
+
 def context_output_paths(context: RunContext) -> dict[str, Path]:
-    lead_export_path = context.root_path / "author_email_source.csv"
+    lead_export_path = resolve_csv_path(context.root_path, "author_email_source.csv")
     if not lead_export_path.is_file():
-        lead_export_path = context.root_path / "author_email_book.csv"
+        lead_export_path = resolve_csv_path(context.root_path, "author_email_book.csv")
     return {
-        "fully_verified_leads": context.root_path / "fully_verified_leads.csv",
-        "scouted_leads": context.root_path / "scouted_leads.csv",
-        "contact_queue": context.root_path / "contact_queue.csv",
-        "near_miss_location": context.root_path / "near_miss_location.csv",
+        "fully_verified_leads": resolve_csv_path(context.root_path, "fully_verified_leads.csv"),
+        "scouted_leads": resolve_csv_path(context.root_path, "scouted_leads.csv"),
+        "contact_queue": resolve_csv_path(context.root_path, "contact_queue.csv"),
+        "near_miss_location": resolve_csv_path(context.root_path, "near_miss_location.csv"),
         "lead_export": lead_export_path,
     }
 
@@ -222,9 +246,12 @@ def run_file_map(context: RunContext, run_tag: str) -> dict[str, Path]:
     return {
         "stats": runs / f"run_{run_tag}_stats.json",
         "validate_stats": runs / f"run_{run_tag}_validate_stats.json",
+        "run_manifest": resolve_json_path(context.root_path, f"run_manifest_run_{run_tag}.json"),
         "listing_debug": runs / f"run_{run_tag}_validate_stats_listing_debug.jsonl",
         "location_debug": runs / f"run_{run_tag}_validate_stats_location_debug.jsonl",
         "validated": runs / f"run_{run_tag}_validated.csv",
+        "validated_export": resolve_csv_path(context.root_path, f"validated_run_{run_tag}.csv"),
+        "rejected_export": resolve_csv_path(context.root_path, f"rejected_run_{run_tag}.csv"),
         "final": runs / f"run_{run_tag}_final.csv",
         "pipeline_stdout": runs / f"run_{run_tag}_pipeline.stdout.log",
         "pipeline_stderr": runs / f"run_{run_tag}_pipeline.stderr.log",
@@ -237,11 +264,46 @@ def load_run_bundle(context: RunContext, run_tag: str) -> dict[str, Any]:
         "paths": paths,
         "stats": read_json_file(paths["stats"]),
         "validate_stats": read_json_file(paths["validate_stats"]),
+        "run_manifest": read_json_file(paths["run_manifest"]),
         "listing_debug": read_jsonl_file(paths["listing_debug"]),
         "location_debug": read_jsonl_file(paths["location_debug"]),
         "validated_rows": read_csv_with_header(paths["validated"]),
+        "validated_export_rows": read_csv_with_header(paths["validated_export"]),
+        "rejected_rows": read_csv_with_header(paths["rejected_export"]),
         "final_rows": read_csv_with_header(paths["final"]),
     }
+
+
+def _coerce_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def build_funnel_rows(run_bundle: dict[str, Any]) -> list[dict[str, Any]]:
+    manifest_counts = dict((run_bundle.get("run_manifest", {}) or {}).get("counts", {}) or {})
+    run_counts = dict((run_bundle.get("stats", {}) or {}).get("counts", {}) or {})
+    validate_stats = dict(run_bundle.get("validate_stats", {}) or {})
+
+    stage_counts = [
+        ("Harvested", _coerce_int(manifest_counts.get("harvested_candidates", run_counts.get("harvested_candidates", 0)))),
+        ("Filtered", _coerce_int(manifest_counts.get("filtered_candidates", run_counts.get("candidates", 0)))),
+        ("Validated", _coerce_int(manifest_counts.get("validated", run_counts.get("validated", validate_stats.get("kept_rows", 0))))),
+        ("Final", _coerce_int(manifest_counts.get("final", run_counts.get("final", len(run_bundle.get("final_rows", [])))))),
+        ("Kept After Gate", _coerce_int(manifest_counts.get("kept_rows_after_gate", run_counts.get("kept_rows_after_gate", 0)))),
+        ("Added To Master", _coerce_int(manifest_counts.get("added_to_master", run_counts.get("added_to_master", 0)))),
+    ]
+
+    rows: list[dict[str, Any]] = []
+    previous = 0
+    for label, count in stage_counts:
+        if count <= 0 and rows:
+            continue
+        conversion = round((count / previous) * 100.0, 1) if previous > 0 else 100.0
+        rows.append({"stage": label, "count": count, "conversion_pct": conversion})
+        previous = count if count > 0 else previous
+    return rows
 
 
 def summarize_counter(counter: dict[str, Any] | None, *, limit: int = 10) -> list[dict[str, Any]]:

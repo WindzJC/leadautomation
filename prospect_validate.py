@@ -34,6 +34,7 @@ from lead_utils import (
     strip_tracking_query_params,
     url_matches_blocklist,
 )
+from pipeline_paths import csv_output, ensure_parent
 
 OUTPUT_COLUMNS = [
     "AuthorName",
@@ -174,6 +175,8 @@ class CandidateBudgetMetrics:
     source_type: str = ""
     source_query: str = ""
     source_url: str = ""
+    author_name: str = ""
+    book_title: str = ""
     fetch_count: int = 0
     total_seconds: float = 0.0
     prefilter_seconds: float = 0.0
@@ -188,6 +191,12 @@ class CandidateBudgetMetrics:
     next_action: str = ""
     next_action_reason: str = ""
     last_attempted_action: str = ""
+    email: str = ""
+    email_snippet: str = ""
+    us_snippet: str = ""
+    indie_snippet: str = ""
+    listing_snippet: str = ""
+    book_url: str = ""
 
 
 @dataclass
@@ -900,6 +909,61 @@ BAD_AUTHOR_NAME_TOKENS = {
     "inquiries",
 }
 
+AUTHOR_BRAND_NAME_TOKENS = {
+    "author",
+    "authors",
+    "blog",
+    "blogs",
+    "book",
+    "books",
+    "bookish",
+    "chapter",
+    "chapters",
+    "fiction",
+    "library",
+    "lit",
+    "literary",
+    "literature",
+    "notes",
+    "notions",
+    "novel",
+    "novels",
+    "page",
+    "pages",
+    "reader",
+    "readers",
+    "reading",
+    "review",
+    "reviews",
+    "shelf",
+    "shelves",
+    "story",
+    "stories",
+    "writer",
+    "writers",
+    "writing",
+}
+
+NON_AUTHOR_EDITORIAL_TEXT_HINTS = (
+    "author interviews",
+    "book blog",
+    "book review",
+    "book reviews",
+    "book review blog",
+    "book reviewer",
+    "book reviewers",
+    "bookish blog",
+    "cover reveal",
+    "cover reveals",
+    "editorial team",
+    "for readers",
+    "guest review",
+    "reading list",
+    "review blog",
+    "review site",
+    "reviews and interviews",
+)
+
 BAD_BOOK_TITLE_SNIPPETS = (
     "advanced search",
     "amazon.com",
@@ -1077,11 +1141,11 @@ ROBOTS_CACHE_TTL_SECONDS = 86400.0
 
 
 def parse_args() -> argparse.Namespace:
-    max_year_default = dt.datetime.now(dt.UTC).year
+    max_year_default = dt.datetime.now(dt.timezone.utc).year
     min_year_default = max_year_default - 4
     parser = argparse.ArgumentParser(description="Validate candidate author/book pages.")
-    parser.add_argument("--input", default="candidates.csv", help="Input candidate CSV.")
-    parser.add_argument("--output", default="validated.csv", help="Output validated CSV.")
+    parser.add_argument("--input", default=csv_output("candidates.csv"), help="Input candidate CSV.")
+    parser.add_argument("--output", default=csv_output("validated.csv"), help="Output validated CSV.")
     parser.add_argument("--delay", type=float, default=0.4, help="Pause between network requests.")
     parser.add_argument("--timeout", type=float, default=20.0, help="HTTP timeout seconds.")
     parser.add_argument("--min-year", type=int, default=min_year_default, help="Minimum publication year.")
@@ -1621,13 +1685,88 @@ def serialize_candidate_proof_ledger(ledger: CandidateProofLedger) -> Dict[str, 
     }
 
 
+def map_stable_fail_reason(reject_reason: str) -> str:
+    reason = (reject_reason or "").strip().lower()
+    if not reason:
+        return ""
+    if reason == "duplicate_lead":
+        return "duplicate_lead"
+    if reason == "blocked_candidate_url":
+        return "candidate_blocked"
+    if reason.startswith("page_fetch_failed_"):
+        return "candidate_unreachable"
+    if reason in {"enterprise_or_famous", "famous_signal", "wikipedia_signal"}:
+        return "excluded_famous_or_enterprise"
+    if reason in {"non_author_website", "non_author_website_after_name"}:
+        return "candidate_not_author_site"
+    if reason == "bad_author_name":
+        return "insufficient_author_identity"
+    if reason in {"no_visible_author_email", "no_author_email"}:
+        return "missing_visible_email"
+    if reason == "weak_strict_email_quality":
+        return "email_not_visible_text"
+    if reason in {"definitive_non_us_location", "non_us_location"}:
+        return "non_us_author"
+    if reason in {"no_location_signal", "location_ambiguous", "publisher_location_only", "weak_us_signal"}:
+        return "missing_us_proof"
+    if reason == "no_indie_proof":
+        return "missing_indie_proof"
+    if reason in {"no_recency_proof", "no_on_page_date"}:
+        return "stale_publication"
+    if reason == "no_contact_or_subscribe_path":
+        return "missing_contact_path"
+    if reason.startswith("listing_"):
+        if any(
+            token in reason
+            for token in (
+                "title_mismatch",
+                "incomplete",
+                "wrong_format",
+                "missing_buy",
+                "no_buy_control",
+                "no_price",
+                "missing_price",
+                "missing_title",
+                "unavailable",
+                "reseller_only",
+                "parse_empty",
+                "interstitial",
+            )
+        ):
+            return "listing_not_buyable"
+        return "missing_listing_proof"
+    return "insufficient_snippet"
+
+
+def candidate_outcome_confidence(metrics: CandidateBudgetMetrics) -> str:
+    if metrics.kept or metrics.current_state == "verified":
+        return "strong"
+    if metrics.current_state in {"needs_email_proof", "needs_location_proof", "needs_listing_proof", "needs_recency_proof"}:
+        return "medium"
+    return "weak"
+
+
 def serialize_candidate_outcome(metrics: CandidateBudgetMetrics) -> Dict[str, object]:
+    stable_reason = map_stable_fail_reason(metrics.reject_reason)
+    fail_reasons = [] if metrics.kept else [stable_reason or "insufficient_snippet"]
     return {
         "candidate_url": metrics.candidate_url,
         "candidate_domain": metrics.candidate_domain,
         "source_type": metrics.source_type,
         "source_query": metrics.source_query,
         "source_url": metrics.source_url,
+        "author_name": metrics.author_name,
+        "book_title": metrics.book_title,
+        "passed": metrics.kept,
+        "primary_fail_reason": fail_reasons[0] if fail_reasons else "",
+        "fail_reasons": fail_reasons,
+        "confidence": candidate_outcome_confidence(metrics),
+        "email": (metrics.email or "").strip().lower(),
+        "email_snippet": metrics.email_snippet,
+        "us_snippet": metrics.us_snippet,
+        "indie_snippet": metrics.indie_snippet,
+        "listing_snippet": metrics.listing_snippet,
+        "book_url": metrics.book_url,
         "fetch_count": metrics.fetch_count,
         "total_seconds": round(metrics.total_seconds, 4),
         "prefilter_seconds": round(metrics.prefilter_seconds, 4),
@@ -2634,14 +2773,14 @@ def detect_recency(
     for match in RECENCY_DATE_PATTERNS[0].finditer(text):
         y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
         try:
-            date_candidates.append(dt.datetime(y, m, d, tzinfo=dt.UTC))
+            date_candidates.append(dt.datetime(y, m, d, tzinfo=dt.timezone.utc))
         except ValueError:
             pass
 
     for match in RECENCY_DATE_PATTERNS[1].finditer(text):
         m, d, y = int(match.group(1)), int(match.group(2)), int(match.group(3))
         try:
-            date_candidates.append(dt.datetime(y, m, d, tzinfo=dt.UTC))
+            date_candidates.append(dt.datetime(y, m, d, tzinfo=dt.timezone.utc))
         except ValueError:
             pass
 
@@ -2650,7 +2789,7 @@ def detect_recency(
         d = int(match.group(2))
         y = int(match.group(3))
         try:
-            date_candidates.append(dt.datetime(y, MONTH_MAP[month_name], d, tzinfo=dt.UTC))
+            date_candidates.append(dt.datetime(y, MONTH_MAP[month_name], d, tzinfo=dt.timezone.utc))
         except ValueError:
             pass
 
@@ -5156,6 +5295,30 @@ def is_plausible_author_name(value: str) -> bool:
     return True
 
 
+def author_name_looks_like_content_brand(value: str) -> bool:
+    name = compact_text(value)
+    if not name:
+        return False
+    tokens = [token.lower() for token in re.findall(r"[A-Za-z]+", name)]
+    meaningful_tokens = [token for token in tokens if len(token) >= 3]
+    if len(meaningful_tokens) < 2 or len(tokens) > 5:
+        return False
+    return all(token in AUTHOR_BRAND_NAME_TOKENS for token in meaningful_tokens)
+
+
+def has_non_author_editorial_signal(text: str) -> bool:
+    normalized = compact_text(text).lower()
+    if not normalized:
+        return False
+    return any(hint in normalized for hint in NON_AUTHOR_EDITORIAL_TEXT_HINTS)
+
+
+def default_profile_has_strong_author_identity(author_name: str, evidence_text: str) -> bool:
+    if not author_name_looks_like_content_brand(author_name):
+        return True
+    return not has_non_author_editorial_signal(evidence_text)
+
+
 def is_plausible_book_title(value: str, author_name: str = "", context: Optional[Dict[str, object]] = None) -> bool:
     return bool(assess_book_title(value, author_name=author_name, context=context)["plausible"])
 
@@ -5183,6 +5346,7 @@ def read_candidates(path: str, max_candidates: int) -> List[Dict[str, str]]:
 
 
 def write_rows(path: str, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(Path(path))
     with open(path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS)
         writer.writeheader()
@@ -5191,7 +5355,7 @@ def write_rows(path: str, rows: List[Dict[str, str]]) -> None:
 
 def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]], Counter[str], int]:
     candidates = read_candidates(args.input, args.max_candidates)
-    now = dt.datetime.now(dt.UTC)
+    now = dt.datetime.now(dt.timezone.utc)
     validation_profile = str(getattr(args, "validation_profile", "default") or "default").strip().lower()
     strict_verified_mode = validation_profile in STRICT_VERIFIED_PROFILES
     require_us_location = validation_profile in US_STRICT_VERIFIED_PROFILES
@@ -5248,6 +5412,12 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
     candidate_outcome_records: List[Dict[str, object]] = []
     current_candidate_metrics: Optional[CandidateBudgetMetrics] = None
     current_candidate_ledger: Optional[CandidateProofLedger] = None
+    current_candidate_email = ""
+    current_candidate_email_snippet = ""
+    current_candidate_us_snippet = ""
+    current_candidate_indie_snippet = ""
+    current_candidate_listing_snippet = ""
+    current_candidate_book_url = ""
 
     def record_page_fetch_failure(reason: str) -> str:
         mapping = {
@@ -5360,6 +5530,12 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
     ) -> None:
         nonlocal current_candidate_metrics
         nonlocal current_candidate_ledger
+        nonlocal current_candidate_email
+        nonlocal current_candidate_email_snippet
+        nonlocal current_candidate_us_snippet
+        nonlocal current_candidate_indie_snippet
+        nonlocal current_candidate_listing_snippet
+        nonlocal current_candidate_book_url
         if current_candidate_metrics is None:
             return
         current_candidate_metrics.candidate_domain = domain or current_candidate_metrics.candidate_domain
@@ -5393,7 +5569,29 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             current_candidate_metrics.next_action = planned_action.get("action", "")
             current_candidate_metrics.next_action_reason = planned_action.get("reason", "")
             current_candidate_metrics.last_attempted_action = current_candidate_ledger.last_attempted_action
+            current_candidate_metrics.email_snippet = (
+                current_candidate_email_snippet
+                or current_candidate_ledger.best_email_snippet
+                or current_candidate_metrics.email_snippet
+            )
+            current_candidate_metrics.us_snippet = (
+                current_candidate_us_snippet
+                or current_candidate_ledger.best_location_snippet
+                or current_candidate_metrics.us_snippet
+            )
+            current_candidate_metrics.indie_snippet = (
+                current_candidate_indie_snippet
+                or current_candidate_ledger.best_indie_snippet
+                or current_candidate_metrics.indie_snippet
+            )
+            current_candidate_metrics.listing_snippet = (
+                current_candidate_listing_snippet
+                or current_candidate_ledger.best_listing_snippet
+                or current_candidate_metrics.listing_snippet
+            )
             candidate_ledger_records.append(serialize_candidate_proof_ledger(current_candidate_ledger))
+        current_candidate_metrics.email = (current_candidate_email or current_candidate_metrics.email).strip().lower()
+        current_candidate_metrics.book_url = current_candidate_book_url or current_candidate_metrics.book_url
         candidate_outcome_records.append(serialize_candidate_outcome(current_candidate_metrics))
         candidate_budget_records.append(current_candidate_metrics)
         current_candidate_metrics = None
@@ -5483,6 +5681,12 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
         location_recovery_skipped_reason = ""
         listing_recovery_attempted = False
         listing_recovery_skipped_reason = ""
+        current_candidate_email = ""
+        current_candidate_email_snippet = ""
+        current_candidate_us_snippet = ""
+        current_candidate_indie_snippet = ""
+        current_candidate_listing_snippet = ""
+        current_candidate_book_url = ""
         current_candidate_metrics = CandidateBudgetMetrics(
             candidate_url=normalize_url(candidate_url) or candidate_url,
             candidate_domain=candidate_domain,
@@ -5648,6 +5852,24 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             add_stage_seconds(candidate_domain, "verify", verify_started_at)
             finalize_candidate_budget(reason=candidate_reject_reason, kept=False, domain=candidate_domain)
             continue
+        if validation_profile == "default":
+            author_identity_evidence = " ".join(
+                part
+                for part in (
+                    candidate_source_title,
+                    candidate_source_snippet,
+                    combined_text,
+                )
+                if part
+            )
+            if not default_profile_has_strong_author_identity(author_name, author_identity_evidence):
+                reject_counts["bad_author_name"] += 1
+                candidate_reject_reason = "bad_author_name"
+                add_stage_seconds(candidate_domain, "verify", verify_started_at)
+                finalize_candidate_budget(reason=candidate_reject_reason, kept=False, domain=candidate_domain)
+                continue
+        if current_candidate_metrics is not None:
+            current_candidate_metrics.author_name = author_name
         author_website = choose_external_author_site(author_link_pool, author_name) or author_website
         if not is_likely_author_website(author_website):
             reject_counts["non_author_website_after_name"] += 1
@@ -5763,6 +5985,8 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
         preliminary_email_record = collect_best_email_record()
         preliminary_author_email = (preliminary_email_record.get("email", "") or "").strip()
         preliminary_email_quality = (preliminary_email_record.get("quality", "") or "").strip()
+        current_candidate_email = preliminary_author_email
+        current_candidate_email_snippet = (preliminary_email_record.get("proof_snippet", "") or "").strip()
         if current_candidate_ledger is not None:
             current_candidate_ledger.best_email_snippet = (
                 preliminary_email_record.get("proof_snippet", "") or current_candidate_ledger.best_email_snippet
@@ -5973,6 +6197,10 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
         location_assessment = choose_location_assessment(location_attempts)
         location_decision = location_assessment.get("decision", "no_location_signal") or "no_location_signal"
         location_gate_reason = apply_location_assessment_state()
+        current_candidate_us_snippet = (
+            (location_assessment.get("snippet", "") or "").strip()
+            or (location_proof_snippet or "").strip()
+        )
         if current_candidate_ledger is not None:
             current_candidate_ledger.best_location_snippet = (
                 location_assessment.get("snippet", "") or current_candidate_ledger.best_location_snippet
@@ -6370,6 +6598,8 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                 listing_reject_reason_counts[listing_fail_reason] += 1
         if row_listing_url in listing_sources:
             listing_enriched_from_url, listing_enrichment_method = listing_sources[row_listing_url]
+        current_candidate_listing_snippet = (listing_best_evidence_snippet or "").strip()
+        current_candidate_book_url = (valid_listing_url or row_listing_url or "").strip()
         if listing_status == "verified" and row_listing_url and listing_soup is None:
             listing_page = fetch_resilient_html(row_listing_url, allow_root_fallback=False)
             time.sleep(max(0.0, args.delay))
@@ -6542,6 +6772,7 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             current_candidate_ledger.best_indie_snippet = indie_proof_snippet or current_candidate_ledger.best_indie_snippet
             current_candidate_ledger.best_indie_source_url = indie_proof_url or current_candidate_ledger.best_indie_source_url
             _ = candidate_planner_decision()
+        current_candidate_indie_snippet = (indie_proof_snippet or "").strip()
 
         recency_url = ""
         recency_proof = ""
@@ -6579,6 +6810,8 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
         author_email_source_url = (best_email.get("source_url", "") or "").strip()
         author_email_proof_snippet = (best_email.get("proof_snippet", "") or "").strip()
         email_quality = (best_email.get("quality", "") or "").strip()
+        current_candidate_email = author_email
+        current_candidate_email_snippet = author_email_proof_snippet
         if current_candidate_ledger is not None:
             current_candidate_ledger.best_email_snippet = author_email_proof_snippet or current_candidate_ledger.best_email_snippet
             current_candidate_ledger.best_email_source_url = author_email_source_url or current_candidate_ledger.best_email_source_url
@@ -6697,6 +6930,8 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             book_title_confidence = "weak"
             book_title_status = "missing_or_weak"
             book_title_reject_reason = "post_selection_plausibility"
+        if current_candidate_metrics is not None:
+            current_candidate_metrics.book_title = book_title
 
         listing_title = ""
         if listing_page is not None:
@@ -6772,6 +7007,10 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                     location_assessment = choose_location_assessment(location_attempts)
                     location_decision = location_assessment.get("decision", "no_location_signal") or "no_location_signal"
                     location_gate_reason = apply_location_assessment_state()
+                    current_candidate_us_snippet = (
+                        (location_assessment.get("snippet", "") or "").strip()
+                        or (location_proof_snippet or "").strip()
+                    )
                     fully_verified_ok, fully_verified_reason = row_meets_fully_verified_profile(
                         author_name=author_name,
                         book_title=book_title,
@@ -7025,10 +7264,11 @@ def main() -> int:
     rows, reject_counts, total_candidates = validate_candidates(args)
     write_rows(args.output, rows)
     if args.stats_output:
+        ensure_parent(Path(args.stats_output))
         validation_profile = str(getattr(args, "validation_profile", "default") or "default")
         runtime_stats = dict(getattr(args, "_validation_stats", {}) or {})
         stats = {
-            "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "validation_profile": validation_profile,
             "total_candidates": total_candidates,
             "kept_rows": len(rows),

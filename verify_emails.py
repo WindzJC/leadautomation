@@ -12,7 +12,10 @@ import re
 import smtplib
 import socket
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from pipeline_paths import csv_output, ensure_parent
 
 try:
     from email_validator import EmailNotValidError, validate_email
@@ -30,10 +33,19 @@ except Exception:
     HAS_DNSPYTHON = False
 
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,24}$")
+EMAIL_ANY_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,24}")
+OBFUSCATED_EMAIL_RE = re.compile(
+    r"\b([A-Z0-9._%+\-]+)\s*(?:\[|\(|\{)?\s*at\s*(?:\]|\)|\})?\s*([A-Z0-9.\-]+(?:\s*(?:\[|\(|\{)?\s*dot\s*(?:\]|\)|\})?\s*[A-Z0-9.\-]+)+)\b",
+    re.IGNORECASE,
+)
+HIDDEN_TEXT_HINT_RE = re.compile(
+    r"(?is)<\s*(?:script|style|img|form|input)\b|display\s*:\s*none|visibility\s*:\s*hidden|type\s*=\s*['\"]?hidden"
+)
 
 RESULT_COLUMNS = [
     "NormalizedEmail",
     "IsRoleAddress",
+    "EmailType",
     "TypoFixed",
     "VerificationStatus",
     "VerificationReason",
@@ -67,6 +79,19 @@ HARD_BLOCK_ROLE_LOCALPARTS = {
     "do-not-reply",
 }
 
+GENERIC_LOCALPARTS = {
+    "admin",
+    "contact",
+    "help",
+    "hello",
+    "info",
+    "mail",
+    "office",
+    "sales",
+    "support",
+    "team",
+}
+
 COMMON_DOMAIN_FIXES = {
     "gamil.com": "gmail.com",
     "gmial.com": "gmail.com",
@@ -84,8 +109,8 @@ COMMON_DOMAIN_FIXES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify emails from prospect CSV.")
-    parser.add_argument("--input", default="final_prospects.csv", help="Input CSV with AuthorEmail column.")
-    parser.add_argument("--output", default="final_prospects_verified.csv", help="Output verified CSV.")
+    parser.add_argument("--input", default=csv_output("final_prospects.csv"), help="Input CSV with AuthorEmail column.")
+    parser.add_argument("--output", default=csv_output("final_prospects_verified.csv"), help="Output verified CSV.")
     parser.add_argument("--email-column", default="AuthorEmail", help="Email column name.")
     parser.add_argument("--timeout", type=float, default=8.0, help="DNS/SMTP timeout seconds.")
     parser.add_argument("--sleep", type=float, default=0.0, help="Pause between checks.")
@@ -97,9 +122,31 @@ def parse_args() -> argparse.Namespace:
 
 
 def normalize_email(value: str) -> str:
-    email = (value or "").strip().lower()
-    email = email.replace("mailto:", "", 1).split("?", 1)[0].strip(" \t\r\n<>\"'.,;:()[]{}")
-    return email
+    text = (value or "").strip()
+    if not text:
+        return ""
+    text = text.replace("mailto:", "", 1).split("?", 1)[0]
+    if HIDDEN_TEXT_HINT_RE.search(text):
+        return ""
+    text = re.sub(r"\s+", " ", text).strip(" \t\r\n<>\"'.,;:()[]{}")
+    direct = text.lower()
+    if EMAIL_RE.fullmatch(direct):
+        return direct
+    match = EMAIL_ANY_RE.search(text)
+    if match:
+        return match.group(0).strip().lower()
+    obfuscated = OBFUSCATED_EMAIL_RE.search(text)
+    if obfuscated:
+        local = (obfuscated.group(1) or "").strip().lower()
+        raw_domain = (obfuscated.group(2) or "").strip().lower()
+        domain_parts = [
+            part.strip(".- ")
+            for part in re.split(r"\s*(?:\[|\(|\{)?\s*dot\s*(?:\]|\)|\})?\s*", raw_domain)
+            if part.strip(".- ")
+        ]
+        if local and len(domain_parts) >= 2:
+            return f"{local}@{'.'.join(domain_parts)}"
+    return direct.lower()
 
 
 def is_syntax_valid(email: str) -> bool:
@@ -149,6 +196,15 @@ def is_hard_block_role(email: str) -> bool:
             if sep in {".", "-", "_", "+"}:
                 return True
     return False
+
+
+def classify_email_type(email: str) -> str:
+    if is_hard_block_role(email):
+        return "role"
+    local = local_from_email(email)
+    if is_role_address(email) or local in GENERIC_LOCALPARTS or local in SOFT_ROLE_LOCALPARTS:
+        return "generic"
+    return "personal"
 
 
 def resolve_domain_records(domain: str, timeout: float) -> Tuple[bool, bool, List[str]]:
@@ -234,7 +290,19 @@ def verify_email(
     allow_role: bool,
     domain_cache: Dict[str, Tuple[bool, bool, List[str]]],
 ) -> Dict[str, str]:
-    checked_at = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    checked_at = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    if HIDDEN_TEXT_HINT_RE.search(raw_email or ""):
+        return {
+            "NormalizedEmail": "",
+            "IsRoleAddress": "False",
+            "EmailType": "personal",
+            "TypoFixed": "False",
+            "VerificationStatus": "invalid",
+            "VerificationReason": "email_not_visible_text",
+            "HasMX": "False",
+            "HasAorAAAA": "False",
+            "CheckedAtUTC": checked_at,
+        }
     email = normalize_email(raw_email)
     typo_fixed = False
 
@@ -242,6 +310,7 @@ def verify_email(
         return {
             "NormalizedEmail": "",
             "IsRoleAddress": "False",
+            "EmailType": "personal",
             "TypoFixed": "False",
             "VerificationStatus": "missing_email",
             "VerificationReason": "empty",
@@ -255,6 +324,7 @@ def verify_email(
         return {
             "NormalizedEmail": email,
             "IsRoleAddress": "False",
+            "EmailType": "personal",
             "TypoFixed": "False",
             "VerificationStatus": "invalid",
             "VerificationReason": (syntax_err or "invalid_syntax"),
@@ -274,10 +344,12 @@ def verify_email(
     role_addr = is_role_address(email)
     hard_role = is_hard_block_role(email)
     soft_role = role_addr and not hard_role
+    email_type = classify_email_type(email)
     if hard_role and not allow_role:
         return {
             "NormalizedEmail": email,
             "IsRoleAddress": "True",
+            "EmailType": email_type,
             "TypoFixed": str(typo_fixed),
             "VerificationStatus": "blocked_role",
             "VerificationReason": "hard_role_address_blocked",
@@ -294,6 +366,7 @@ def verify_email(
         return {
             "NormalizedEmail": email,
             "IsRoleAddress": str(role_addr),
+            "EmailType": email_type,
             "TypoFixed": str(typo_fixed),
             "VerificationStatus": "undeliverable",
             "VerificationReason": "domain_not_resolvable",
@@ -306,6 +379,7 @@ def verify_email(
         return {
             "NormalizedEmail": email,
             "IsRoleAddress": str(role_addr),
+            "EmailType": email_type,
             "TypoFixed": str(typo_fixed),
             "VerificationStatus": "risky",
             "VerificationReason": "soft_role_no_mx_record" if (soft_role and not allow_role) else "no_mx_record",
@@ -324,6 +398,7 @@ def verify_email(
         return {
             "NormalizedEmail": email,
             "IsRoleAddress": str(role_addr),
+            "EmailType": email_type,
             "TypoFixed": str(typo_fixed),
             "VerificationStatus": "risky" if (soft_role and not allow_role) else status_map.get(probe_status, "risky"),
             "VerificationReason": (
@@ -337,6 +412,7 @@ def verify_email(
     return {
         "NormalizedEmail": email,
         "IsRoleAddress": str(role_addr),
+        "EmailType": email_type,
         "TypoFixed": str(typo_fixed),
         "VerificationStatus": "risky",
         "VerificationReason": (
@@ -361,6 +437,7 @@ def read_rows(path: str, max_rows: int) -> List[Dict[str, str]]:
 
 def write_rows(path: str, rows: List[Dict[str, str]], base_fields: List[str]) -> None:
     out_fields = base_fields + [col for col in RESULT_COLUMNS if col not in base_fields]
+    ensure_parent(Path(path))
     with open(path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=out_fields)
         writer.writeheader()

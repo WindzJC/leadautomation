@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+from pipeline_paths import csv_output, ensure_parent, json_output
 from prospect_dedupe import OUTPUT_COLUMNS
 from run_lead_finder_loop import row_qualifies_for_master
 
@@ -35,12 +36,20 @@ CANDIDATE_COLUMNS = [
 
 
 def parse_args() -> argparse.Namespace:
-    now_year = dt.datetime.now(dt.UTC).year
+    now_year = dt.datetime.now(dt.timezone.utc).year
     parser = argparse.ArgumentParser(description="Re-enrich staged contact-queue rows and emit promotable rows.")
-    parser.add_argument("--input", default="contact_queue.csv", help="Input queue CSV.")
-    parser.add_argument("--candidates-output", default="queue_enrichment_candidates.csv", help="Temporary candidate CSV.")
-    parser.add_argument("--validated-output", default="queue_enrichment_validated.csv", help="Validated queue output CSV.")
-    parser.add_argument("--output", default="promoted.csv", help="Strict-promotable output CSV.")
+    parser.add_argument("--input", default=csv_output("contact_queue.csv"), help="Input queue CSV.")
+    parser.add_argument(
+        "--candidates-output",
+        default=csv_output("queue_enrichment_candidates.csv"),
+        help="Temporary candidate CSV.",
+    )
+    parser.add_argument(
+        "--validated-output",
+        default=csv_output("queue_enrichment_validated.csv"),
+        help="Validated queue output CSV.",
+    )
+    parser.add_argument("--output", default=csv_output("promoted.csv"), help="Strict-promotable output CSV.")
     parser.add_argument("--max-rows", type=int, default=0, help="Optional cap on staged rows to re-enrich.")
     parser.add_argument("--delay", type=float, default=0.05, help="Validation pause between requests.")
     parser.add_argument("--timeout", type=float, default=8.0, help="HTTP timeout seconds.")
@@ -89,7 +98,7 @@ def parse_args() -> argparse.Namespace:
         default="default",
         help="Validation profile forwarded to prospect_validate.py.",
     )
-    parser.add_argument("--stats-output", default="enrich_queue_stats.json", help="Optional JSON stats output.")
+    parser.add_argument("--stats-output", default=json_output("enrich_queue_stats.json"), help="Optional JSON stats output.")
     args = parser.parse_args()
     profile = str(args.validation_profile or "default").strip().lower()
     args.validation_profile = profile
@@ -114,6 +123,7 @@ def read_rows(path: Path) -> List[Dict[str, str]]:
 
 
 def write_candidate_rows(path: Path, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=CANDIDATE_COLUMNS)
         writer.writeheader()
@@ -121,6 +131,7 @@ def write_candidate_rows(path: Path, rows: List[Dict[str, str]]) -> None:
 
 
 def write_rows(path: Path, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS)
         writer.writeheader()
@@ -149,7 +160,7 @@ def queue_row_to_candidate(row: Dict[str, str]) -> Dict[str, str]:
         "SourceURL": (row.get("SourceURL", "") or "").strip(),
         "SourceTitle": (row.get("SourceTitle", "") or row.get("AuthorName", "") or "").strip(),
         "SourceSnippet": (row.get("SourceSnippet", "") or "").strip(),
-        "DiscoveredAtUTC": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "DiscoveredAtUTC": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
     }
 
 
@@ -261,7 +272,7 @@ def main() -> int:
     elapsed = max(0.0, time.monotonic() - started_at)
     if args.stats_output:
         stats_payload = {
-            "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "validation_profile": args.validation_profile,
             "input_rows": len(queue_rows),
             "staged_rows": len(staged_rows),
@@ -278,7 +289,9 @@ def main() -> int:
                 for row in staged_rows
             ],
         }
-        Path(args.stats_output).write_text(json.dumps(stats_payload, indent=2, ensure_ascii=True), encoding="utf-8")
+        stats_path = Path(args.stats_output)
+        ensure_parent(stats_path)
+        stats_path.write_text(json.dumps(stats_payload, indent=2, ensure_ascii=True), encoding="utf-8")
     print(
         f"[OK] revalidated {len(candidates)} staged queue rows, "
         f"promoted {len(promoted_rows)} -> {output_path}"

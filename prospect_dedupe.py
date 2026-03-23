@@ -8,7 +8,10 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+from pathlib import Path
 from typing import Dict, List
+
+from pipeline_paths import csv_output, ensure_parent
 
 OUTPUT_COLUMNS = [
     "AuthorName",
@@ -56,8 +59,8 @@ OUTPUT_COLUMNS = [
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Deduplicate validated author prospects.")
-    parser.add_argument("--input", default="validated.csv", help="Validated input CSV.")
-    parser.add_argument("--output", default="final_prospects.csv", help="Final output CSV.")
+    parser.add_argument("--input", default=csv_output("validated.csv"), help="Validated input CSV.")
+    parser.add_argument("--output", default=csv_output("final_prospects.csv"), help="Final output CSV.")
     parser.add_argument("--min-final", type=int, default=20, help="Expected minimum final rows.")
     parser.add_argument("--max-final", type=int, default=40, help="Maximum final rows.")
     return parser.parse_args()
@@ -143,6 +146,7 @@ def read_rows(path: str) -> List[Dict[str, str]]:
 
 
 def write_rows(path: str, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(Path(path))
     with open(path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS)
         writer.writeheader()

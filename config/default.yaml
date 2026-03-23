@@ -1,0 +1,12 @@
+validation_profile: strict_full
+goal_final: 20
+max_runs: 1
+max_stale_runs: 1
+target: 80
+min_candidates: 80
+max_candidates: 80
+batch_min: 20
+batch_max: 20
+merge_policy: strict
+listing_strict: true
+allowed_years: 4

@@ -234,7 +234,7 @@ def render_run_pipeline() -> None:
             )
         run_folder_name = st.text_input(
             "Output folder name",
-            help="Creates a top-level folder with root CSV outputs plus a runs/ directory.",
+            help="Creates a top-level folder with outputs/csv, outputs/logs, and outputs/runs artifacts.",
             key=FORM_SESSION_KEYS["run_folder_name"],
         )
         with st.expander("Optional inputs"):

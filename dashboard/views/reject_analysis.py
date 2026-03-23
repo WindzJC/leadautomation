@@ -3,7 +3,7 @@ from __future__ import annotations
 import streamlit as st
 
 from dashboard.components import render_page_intro
-from dashboard.data_loader import summarize_counter
+from dashboard.data_loader import filter_rows, summarize_counter
 from dashboard.utils import maybe_dataframe, safe_get
 
 
@@ -22,6 +22,7 @@ def render_reject_analysis(run_bundle) -> None:
     if not validate_stats:
         st.info("No validate stats found for this run.")
         return
+    rejected_rows = list(run_bundle.get("rejected_rows", []) or [])
 
     left, right = st.columns(2)
     with left:
@@ -85,6 +86,28 @@ def render_reject_analysis(run_bundle) -> None:
             )
         else:
             st.info("No intake-scoring calibration recorded for this run.")
+
+    st.markdown("**Rejected Leads**")
+    if rejected_rows:
+        search_query = st.text_input("Filter rejected leads", value="", key="rejected_leads_filter")
+        reason_options = ["All"] + sorted(
+            {
+                str(row.get("PrimaryFailReason", "") or "").strip()
+                for row in rejected_rows
+                if str(row.get("PrimaryFailReason", "") or "").strip()
+            }
+        )
+        selected_reason = st.selectbox("Primary fail reason", reason_options, index=0, key="rejected_leads_reason")
+        filtered_rows = filter_rows(
+            rejected_rows,
+            search_query,
+            fields=["AuthorName", "BookTitle", "PrimaryFailReason", "RejectReason", "SourceURL", "CandidateURL", "Email"],
+        )
+        if selected_reason != "All":
+            filtered_rows = [row for row in filtered_rows if (row.get("PrimaryFailReason", "") or "").strip() == selected_reason]
+        st.dataframe(maybe_dataframe(filtered_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No rejected lead export found for this run.")
 
     st.markdown("**Top Candidate Budget Burn**")
     top_burn = validate_stats.get("top_candidate_budget_burn", [])

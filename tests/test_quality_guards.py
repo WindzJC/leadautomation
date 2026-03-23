@@ -4397,6 +4397,56 @@ def test_validate_candidates_enforces_fetch_budget(tmp_path) -> None:
     assert reject_counts["fetch_budget_exceeded"] == 1
 
 
+def test_validate_candidates_default_profile_rejects_review_blog_brand_identity(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["CandidateURL", "SourceQuery", "SourceTitle", "SourceSnippet"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://novelnotions.net/",
+                "SourceQuery": "search",
+                "SourceTitle": "Novel Notions",
+                "SourceSnippet": "Novel Notions book reviews and indie author interviews.",
+            }
+        )
+
+    pages = {
+        "https://novelnotions.net/": """
+            <html><body>
+              <h1>Novel Notions</h1>
+              <h2>Skyfall</h2>
+              <p>Novel Notions is a book review blog covering independently published fantasy books and author interviews.</p>
+              <p>Updated March 1, 2026.</p>
+              <a href="/contact">Contact</a>
+              <a href="https://www.amazon.com/dp/B012345678">Buy on Amazon</a>
+            </body></html>
+        """,
+        "https://novelnotions.net/contact": "<html><body><p>Contact Novel Notions.</p></body></html>",
+        "https://www.amazon.com/dp/B012345678": """
+            <html><body><h1>Skyfall</h1><p>Paperback $14.99 Add to cart In stock</p></body></html>
+        """,
+    }
+
+    args = make_validator_args(tmp_path, candidates_path, validation_profile="default")
+    args.max_pages_for_title = 1
+    args.max_pages_for_contact = 1
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory(pages)),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        rows, reject_counts, total = validate_candidates(args)
+
+    assert total == 1
+    assert rows == []
+    assert reject_counts["bad_author_name"] == 1
+
+
 def test_validate_candidates_records_budget_burn_summaries(tmp_path) -> None:
     candidates_path = tmp_path / "candidates.csv"
     with candidates_path.open("w", encoding="utf-8", newline="") as fh:

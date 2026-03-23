@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lead Finder Ops Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Internal Ops</p>
+          <h1>Lead Finder Dashboard</h1>
+          <p class="subhead">Run history, funnel health, rejects, validated leads, and live status.</p>
+        </div>
+        <section class="live-panel">
+          <div class="panel-label">Live Status</div>
+          <div class="live-row">
+            <span id="live-status-badge" class="status-badge idle">Idle</span>
+            <span id="live-status-stage" class="live-stage">No active run</span>
+          </div>
+          <div id="live-status-meta" class="live-meta"></div>
+        </section>
+      </header>
+
+      <section id="error-banner" class="error-banner hidden"></section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-label">Run Control</p>
+            <h2>Launch Lead Finder</h2>
+          </div>
+          <span id="run-control-status" class="panel-meta">Idle</span>
+        </div>
+        <form id="run-control-form" class="run-form">
+          <label>
+            <span>Validation Profile</span>
+            <select id="run-validation-profile" name="validation_profile"></select>
+          </label>
+          <label>
+            <span>Goal Final</span>
+            <input id="run-goal-final" name="goal_final" type="number" min="1" />
+          </label>
+          <label>
+            <span>Max Runs</span>
+            <input id="run-max-runs" name="max_runs" type="number" min="1" />
+          </label>
+          <label>
+            <span>Max Stale Runs</span>
+            <input id="run-max-stale-runs" name="max_stale_runs" type="number" min="1" />
+          </label>
+          <label>
+            <span>Harvest Target</span>
+            <input id="run-target" name="target" type="number" min="1" />
+          </label>
+          <label>
+            <span>Min Candidates</span>
+            <input id="run-min-candidates" name="min_candidates" type="number" min="1" />
+          </label>
+          <label>
+            <span>Max Candidates</span>
+            <input id="run-max-candidates" name="max_candidates" type="number" min="1" />
+          </label>
+          <label>
+            <span>Batch Min</span>
+            <input id="run-batch-min" name="batch_min" type="number" min="1" />
+          </label>
+          <label>
+            <span>Batch Max</span>
+            <input id="run-batch-max" name="batch_max" type="number" min="1" />
+          </label>
+          <label>
+            <span>Queries File</span>
+            <input id="run-queries-file" name="queries_file" type="text" placeholder="Optional file path" />
+          </label>
+          <label>
+            <span>Output Folder</span>
+            <input id="run-folder-name" name="run_folder_name" type="text" />
+          </label>
+          <label class="checkbox-label">
+            <span>Listing Strict</span>
+            <input id="run-listing-strict" name="listing_strict" type="checkbox" />
+          </label>
+          <div class="run-form-actions">
+            <button id="run-start-button" type="submit" class="button-primary">Start Run</button>
+            <button id="run-stop-button" type="button" class="button-secondary">Stop Run</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="overview-cards" class="overview-grid"></section>
+
+      <div class="content-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">Overview</p>
+              <h2>Top Reject Reasons</h2>
+            </div>
+            <span id="latest-run-label" class="panel-meta"></span>
+          </div>
+          <div id="top-reject-reasons" class="reason-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">Run Details</p>
+              <h2 id="selected-run-title">No run selected</h2>
+            </div>
+            <span id="selected-run-status" class="panel-meta"></span>
+          </div>
+          <div id="selected-run-summary" class="selected-summary empty-state">Select a run to load details.</div>
+          <div id="selected-run-funnel" class="funnel-grid"></div>
+          <div id="artifact-links" class="artifact-links empty-state">Select a run to see downloadable artifacts.</div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-label">History</p>
+            <h2>Runs</h2>
+          </div>
+          <span id="run-count" class="panel-meta"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Context</th>
+                <th>Status</th>
+                <th>Validated</th>
+                <th>Rejected</th>
+                <th>Duplicates</th>
+                <th>Generated</th>
+              </tr>
+            </thead>
+            <tbody id="runs-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">Live Monitor</p>
+              <h2>Run Log</h2>
+            </div>
+            <span id="run-log-meta" class="panel-meta"></span>
+          </div>
+          <pre id="run-log-output" class="log-output">No log output yet.</pre>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">Selected Run</p>
+              <h2>Rejected Leads</h2>
+            </div>
+            <span id="rejected-count" class="panel-meta"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Book</th>
+                  <th>Domain</th>
+                  <th>Primary Fail</th>
+                  <th>Fail Reasons</th>
+                </tr>
+              </thead>
+              <tbody id="rejected-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">Selected Run</p>
+              <h2>Validated Leads</h2>
+            </div>
+            <span id="validated-count" class="panel-meta"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Book</th>
+                  <th>Email</th>
+                  <th>Listing</th>
+                  <th>Recency</th>
+                </tr>
+              </thead>
+              <tbody id="validated-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-label">Selected Run</p>
+            <h2>Lead Output</h2>
+          </div>
+          <span id="lead-output-count" class="panel-meta"></span>
+        </div>
+        <div id="lead-output-source" class="panel-meta panel-submeta"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Author</th>
+                <th>Email</th>
+                <th>Source URL</th>
+              </tr>
+            </thead>
+            <tbody id="lead-output-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

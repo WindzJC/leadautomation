@@ -8,10 +8,12 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from lead_utils import canonical_listing_key, normalize_person_name, strip_tracking_query_params
+from pipeline_paths import csv_output, ensure_parent
 
 CONTACT_EXPORT_COLUMNS = ["AuthorName", "BookTitle", "ContactURL", "SourceURL"]
 EMAIL_EXPORT_COLUMNS = ["AuthorName", "BookTitle", "AuthorEmail", "EmailSourceURL"]
@@ -20,10 +22,10 @@ FETCH_FAILURE_SNIPPETS = ("robots_disallow", "fetch_failed", "page_fetch_failed"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export ranked outreach lists from contact_queue.csv.")
-    parser.add_argument("--input", default="contact_queue.csv", help="Input queue CSV.")
+    parser.add_argument("--input", default=csv_output("contact_queue.csv"), help="Input queue CSV.")
     parser.add_argument("--limit", type=int, default=100, help="Max rows in contact_100.csv.")
-    parser.add_argument("--out", default="contact_100.csv", help="No-header contact export path.")
-    parser.add_argument("--out-email", default="email_only.csv", help="No-header email-only export path.")
+    parser.add_argument("--out", default=csv_output("contact_100.csv"), help="No-header contact export path.")
+    parser.add_argument("--out-email", default=csv_output("email_only.csv"), help="No-header email-only export path.")
     return parser.parse_args()
 
 
@@ -250,6 +252,7 @@ def select_email_rows(rows: Sequence[Dict[str, str]]) -> List[List[str]]:
 
 def write_rows(path: str, rows: Iterable[Sequence[str]]) -> int:
     count = 0
+    ensure_parent(Path(path))
     with open(path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
         for row in rows:

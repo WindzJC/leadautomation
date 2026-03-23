@@ -51,9 +51,9 @@ def test_build_run_command_includes_selected_profile_and_output_paths(tmp_path: 
     assert "--validation-profile" in command
     assert "strict_full" in command
     assert "--listing-strict" in command
-    assert str(run_root / "scouted_leads.csv") in command
-    assert str(run_root / "fully_verified_leads.csv") in command
-    assert str(run_root / "runs") in command
+    assert str(run_root / "outputs" / "csv" / "scouted_leads.csv") in command
+    assert str(run_root / "outputs" / "csv" / "fully_verified_leads.csv") in command
+    assert str(run_root / "outputs" / "runs") in command
 
 
 def test_tail_log_returns_last_lines(tmp_path: Path) -> None:
@@ -87,6 +87,7 @@ def test_get_run_status_reads_finished_exit_code(monkeypatch, tmp_path: Path) ->
     run_root = fake_root / "browser_run_test"
     paths = runner.build_run_paths(run_root)
     run_root.mkdir()
+    paths["log_path"].parent.mkdir(parents=True, exist_ok=True)
     paths["exit_code_path"].write_text("0", encoding="utf-8")
     paths["finished_at_path"].write_text("2026-03-12T00:00:00+00:00", encoding="utf-8")
     paths["log_path"].write_text("done\n", encoding="utf-8")
@@ -121,6 +122,7 @@ def test_get_run_status_marks_failure_from_exit_code(monkeypatch, tmp_path: Path
     run_root = fake_root / "browser_run_test"
     paths = runner.build_run_paths(run_root)
     run_root.mkdir()
+    paths["log_path"].parent.mkdir(parents=True, exist_ok=True)
     paths["exit_code_path"].write_text("2", encoding="utf-8")
     state_path.write_text(
         json.dumps(
@@ -229,6 +231,7 @@ def test_get_run_status_prefers_child_pid(monkeypatch, tmp_path: Path) -> None:
     run_root = fake_root / "browser_run_test"
     paths = runner.build_run_paths(run_root)
     run_root.mkdir()
+    paths["log_path"].parent.mkdir(parents=True, exist_ok=True)
     paths["child_pid_path"].write_text("12345", encoding="utf-8")
     state_path.write_text(
         json.dumps(
@@ -262,6 +265,7 @@ def test_stop_run_kills_child_process_group_before_launcher(monkeypatch, tmp_pat
     run_root = fake_root / "browser_run_test"
     paths = runner.build_run_paths(run_root)
     run_root.mkdir()
+    paths["log_path"].parent.mkdir(parents=True, exist_ok=True)
     paths["child_pid_path"].write_text("12345", encoding="utf-8")
     state_path.write_text(
         json.dumps(
@@ -313,7 +317,11 @@ def test_process_is_running_treats_zombie_as_inactive(monkeypatch, tmp_path: Pat
 def test_start_run_uses_resolved_status_not_stale_launcher_pid(monkeypatch, tmp_path: Path) -> None:
     fake_root = tmp_path / "repo"
     fake_root.mkdir()
+    state_dir = fake_root / "state"
+    state_dir.mkdir()
     monkeypatch.setattr(runner, "PROJECT_ROOT", fake_root)
+    monkeypatch.setattr(runner, "STATE_DIR", state_dir)
+    monkeypatch.setattr(runner, "STATE_PATH", state_dir / "runner_state.json")
     monkeypatch.setattr(
         runner,
         "get_run_status",

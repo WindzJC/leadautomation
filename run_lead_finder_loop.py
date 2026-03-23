@@ -22,6 +22,8 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple
 from urllib.parse import urlparse
 
 from lead_utils import canonical_listing_key, normalize_person_name, registrable_domain
+from persistent_dedupe import PersistentDedupeStore
+from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs, json_output, state_output
 from prospect_dedupe import OUTPUT_COLUMNS, dedupe
 from prospect_validate import (
     NEAR_MISS_LOCATION_COLUMNS,
@@ -32,6 +34,7 @@ from prospect_validate import (
     is_us_location,
     normalize_url,
 )
+from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, config_arg_default, load_runtime_config
 
 ASTRA_OUTBOUND_PROFILE = "astra_outbound"
 VERIFIED_NO_US_PROFILE = "verified_no_us"
@@ -92,6 +95,28 @@ CONTACT_QUEUE_COLUMNS = [
     "AuthorNameSourceURL",
     "BookTitleSourceURL",
 ]
+REJECTED_COLUMNS = [
+    "RunID",
+    "AuthorName",
+    "BookTitle",
+    "CandidateURL",
+    "CandidateDomain",
+    "SourceURL",
+    "BookURL",
+    "Email",
+    "Confidence",
+    "PrimaryFailReason",
+    "FailReasons",
+    "RejectReason",
+    "CurrentState",
+    "NextAction",
+    "NextActionReason",
+    "EmailSnippet",
+    "USSnippet",
+    "IndieSnippet",
+    "ListingSnippet",
+]
+LIVE_STATUS_PATH = Path(state_output("live_status.json"))
 
 QUERY_GENRES = [
     "fantasy",
@@ -747,31 +772,69 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
     args.merge_policy = "strict"
 
 
-def parse_args() -> argparse.Namespace:
-    max_year_default = dt.datetime.now(dt.UTC).year
-    min_year_default = max_year_default - 4
+def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    argv_list = list(argv) if argv is not None else sys.argv[1:]
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help=argparse.SUPPRESS)
+    pre_args, _ = pre_parser.parse_known_args(argv_list)
+    runtime_config = load_runtime_config(Path(pre_args.config))
+    min_year_default, max_year_default = allowed_year_bounds(runtime_config)
     parser = argparse.ArgumentParser(description="Run lead finder in repeated small batches.")
+    parser.add_argument("--config", default=str(pre_args.config), help="YAML defaults file.")
     parser.add_argument("--goal-total", type=int, default=100, help="Stop when total unique leads reaches this number.")
     parser.add_argument(
         "--goal-final",
         type=int,
-        default=0,
+        default=int(config_arg_default(runtime_config, "goal_final", 0, aliases=("target_final",)) or 0),
         help="Optional final kept-row target. When set, this overrides --goal-total for stop conditions.",
     )
-    parser.add_argument("--max-runs", type=int, default=20, help="Maximum number of batch runs.")
+    parser.add_argument(
+        "--max-runs",
+        type=int,
+        default=int(config_arg_default(runtime_config, "max_runs", 20) or 20),
+        help="Maximum number of batch runs.",
+    )
     parser.add_argument(
         "--max-stale-runs",
         type=int,
-        default=5,
+        default=int(config_arg_default(runtime_config, "max_stale_runs", 5) or 5),
         help="Stop early if this many runs in a row add zero new leads.",
     )
+    parser.add_argument(
+        "--max-consecutive-failures",
+        type=int,
+        default=3,
+        help="Stop early after this many failed runs in a row.",
+    )
+    parser.add_argument(
+        "--max-empty-candidate-runs",
+        type=int,
+        default=2,
+        help="Stop early after this many successful runs in a row produce zero filtered candidates.",
+    )
+    parser.add_argument(
+        "--max-zero-validated-runs",
+        type=int,
+        default=3,
+        help="Stop early after this many successful runs in a row produce zero validated rows.",
+    )
     parser.add_argument("--sleep-seconds", type=float, default=3.0, help="Pause between runs.")
-    parser.add_argument("--batch-min", type=int, default=10, help="Per-run minimum final leads (warning threshold).")
-    parser.add_argument("--batch-max", type=int, default=20, help="Per-run maximum final leads.")
-    parser.add_argument("--master-output", default="all_prospects.csv", help="Accumulated deduped output CSV.")
+    parser.add_argument(
+        "--batch-min",
+        type=int,
+        default=int(config_arg_default(runtime_config, "batch_min", 10) or 10),
+        help="Per-run minimum final leads (warning threshold).",
+    )
+    parser.add_argument(
+        "--batch-max",
+        type=int,
+        default=int(config_arg_default(runtime_config, "batch_max", 20) or 20),
+        help="Per-run maximum final leads.",
+    )
+    parser.add_argument("--master-output", default=csv_output("all_prospects.csv"), help="Accumulated deduped output CSV.")
     parser.add_argument(
         "--minimal-output",
-        default="author_email_source.csv",
+        default=csv_output("author_email_source.csv"),
         help="3-column lead export CSV (AuthorName, AuthorEmail, SourceURL).",
     )
     parser.add_argument(
@@ -786,12 +849,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--verified-output",
-        default="fully_verified_leads.csv",
+        default=csv_output("fully_verified_leads.csv"),
         help="3-column no-header export for fully_verified mode.",
     )
     parser.add_argument(
         "--scouted-output",
-        default="scouted_leads.csv",
+        default=csv_output("scouted_leads.csv"),
         help="3-column no-header export for agent_hunt mode.",
     )
     parser.add_argument(
@@ -806,7 +869,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--contact-queue-output",
-        default="contact_queue.csv",
+        default=csv_output("contact_queue.csv"),
         help="Contact-path queue CSV for leads without public emails.",
     )
     parser.add_argument(
@@ -816,7 +879,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--near-miss-location-output",
-        default="near_miss_location.csv",
+        default=csv_output("near_miss_location.csv"),
         help="Aggregated CSV for strict rows that fail only on U.S. author location.",
     )
     parser.add_argument(
@@ -824,14 +887,19 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable writing the aggregated near-miss location export.",
     )
-    parser.add_argument("--runs-dir", default="runs", help="Directory for per-run output files.")
+    parser.add_argument("--runs-dir", default="outputs/runs", help="Directory for per-run output files.")
 
     # Forwarded pipeline knobs.
-    parser.add_argument("--target", type=int, default=40, help="Harvest target candidates per run.")
+    parser.add_argument(
+        "--target",
+        type=int,
+        default=int(config_arg_default(runtime_config, "target", 40) or 40),
+        help="Harvest target candidates per run.",
+    )
     parser.add_argument(
         "--min-candidates",
         type=int,
-        default=80,
+        default=int(config_arg_default(runtime_config, "min_candidates", 80, aliases=("harvest_minimum",)) or 80),
         help="Minimum harvested candidates to attempt before accepting a shortfall.",
     )
     parser.add_argument("--per-query", type=int, default=30, help="Harvest results per query.")
@@ -879,7 +947,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-per-domain", type=int, default=0, help="Harvest domain cap (0 disables).")
     parser.add_argument("--pause-seconds", type=float, default=1.2, help="Harvest request pause.")
-    parser.add_argument("--max-candidates", type=int, default=80, help="Validator candidate cap per run.")
+    parser.add_argument(
+        "--max-candidates",
+        type=int,
+        default=int(config_arg_default(runtime_config, "max_candidates", 80) or 80),
+        help="Validator candidate cap per run.",
+    )
     parser.add_argument(
         "--max-support-pages",
         type=int,
@@ -1041,10 +1114,26 @@ def parse_args() -> argparse.Namespace:
             STRICT_INTERACTIVE_PROFILE,
             STRICT_FULL_PROFILE,
         ),
-        default="default",
+        default=str(config_arg_default(runtime_config, "validation_profile", "default") or "default"),
         help="Validation profile: default keeps staged rows; fully_verified only keeps outbound-ready rows; agent_hunt writes scout-qualified rows with a separate 3-column export; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict outbound gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--dedupe-db",
+        default=state_output("dedupe.sqlite"),
+        help="SQLite path for persistent cross-run dedupe fingerprints.",
+    )
+    parser.add_argument(
+        "--disable-persistent-dedupe",
+        action="store_true",
+        help="Disable persistent cross-run dedupe checks.",
+    )
+    args = parser.parse_args(argv_list)
+    args._runtime_config = runtime_config
+    if bool(config_arg_default(runtime_config, "listing_strict", False)) and "--listing-strict" not in argv_list:
+        args.listing_strict = True
+    if "--merge-policy" not in argv_list:
+        args.merge_policy = str(config_arg_default(runtime_config, "merge_policy", args.merge_policy) or args.merge_policy)
+    return args
 
 
 def read_rows(path: Path) -> List[Dict[str, str]]:
@@ -1055,6 +1144,7 @@ def read_rows(path: Path) -> List[Dict[str, str]]:
 
 
 def write_rows(path: Path, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS)
         writer.writeheader()
@@ -1069,6 +1159,7 @@ def read_candidate_rows(path: Path) -> List[Dict[str, str]]:
 
 
 def write_candidate_rows(path: Path, rows: List[Dict[str, str]]) -> None:
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=CANDIDATE_COLUMNS)
         writer.writeheader()
@@ -1090,6 +1181,7 @@ def write_minimal_rows(path: Path, rows: List[Dict[str, str]], with_header: bool
         unique.add(key)
         out_rows.append([author, email, source_url])
 
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
         if with_header:
@@ -1129,6 +1221,7 @@ def write_verified_rows(path: Path, rows: List[Dict[str, str]]) -> int:
         unique.add(key)
         out_rows.append([author, email, source_url])
 
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerows(out_rows)
@@ -1150,6 +1243,7 @@ def write_scouted_rows(path: Path, rows: List[Dict[str, str]]) -> int:
         unique.add(key)
         out_rows.append([author, email, source_url])
 
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerows(out_rows)
@@ -1177,6 +1271,7 @@ def write_contact_queue_rows(path: Path, rows: List[Dict[str, str]], include_ema
         unique.add(key)
         out_rows.append({col: (row.get(col, "") or "").strip() for col in CONTACT_QUEUE_COLUMNS})
 
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=CONTACT_QUEUE_COLUMNS)
         writer.writeheader()
@@ -1198,6 +1293,7 @@ def write_near_miss_location_rows(path: Path, rows: List[Dict[str, str]]) -> int
         unique.add(key)
         out_rows.append({col: (row.get(col, "") or "").strip() for col in NEAR_MISS_LOCATION_COLUMNS})
 
+    ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=NEAR_MISS_LOCATION_COLUMNS)
         writer.writeheader()
@@ -1438,10 +1534,140 @@ def load_json(path: Path) -> Dict[str, object]:
 
 
 def write_run_stats(path: Path, stats: Dict[str, object]) -> None:
+    ensure_parent(path)
     path.write_text(json.dumps(stats, indent=2, ensure_ascii=True), encoding="utf-8")
 
 
+def write_rejected_rows(path: Path, rows: List[Dict[str, str]]) -> int:
+    ensure_parent(path)
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=REJECTED_COLUMNS)
+        writer.writeheader()
+        writer.writerows([{col: (row.get(col, "") or "").strip() for col in REJECTED_COLUMNS} for row in rows])
+    return len(rows)
+
+
+def write_run_manifest(path: Path, payload: Dict[str, object]) -> None:
+    ensure_parent(path)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
+def write_live_status(
+    *,
+    status: str,
+    stage: str,
+    validation_profile: str,
+    goal_target: int,
+    active: bool,
+    run_tag: str = "",
+    batch_index: int = 0,
+    max_runs: int = 0,
+    counts: Dict[str, object] | None = None,
+    pipeline_exit_code: int | None = None,
+    stop_reason: str = "",
+    message: str = "",
+    runs_dir: Path | None = None,
+    log_path: Path | None = None,
+    artifact_paths: Dict[str, Path] | None = None,
+) -> None:
+    payload = load_json(LIVE_STATUS_PATH)
+    payload.update(
+        {
+            "active": bool(active),
+            "status": str(status or "").strip().lower() or "idle",
+            "stage": str(stage or "").strip().lower() or "idle",
+            "validation_profile": validation_profile,
+            "goal_target": int(goal_target),
+            "run_tag": run_tag,
+            "batch_index": int(batch_index or 0),
+            "max_runs": int(max_runs or 0),
+            "pipeline_exit_code": None if pipeline_exit_code is None else int(pipeline_exit_code),
+            "stop_reason": str(stop_reason or "").strip(),
+            "message": str(message or "").strip(),
+            "updated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        }
+    )
+    if counts is not None:
+        payload["counts"] = {
+            key: int(value) if isinstance(value, bool) is False and isinstance(value, int) else value
+            for key, value in counts.items()
+        }
+    if runs_dir is not None:
+        payload["runs_dir"] = str(runs_dir)
+    if log_path is not None:
+        payload["log_path"] = str(log_path)
+    if artifact_paths is not None:
+        payload["artifacts"] = {key: str(path) for key, path in artifact_paths.items()}
+    ensure_parent(LIVE_STATUS_PATH)
+    LIVE_STATUS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
+def build_rejected_rows(candidate_outcomes: List[Dict[str, object]], run_id: str) -> List[Dict[str, str]]:
+    rows: List[Dict[str, str]] = []
+    for record in candidate_outcomes:
+        if bool(record.get("passed", False)):
+            continue
+        fail_reasons_raw = list(record.get("fail_reasons", []) or [])
+        fail_reasons = [str(reason).strip() for reason in fail_reasons_raw if str(reason).strip()]
+        rows.append(
+            {
+                "RunID": run_id,
+                "AuthorName": str(record.get("author_name", "") or ""),
+                "BookTitle": str(record.get("book_title", "") or ""),
+                "CandidateURL": str(record.get("candidate_url", "") or ""),
+                "CandidateDomain": str(record.get("candidate_domain", "") or ""),
+                "SourceURL": str(record.get("source_url", "") or ""),
+                "BookURL": str(record.get("book_url", "") or ""),
+                "Email": str(record.get("email", "") or "").strip().lower(),
+                "Confidence": str(record.get("confidence", "") or ""),
+                "PrimaryFailReason": str(record.get("primary_fail_reason", "") or ""),
+                "FailReasons": "|".join(fail_reasons),
+                "RejectReason": str(record.get("reject_reason", "") or ""),
+                "CurrentState": str(record.get("current_state", "") or ""),
+                "NextAction": str(record.get("next_action", "") or ""),
+                "NextActionReason": str(record.get("next_action_reason", "") or ""),
+                "EmailSnippet": str(record.get("email_snippet", "") or ""),
+                "USSnippet": str(record.get("us_snippet", "") or ""),
+                "IndieSnippet": str(record.get("indie_snippet", "") or ""),
+                "ListingSnippet": str(record.get("listing_snippet", "") or ""),
+            }
+        )
+    return rows
+
+
+def build_duplicate_rejected_rows(rows: List[Dict[str, str]], run_id: str) -> List[Dict[str, str]]:
+    rejected: List[Dict[str, str]] = []
+    for row in rows:
+        rejected.append(
+            {
+                "RunID": run_id,
+                "AuthorName": str(row.get("AuthorName", "") or ""),
+                "BookTitle": str(row.get("BookTitle", "") or ""),
+                "CandidateURL": str(row.get("SourceURL", "") or row.get("AuthorWebsite", "") or row.get("ContactURL", "") or ""),
+                "CandidateDomain": registrable_domain(
+                    str(row.get("SourceURL", "") or row.get("AuthorWebsite", "") or row.get("ContactURL", "") or "")
+                ),
+                "SourceURL": str(row.get("SourceURL", "") or ""),
+                "BookURL": str(row.get("ListingURL", "") or row.get("BookTitleSourceURL", "") or ""),
+                "Email": str(row.get("AuthorEmail", "") or "").strip().lower(),
+                "Confidence": "weak",
+                "PrimaryFailReason": "duplicate_lead",
+                "FailReasons": "duplicate_lead",
+                "RejectReason": "duplicate_lead",
+                "CurrentState": "dead_end",
+                "NextAction": "stop_dead_end",
+                "NextActionReason": "duplicate_lead",
+                "EmailSnippet": str(row.get("AuthorEmailProofSnippet", "") or ""),
+                "USSnippet": str(row.get("LocationProofSnippet", "") or ""),
+                "IndieSnippet": str(row.get("IndieProofSnippet", "") or ""),
+                "ListingSnippet": "",
+            }
+        )
+    return rejected
+
+
 def concatenate_jsonl_files(paths: Iterable[Path], output_path: Path) -> None:
+    ensure_parent(output_path)
     wrote = False
     with output_path.open("w", encoding="utf-8") as out_fh:
         for path in paths:
@@ -1461,8 +1687,21 @@ def normalize_location(value: str) -> str:
 
 
 def append_log_line(path: Path, line: str) -> None:
+    ensure_parent(path)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line.rstrip() + "\n")
+
+
+def summarize_rejected_reason_counts(rows: List[Dict[str, str]]) -> Dict[str, int]:
+    counter: Counter[str] = Counter()
+    for row in rows:
+        reason = (row.get("PrimaryFailReason", "") or "").strip()
+        if not reason:
+            fail_reasons = [part.strip() for part in str(row.get("FailReasons", "") or "").split("|") if part.strip()]
+            reason = fail_reasons[0] if fail_reasons else ""
+        if reason:
+            counter[reason] += 1
+    return dict(counter)
 
 
 def secret_values_from_cmd(cmd: List[str]) -> List[str]:
@@ -1665,7 +1904,7 @@ def run_logged_command(
 
 def build_rotating_queries(run_idx: int, *, stale_runs: int = 0) -> List[str]:
     base_queries = list(BASE_QUERY_VARIANTS[(max(0, run_idx - 1 + stale_runs)) % len(BASE_QUERY_VARIANTS)])
-    current_year = dt.datetime.now(dt.UTC).year
+    current_year = dt.datetime.now(dt.timezone.utc).year
     years = list(range(current_year - 4, current_year + 1))
     window = min(len(QUERY_GENRES), 4 + min(2, max(0, stale_runs)))
     start = ((run_idx - 1) * window) % len(QUERY_GENRES)
@@ -1734,6 +1973,53 @@ def compute_batch_target_count(
     if remaining_goal <= 0:
         return 0
     return min(max(1, batch_max), remaining_goal)
+
+
+def update_reliability_counters(
+    counters: Dict[str, int],
+    *,
+    pipeline_failed: bool,
+    filtered_candidates: int,
+    validated_rows: int,
+) -> Dict[str, int]:
+    updated = {
+        "consecutive_failures": int(counters.get("consecutive_failures", 0) or 0),
+        "consecutive_empty_candidate_runs": int(counters.get("consecutive_empty_candidate_runs", 0) or 0),
+        "consecutive_zero_validated_runs": int(counters.get("consecutive_zero_validated_runs", 0) or 0),
+    }
+    if pipeline_failed:
+        updated["consecutive_failures"] += 1
+        return updated
+
+    updated["consecutive_failures"] = 0
+    updated["consecutive_empty_candidate_runs"] = (
+        updated["consecutive_empty_candidate_runs"] + 1 if filtered_candidates <= 0 else 0
+    )
+    updated["consecutive_zero_validated_runs"] = (
+        updated["consecutive_zero_validated_runs"] + 1 if validated_rows <= 0 else 0
+    )
+    return updated
+
+
+def determine_loop_stop_reason(args: argparse.Namespace, *, stale_runs: int, reliability_counters: Dict[str, int]) -> str:
+    if stale_runs >= max(1, int(getattr(args, "max_stale_runs", 1) or 1)):
+        return "stale_runs"
+    if int(reliability_counters.get("consecutive_failures", 0) or 0) >= max(
+        1,
+        int(getattr(args, "max_consecutive_failures", 1) or 1),
+    ):
+        return "consecutive_failures"
+    if int(reliability_counters.get("consecutive_empty_candidate_runs", 0) or 0) >= max(
+        1,
+        int(getattr(args, "max_empty_candidate_runs", 1) or 1),
+    ):
+        return "empty_candidate_runs"
+    if int(reliability_counters.get("consecutive_zero_validated_runs", 0) or 0) >= max(
+        1,
+        int(getattr(args, "max_zero_validated_runs", 1) or 1),
+    ):
+        return "zero_validated_runs"
+    return ""
 
 
 def orchestrate_candidate_replacements(
@@ -1965,7 +2251,7 @@ def aggregate_validate_stats(
     )
 
     return {
-        "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "validation_profile": validation_profile,
         "total_candidates": total_candidates,
         "kept_rows": kept_rows,
@@ -2002,6 +2288,7 @@ def aggregate_validate_stats(
         "candidate_state_counts": dict(candidate_state_counts),
         "planned_action_counts": dict(planned_action_counts),
         "proof_ledger_samples": proof_ledger_samples[:10],
+        "candidate_outcome_records": candidate_outcome_records,
         "candidate_outcome_records_count": len(candidate_outcome_records),
         "per_domain": per_domain,
         "candidate_budget_burn_count": sum(int(stats.get("candidate_budget_burn_count", 0) or 0) for stats in slice_stats_list),
@@ -2022,9 +2309,39 @@ def aggregate_validate_stats(
     }
 
 
+def build_run_manifest_payload(
+    *,
+    run_tag: str,
+    goal_target: int,
+    validation_profile: str,
+    pipeline_exit_code: int,
+    counts: Dict[str, object],
+    rejected_rows: List[Dict[str, str]],
+    artifact_paths: Dict[str, Path],
+    loop_control: Dict[str, object] | None = None,
+) -> Dict[str, object]:
+    return {
+        "run_id": run_tag,
+        "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "validation_profile": validation_profile,
+        "status": "failed" if pipeline_exit_code != 0 else "completed",
+        "pipeline_exit_code": int(pipeline_exit_code),
+        "target_final": int(goal_target),
+        "ruleset_version": "leadfinder_rules_v1",
+        "counts": {
+            key: int(value) if isinstance(value, bool) is False and isinstance(value, int) else value
+            for key, value in counts.items()
+        },
+        "rejected_reason_counts": summarize_rejected_reason_counts(rejected_rows),
+        "artifacts": {key: str(path) for key, path in artifact_paths.items()},
+        "loop_control": dict(loop_control or {}),
+    }
+
+
 def main() -> int:
     args = parse_args()
     apply_validation_profile_defaults(args)
+    ensure_runtime_dirs()
     py = sys.executable
     validation_profile = normalize_validation_profile(getattr(args, "validation_profile", "default"))
     goal_target = max(1, int(args.goal_final or args.goal_total))
@@ -2034,17 +2351,51 @@ def main() -> int:
     master_path = Path(args.master_output)
     contact_queue_path = Path(args.contact_queue_output)
     near_miss_location_path = Path(args.near_miss_location_output)
+    csv_outputs_dir = master_path.parent if str(master_path.parent) != "." else Path(csv_output("all_prospects.csv")).parent
+    json_outputs_dir = runs_dir.parent / "json" if str(runs_dir.parent) not in {"", "."} else Path(json_output("run_manifest.json")).parent
+    csv_outputs_dir.mkdir(parents=True, exist_ok=True)
+    json_outputs_dir.mkdir(parents=True, exist_ok=True)
+    persistent_dedupe_store = None if args.disable_persistent_dedupe else PersistentDedupeStore(Path(args.dedupe_db))
     master_rows = dedupe(read_rows(master_path))
     queue_rows = dedupe(read_rows(contact_queue_path)) if (not args.no_contact_queue_output and contact_queue_path.exists()) else []
+    if persistent_dedupe_store is not None:
+        persistent_dedupe_store.remember_rows(master_rows, run_id="existing_master")
+        persistent_dedupe_store.remember_rows(queue_rows, run_id="existing_queue")
     near_miss_location_rows = (
         read_rows(near_miss_location_path)
         if (not args.no_near_miss_location_output and near_miss_location_path.exists())
         else []
     )
     stale_runs = 0
+    reliability_counters = {
+        "consecutive_failures": 0,
+        "consecutive_empty_candidate_runs": 0,
+        "consecutive_zero_validated_runs": 0,
+    }
+    last_run_tag = ""
+    last_pipeline_exit_code = 0
+    final_stop_reason = ""
     if master_rows:
         starting_total = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
         print(f"[INFO] starting with {starting_total} existing goal-qualified leads in {master_path}")
+    else:
+        starting_total = 0
+    write_live_status(
+        status="running",
+        stage="starting",
+        validation_profile=validation_profile,
+        goal_target=goal_target,
+        active=True,
+        batch_index=0,
+        max_runs=max(1, args.max_runs),
+        counts={
+            "goal_qualified_total": starting_total,
+            "master_total": len(master_rows),
+            "queue_total": len(queue_rows),
+        },
+        message="Lead finder loop starting",
+        runs_dir=runs_dir,
+    )
 
     for run_idx in range(1, max(1, args.max_runs) + 1):
         current_total = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
@@ -2052,6 +2403,10 @@ def main() -> int:
             break
 
         run_tag = f"run_{run_idx:03d}"
+        last_run_tag = run_tag
+        validated_export_path = csv_outputs_dir / f"validated_{run_tag}.csv"
+        rejected_export_path = csv_outputs_dir / f"rejected_{run_tag}.csv"
+        run_manifest_path = json_outputs_dir / f"run_manifest_{run_tag}.json"
         candidates_path = runs_dir / f"{run_tag}_candidates.csv"
         filtered_candidates_path = runs_dir / f"{run_tag}_candidates.filtered.csv"
         validated_path = runs_dir / f"{run_tag}_validated.csv"
@@ -2069,9 +2424,14 @@ def main() -> int:
         verify_stdout_path = runs_dir / f"{run_tag}_verify.stdout.log"
         verify_stderr_path = runs_dir / f"{run_tag}_verify.stderr.log"
         run_near_miss_location_path = runs_dir / f"{run_tag}_near_miss_location.csv"
+        rejected_rows: List[Dict[str, str]] = []
+        duplicate_count = 0
 
         # Prevent stale per-run artifacts from being reused across invocations.
         for path in (
+            validated_export_path,
+            rejected_export_path,
+            run_manifest_path,
             candidates_path,
             filtered_candidates_path,
             validated_path,
@@ -2214,6 +2574,24 @@ def main() -> int:
             validate_cmd_common.append("--listing-strict")
 
         print(f"[INFO] batch {run_idx}/{args.max_runs}: running pipeline")
+        write_live_status(
+            status="running",
+            stage="harvest_starting",
+            validation_profile=validation_profile,
+            goal_target=goal_target,
+            active=True,
+            run_tag=run_tag,
+            batch_index=run_idx,
+            max_runs=max(1, args.max_runs),
+            counts={
+                "goal_qualified_total": current_total,
+                "master_total": len(master_rows),
+                "queue_total": len(queue_rows),
+            },
+            message="Harvest starting",
+            runs_dir=runs_dir,
+            log_path=pipeline_stdout_path,
+        )
         suppression_stats: Dict[str, object] = {
             "suppressed_pre_validate_total": 0,
             "suppressed_pre_validate_by_reason": {},
@@ -2281,6 +2659,31 @@ def main() -> int:
                 )
                 print(scoring_message)
                 append_log_line(pipeline_stdout_path, scoring_message)
+            write_live_status(
+                status="running",
+                stage="harvest_complete",
+                validation_profile=validation_profile,
+                goal_target=goal_target,
+                active=True,
+                run_tag=run_tag,
+                batch_index=run_idx,
+                max_runs=max(1, args.max_runs),
+                counts={
+                    "goal_qualified_total": current_total,
+                    "harvested_candidates": len(harvested_candidate_rows),
+                    "filtered_candidates": len(filtered_candidate_rows),
+                    "suppressed_pre_validate_total": suppression_stats.get("suppressed_pre_validate_total", 0),
+                },
+                pipeline_exit_code=pipeline_exit_code,
+                message="Harvest complete",
+                runs_dir=runs_dir,
+                log_path=pipeline_stdout_path,
+                artifact_paths={
+                    "candidates_csv": candidates_path,
+                    "filtered_candidates_csv": filtered_candidates_path,
+                    "harvest_stats_json": harvest_stats_path,
+                },
+            )
             batch_verified_target = compute_batch_target_count(
                 batch_max=max(1, args.batch_max),
                 goal_target=goal_target,
@@ -2403,6 +2806,13 @@ def main() -> int:
                     scoring_context=candidate_scoring_context,
                 )
                 write_run_stats(validate_stats_path, aggregate_stats)
+                write_rows(validated_export_path, aggregated_validated_rows)
+                rejected_rows = build_rejected_rows(
+                    list(aggregate_stats.get("candidate_outcome_records", []) or []),
+                    run_tag,
+                )
+                duplicate_count = sum(1 for row in rejected_rows if "duplicate_lead" in (row.get("FailReasons", "") or "").split("|"))
+                write_rejected_rows(rejected_export_path, rejected_rows)
                 append_log_line(
                     pipeline_stdout_path,
                     (
@@ -2413,6 +2823,34 @@ def main() -> int:
                         f"replaced {validation_orchestration_stats['candidates_replaced']}, "
                         f"dead_end {validation_orchestration_stats['dead_end_count']}"
                     ),
+                )
+                write_live_status(
+                    status="running",
+                    stage="validation_complete",
+                    validation_profile=validation_profile,
+                    goal_target=goal_target,
+                    active=True,
+                    run_tag=run_tag,
+                    batch_index=run_idx,
+                    max_runs=max(1, args.max_runs),
+                    counts={
+                        "goal_qualified_total": current_total,
+                        "harvested_candidates": row_count(candidates_path),
+                        "filtered_candidates": row_count(filtered_candidates_path),
+                        "validated": row_count(validated_export_path),
+                        "final": row_count(final_path),
+                        "rejected": len(rejected_rows),
+                        "duplicates": duplicate_count,
+                    },
+                    pipeline_exit_code=pipeline_exit_code,
+                    message="Validation complete",
+                    runs_dir=runs_dir,
+                    log_path=pipeline_stdout_path,
+                    artifact_paths={
+                        "validated_csv": validated_export_path,
+                        "rejected_csv": rejected_export_path,
+                        "validate_stats_json": validate_stats_path,
+                    },
                 )
                 append_log_line(pipeline_stdout_path, f"[RUN] {format_logged_command(dedupe_cmd)}")
                 dedupe_result = run_logged_command(
@@ -2425,10 +2863,33 @@ def main() -> int:
 
         if pipeline_exit_code != 0:
             print(f"[WARN] batch {run_idx} failed with exit code {pipeline_exit_code}")
+            validator_stats_failed = load_json(validate_stats_path)
+            if not validated_export_path.exists():
+                write_rows(validated_export_path, read_rows(validated_path))
+            if not rejected_rows:
+                rejected_rows = build_rejected_rows(
+                    list(validator_stats_failed.get("candidate_outcome_records", []) or []),
+                    run_tag,
+                )
+                duplicate_count = sum(
+                    1 for row in rejected_rows if "duplicate_lead" in (row.get("FailReasons", "") or "").split("|")
+                )
+            write_rejected_rows(rejected_export_path, rejected_rows)
+            reliability_counters = update_reliability_counters(
+                reliability_counters,
+                pipeline_failed=True,
+                filtered_candidates=row_count(filtered_candidates_path),
+                validated_rows=row_count(validated_export_path),
+            )
+            stop_reason = determine_loop_stop_reason(
+                args,
+                stale_runs=stale_runs,
+                reliability_counters=reliability_counters,
+            )
             run_stats = {
                 "run_tag": run_tag,
                 "batch_index": run_idx,
-                "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+                "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
                 "pipeline_exit_code": pipeline_exit_code,
                 "pipeline_stdout_log": str(pipeline_stdout_path),
                 "pipeline_stderr_log": str(pipeline_stderr_path),
@@ -2437,6 +2898,7 @@ def main() -> int:
                     "harvested_candidates": row_count(candidates_path),
                     "candidates": row_count(filtered_candidates_path),
                     "suppressed_pre_validate_total": suppression_stats.get("suppressed_pre_validate_total", 0),
+                    "duplicate_count": duplicate_count,
                     "near_miss_location_rows": row_count(run_near_miss_location_path),
                     "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
                     "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
@@ -2450,10 +2912,98 @@ def main() -> int:
                 "harvest": harvest_stats,
                 "pre_validate_suppression": suppression_stats,
                 "validator": load_json(validate_stats_path),
+                "loop_control": {
+                    "stale_runs": stale_runs,
+                    **reliability_counters,
+                    "stop_reason": stop_reason,
+                },
             }
             if harvest_stats:
                 run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
             write_run_stats(run_stats_path, run_stats)
+            write_run_manifest(
+                run_manifest_path,
+                build_run_manifest_payload(
+                    run_tag=run_tag,
+                    goal_target=goal_target,
+                    validation_profile=validation_profile,
+                    pipeline_exit_code=pipeline_exit_code,
+                    counts={
+                        "harvested_candidates": row_count(candidates_path),
+                        "filtered_candidates": row_count(filtered_candidates_path),
+                        "validated": row_count(validated_export_path),
+                        "rejected": len(rejected_rows),
+                        "duplicates": duplicate_count,
+                        "near_miss_location_rows": row_count(run_near_miss_location_path),
+                    },
+                    rejected_rows=rejected_rows,
+                    artifact_paths={
+                        "candidates_csv": candidates_path,
+                        "filtered_candidates_csv": filtered_candidates_path,
+                        "validated_csv": validated_export_path,
+                        "rejected_csv": rejected_export_path,
+                        "run_stats_json": run_stats_path,
+                        "validate_stats_json": validate_stats_path,
+                    },
+                    loop_control={
+                        "stale_runs": stale_runs,
+                        **reliability_counters,
+                        "stop_reason": stop_reason,
+                    },
+                ),
+            )
+            last_pipeline_exit_code = pipeline_exit_code
+            if stop_reason:
+                final_stop_reason = stop_reason
+                write_live_status(
+                    status="stopped",
+                    stage="stopped",
+                    validation_profile=validation_profile,
+                    goal_target=goal_target,
+                    active=False,
+                    run_tag=run_tag,
+                    batch_index=run_idx,
+                    max_runs=max(1, args.max_runs),
+                    counts={
+                        "goal_qualified_total": current_total,
+                        "harvested_candidates": row_count(candidates_path),
+                        "filtered_candidates": row_count(filtered_candidates_path),
+                        "validated": row_count(validated_export_path),
+                        "rejected": len(rejected_rows),
+                        "duplicates": duplicate_count,
+                    },
+                    pipeline_exit_code=pipeline_exit_code,
+                    stop_reason=stop_reason,
+                    message="Loop stopped after failed batch",
+                    runs_dir=runs_dir,
+                    log_path=pipeline_stdout_path,
+                    artifact_paths={"run_manifest_json": run_manifest_path},
+                )
+                print(f"[INFO] stopping early after {stop_reason.replace('_', ' ')}.")
+            else:
+                write_live_status(
+                    status="running",
+                    stage="batch_failed",
+                    validation_profile=validation_profile,
+                    goal_target=goal_target,
+                    active=True,
+                    run_tag=run_tag,
+                    batch_index=run_idx,
+                    max_runs=max(1, args.max_runs),
+                    counts={
+                        "goal_qualified_total": current_total,
+                        "harvested_candidates": row_count(candidates_path),
+                        "filtered_candidates": row_count(filtered_candidates_path),
+                        "validated": row_count(validated_export_path),
+                        "rejected": len(rejected_rows),
+                        "duplicates": duplicate_count,
+                    },
+                    pipeline_exit_code=pipeline_exit_code,
+                    message="Batch failed; loop continuing",
+                    runs_dir=runs_dir,
+                    log_path=pipeline_stdout_path,
+                    artifact_paths={"run_manifest_json": run_manifest_path},
+                )
             continue
 
         if not args.no_near_miss_location_output:
@@ -2492,6 +3042,12 @@ def main() -> int:
                 for row in batch_rows
                 if normalize_location(row.get("Location", "")) not in ("", "unknown", "n/a", "na")
             ]
+        if persistent_dedupe_store is not None and batch_rows:
+            batch_rows, duplicate_rows = persistent_dedupe_store.filter_new_rows(batch_rows, run_id=run_tag)
+            duplicate_count += len(duplicate_rows)
+            if duplicate_rows:
+                rejected_rows.extend(build_duplicate_rejected_rows(duplicate_rows, run_tag))
+                write_rejected_rows(rejected_export_path, rejected_rows)
         master_batch_rows, queue_only_batch_rows = split_rows_by_merge_policy(
             batch_rows,
             policy=args.merge_policy,
@@ -2508,6 +3064,17 @@ def main() -> int:
             stale_runs += 1
         else:
             stale_runs = 0
+        reliability_counters = update_reliability_counters(
+            reliability_counters,
+            pipeline_failed=False,
+            filtered_candidates=row_count(filtered_candidates_path),
+            validated_rows=row_count(validated_export_path),
+        )
+        stop_reason = determine_loop_stop_reason(
+            args,
+            stale_runs=stale_runs,
+            reliability_counters=reliability_counters,
+        )
         write_rows(master_path, master_rows)
         if not args.no_minimal_output:
             minimal_count = write_minimal_rows(
@@ -2557,7 +3124,7 @@ def main() -> int:
         run_stats = {
             "run_tag": run_tag,
             "batch_index": run_idx,
-            "generated_at_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "pipeline_exit_code": 0,
             "pipeline_stdout_log": str(pipeline_stdout_path),
             "pipeline_stderr_log": str(pipeline_stderr_path),
@@ -2574,6 +3141,7 @@ def main() -> int:
                 "master_merge_candidates": len(master_batch_rows),
                 "queue_only_candidates": len(queue_only_batch_rows),
                 "suppressed_pre_validate_total": suppression_stats.get("suppressed_pre_validate_total", 0),
+                "duplicate_count": duplicate_count,
                 "near_miss_location_rows": row_count(run_near_miss_location_path),
                 "added_to_master": added,
                 "added_to_queue": added_to_queue,
@@ -2595,6 +3163,11 @@ def main() -> int:
             "harvest": harvest_stats,
             "pre_validate_suppression": suppression_stats,
             "validator": load_json(validate_stats_path),
+            "loop_control": {
+                "stale_runs": stale_runs,
+                **reliability_counters,
+                "stop_reason": stop_reason,
+            },
         }
         if agent_hunt_stats:
             run_stats["agent_hunt"] = {
@@ -2613,8 +3186,105 @@ def main() -> int:
             run_stats["verify_stdout_log"] = str(verify_stdout_path)
             run_stats["verify_stderr_log"] = str(verify_stderr_path)
         write_run_stats(run_stats_path, run_stats)
-        if stale_runs >= max(1, args.max_stale_runs):
-            print(f"[INFO] stopping early after {stale_runs} stale runs (no new leads added).")
+        write_run_manifest(
+            run_manifest_path,
+            build_run_manifest_payload(
+                run_tag=run_tag,
+                goal_target=goal_target,
+                validation_profile=validation_profile,
+                pipeline_exit_code=0,
+                counts={
+                    "harvested_candidates": row_count(candidates_path),
+                    "filtered_candidates": row_count(filtered_candidates_path),
+                    "validated": row_count(validated_export_path),
+                    "final": row_count(final_path),
+                    "pre_verify_rows": len(pre_verify_rows),
+                    "kept_rows_after_gate": len(batch_rows),
+                    "master_merge_candidates": len(master_batch_rows),
+                    "queue_only_candidates": len(queue_only_batch_rows),
+                    "rejected": len(rejected_rows),
+                    "duplicates": duplicate_count,
+                    "added_to_master": added,
+                    "added_to_queue": added_to_queue,
+                    "goal_qualified_total": after,
+                    "near_miss_location_rows": row_count(run_near_miss_location_path),
+                },
+                rejected_rows=rejected_rows,
+                artifact_paths={
+                    "candidates_csv": candidates_path,
+                    "filtered_candidates_csv": filtered_candidates_path,
+                    "validated_csv": validated_export_path,
+                    "rejected_csv": rejected_export_path,
+                    "final_csv": final_path,
+                    "run_stats_json": run_stats_path,
+                    "validate_stats_json": validate_stats_path,
+                },
+                loop_control={
+                    "stale_runs": stale_runs,
+                    **reliability_counters,
+                    "stop_reason": stop_reason,
+                },
+            ),
+        )
+        last_pipeline_exit_code = 0
+        if stop_reason:
+            final_stop_reason = stop_reason
+            write_live_status(
+                status="stopped",
+                stage="stopped",
+                validation_profile=validation_profile,
+                goal_target=goal_target,
+                active=False,
+                run_tag=run_tag,
+                batch_index=run_idx,
+                max_runs=max(1, args.max_runs),
+                counts={
+                    "goal_qualified_total": after,
+                    "harvested_candidates": row_count(candidates_path),
+                    "filtered_candidates": row_count(filtered_candidates_path),
+                    "validated": row_count(validated_export_path),
+                    "final": row_count(final_path),
+                    "rejected": len(rejected_rows),
+                    "duplicates": duplicate_count,
+                    "added_to_master": added,
+                    "added_to_queue": added_to_queue,
+                },
+                pipeline_exit_code=0,
+                stop_reason=stop_reason,
+                message="Loop stopped after completed batch",
+                runs_dir=runs_dir,
+                log_path=pipeline_stdout_path,
+                artifact_paths={"run_manifest_json": run_manifest_path},
+            )
+        else:
+            write_live_status(
+                status="running",
+                stage="validation_complete",
+                validation_profile=validation_profile,
+                goal_target=goal_target,
+                active=True,
+                run_tag=run_tag,
+                batch_index=run_idx,
+                max_runs=max(1, args.max_runs),
+                counts={
+                    "goal_qualified_total": after,
+                    "harvested_candidates": row_count(candidates_path),
+                    "filtered_candidates": row_count(filtered_candidates_path),
+                    "validated": row_count(validated_export_path),
+                    "final": row_count(final_path),
+                    "rejected": len(rejected_rows),
+                    "duplicates": duplicate_count,
+                    "added_to_master": added,
+                    "added_to_queue": added_to_queue,
+                },
+                pipeline_exit_code=0,
+                message="Batch completed",
+                runs_dir=runs_dir,
+                log_path=pipeline_stdout_path,
+                artifact_paths={"run_manifest_json": run_manifest_path},
+            )
+        if stop_reason:
+            print(f"[INFO] stopping early after {stop_reason.replace('_', ' ')}.")
             break
 
         if after < goal_target:
@@ -2654,6 +3324,36 @@ def main() -> int:
         near_miss_count = write_near_miss_location_rows(near_miss_location_path, near_miss_location_rows)
         print(f"[OK] wrote {near_miss_count} rows -> {args.near_miss_location_output}")
     final_total = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+    if final_stop_reason:
+        final_status = "stopped"
+        final_stage = "stopped"
+        final_message = "Loop stopped"
+    elif final_total >= goal_target:
+        final_status = "completed"
+        final_stage = "completed"
+        final_message = "Goal reached"
+    else:
+        final_status = "stopped"
+        final_stage = "stopped"
+        final_stop_reason = "max_runs_exhausted"
+        final_message = "Max runs exhausted before goal"
+    write_live_status(
+        status=final_status,
+        stage=final_stage,
+        validation_profile=validation_profile,
+        goal_target=goal_target,
+        active=False,
+        run_tag=last_run_tag,
+        counts={
+            "goal_qualified_total": final_total,
+            "master_total": len(master_rows),
+            "queue_total": len(queue_rows),
+        },
+        pipeline_exit_code=last_pipeline_exit_code,
+        stop_reason=final_stop_reason,
+        message=final_message,
+        runs_dir=runs_dir,
+    )
     print(f"[OK] done: {final_total} goal-qualified leads -> {master_path}")
     if final_total < goal_target:
         print(f"[INFO] target not reached ({final_total}/{goal_target}). Increase --max-runs or broaden inputs.")

@@ -10,9 +10,12 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-STATE_DIR = PROJECT_ROOT / ".dashboard_state"
+STATE_DIR = PROJECT_ROOT / "state"
 STATE_PATH = STATE_DIR / "runner_state.json"
 RUN_FORM_STATE_PATH = STATE_DIR / "run_form_state.json"
+LEGACY_STATE_DIR = PROJECT_ROOT / ".dashboard_state"
+LEGACY_STATE_PATH = LEGACY_STATE_DIR / "runner_state.json"
+LEGACY_RUN_FORM_STATE_PATH = LEGACY_STATE_DIR / "run_form_state.json"
 
 DEFAULT_RUN_CONFIG = {
     "validation_profile": "strict_full",
@@ -43,10 +46,11 @@ def _now_iso() -> str:
 
 
 def load_run_state() -> dict[str, Any]:
-    if not STATE_PATH.is_file():
+    path = STATE_PATH if STATE_PATH.is_file() else LEGACY_STATE_PATH
+    if not path.is_file():
         return {}
     try:
-        payload = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
@@ -58,10 +62,11 @@ def save_run_state(payload: dict[str, Any]) -> None:
 
 
 def load_run_form_state() -> dict[str, Any]:
-    if not RUN_FORM_STATE_PATH.is_file():
+    path = RUN_FORM_STATE_PATH if RUN_FORM_STATE_PATH.is_file() else LEGACY_RUN_FORM_STATE_PATH
+    if not path.is_file():
         return {}
     try:
-        payload = json.loads(RUN_FORM_STATE_PATH.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
@@ -92,19 +97,25 @@ def process_is_running(pid: int | None) -> bool:
 
 
 def build_run_paths(run_root: Path) -> dict[str, Path]:
+    outputs_root = run_root / "outputs"
+    csv_root = outputs_root / "csv"
+    logs_root = outputs_root / "logs"
     return {
         "root": run_root,
-        "master_output": run_root / "leads_full.csv",
-        "minimal_output": run_root / "author_email_source.csv",
-        "scouted_output": run_root / "scouted_leads.csv",
-        "contact_queue_output": run_root / "contact_queue.csv",
-        "near_miss_location_output": run_root / "near_miss_location.csv",
-        "verified_output": run_root / "fully_verified_leads.csv",
-        "runs_dir": run_root / "runs",
-        "log_path": run_root / "dashboard_run.log",
-        "child_pid_path": run_root / "dashboard_run.child.pid",
-        "exit_code_path": run_root / "dashboard_run.exitcode",
-        "finished_at_path": run_root / "dashboard_run.finished_at",
+        "outputs_root": outputs_root,
+        "csv_root": csv_root,
+        "logs_root": logs_root,
+        "master_output": csv_root / "leads_full.csv",
+        "minimal_output": csv_root / "author_email_source.csv",
+        "scouted_output": csv_root / "scouted_leads.csv",
+        "contact_queue_output": csv_root / "contact_queue.csv",
+        "near_miss_location_output": csv_root / "near_miss_location.csv",
+        "verified_output": csv_root / "fully_verified_leads.csv",
+        "runs_dir": outputs_root / "runs",
+        "log_path": logs_root / "dashboard_run.log",
+        "child_pid_path": logs_root / "dashboard_run.child.pid",
+        "exit_code_path": logs_root / "dashboard_run.exitcode",
+        "finished_at_path": logs_root / "dashboard_run.finished_at",
     }
 
 
@@ -194,6 +205,8 @@ def start_run(config: dict[str, Any]) -> dict[str, Any]:
     run_folder_name = str(config.get("run_folder_name") or "").strip() or suggested_run_folder_name()
     run_root = (PROJECT_ROOT / run_folder_name).resolve()
     paths = build_run_paths(run_root)
+    paths["csv_root"].mkdir(parents=True, exist_ok=True)
+    paths["logs_root"].mkdir(parents=True, exist_ok=True)
     paths["runs_dir"].mkdir(parents=True, exist_ok=True)
     for cleanup_key in ("child_pid_path", "exit_code_path", "finished_at_path"):
         try:

@@ -43,7 +43,7 @@ def main() -> None:
 
     contexts = discover_run_contexts(PROJECT_ROOT)
     if page != "Run Pipeline" and not contexts:
-        st.error("No run contexts with a `runs/` directory were found.")
+        st.error("No run contexts with `runs/` or `outputs/runs/` were found.")
         return
 
     context = None
@@ -58,7 +58,7 @@ def main() -> None:
             manual_path = st.text_input("Manual run folder path", value="")
         context = resolve_context(manual_path) if manual_path.strip() else context_labels[selected_label]
         if context is None:
-            st.error("The manual run folder path does not contain a `runs/` directory.")
+            st.error("The manual run folder path does not contain a `runs/` or `outputs/runs/` directory.")
             return
 
         run_tags = list_run_tags(context.runs_path)

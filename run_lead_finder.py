@@ -13,6 +13,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs
+from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, config_arg_default, load_runtime_config
+
 SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
 ASTRA_OUTBOUND_PROFILE = "astra_outbound"
 VERIFIED_NO_US_PROFILE = "verified_no_us"
@@ -61,15 +64,25 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
         args.max_final = 40
 
 
-def parse_args() -> argparse.Namespace:
-    max_year_default = dt.datetime.now(dt.UTC).year
-    min_year_default = max_year_default - 4
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    argv_list = list(argv) if argv is not None else sys.argv[1:]
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help=argparse.SUPPRESS)
+    pre_args, _ = pre_parser.parse_known_args(argv_list)
+    runtime_config = load_runtime_config(Path(pre_args.config))
+    min_year_default, max_year_default = allowed_year_bounds(runtime_config)
     parser = argparse.ArgumentParser(description="Run the full author lead finder pipeline.")
-    parser.add_argument("--target", type=int, default=40, help="Harvest target candidate count.")
+    parser.add_argument("--config", default=str(pre_args.config), help="YAML defaults file.")
+    parser.add_argument(
+        "--target",
+        type=int,
+        default=int(config_arg_default(runtime_config, "target", 40) or 40),
+        help="Harvest target candidate count.",
+    )
     parser.add_argument(
         "--min-candidates",
         type=int,
-        default=80,
+        default=int(config_arg_default(runtime_config, "min_candidates", 80, aliases=("harvest_minimum",)) or 80),
         help="Minimum harvested candidates to attempt before accepting a shortfall.",
     )
     parser.add_argument("--per-query", type=int, default=30, help="Max results kept per query.")
@@ -132,7 +145,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=20.0, help="HTTP timeout seconds.")
     parser.add_argument("--min-year", type=int, default=min_year_default, help="Minimum recency year.")
     parser.add_argument("--max-year", type=int, default=max_year_default, help="Maximum recency year.")
-    parser.add_argument("--max-candidates", type=int, default=0, help="Optional validator candidate cap.")
+    parser.add_argument(
+        "--max-candidates",
+        type=int,
+        default=int(config_arg_default(runtime_config, "max_candidates", 0) or 0),
+        help="Optional validator candidate cap.",
+    )
     parser.add_argument(
         "--max-support-pages",
         type=int,
@@ -247,14 +265,24 @@ def parse_args() -> argparse.Namespace:
             STRICT_INTERACTIVE_PROFILE,
             STRICT_FULL_PROFILE,
         ),
-        default="default",
+        default=str(config_arg_default(runtime_config, "validation_profile", "default") or "default"),
         help="Validation profile: default keeps staged rows; fully_verified hard-gates outbound-ready rows; agent_hunt keeps staged validation but is intended for scout-mode ranking/export in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
-    parser.add_argument("--min-final", type=int, default=20, help="Expected minimum final rows.")
-    parser.add_argument("--max-final", type=int, default=40, help="Maximum final rows.")
-    parser.add_argument("--candidates", default="candidates.csv", help="Stage 1 output CSV.")
-    parser.add_argument("--validated", default="validated.csv", help="Stage 2 output CSV.")
-    parser.add_argument("--final", default="final_prospects.csv", help="Stage 3 output CSV.")
+    parser.add_argument(
+        "--min-final",
+        type=int,
+        default=int(config_arg_default(runtime_config, "batch_min", 20, aliases=("min_final",)) or 20),
+        help="Expected minimum final rows.",
+    )
+    parser.add_argument(
+        "--max-final",
+        type=int,
+        default=int(config_arg_default(runtime_config, "batch_max", 40, aliases=("max_final",)) or 40),
+        help="Maximum final rows.",
+    )
+    parser.add_argument("--candidates", default=csv_output("candidates.csv"), help="Stage 1 output CSV.")
+    parser.add_argument("--validated", default=csv_output("validated.csv"), help="Stage 2 output CSV.")
+    parser.add_argument("--final", default=csv_output("final_prospects.csv"), help="Stage 3 output CSV.")
     parser.add_argument(
         "--validate-stats-output",
         default="",
@@ -281,7 +309,10 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("BRAVE_SEARCH_API_KEY", ""),
         help="Optional Brave Search API key (or env BRAVE_SEARCH_API_KEY).",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv_list)
+    args._runtime_config = runtime_config
+    if bool(config_arg_default(runtime_config, "listing_strict", False)) and "--listing-strict" not in argv_list:
+        args.listing_strict = True
     apply_validation_profile_defaults(args)
     return args
 
@@ -311,6 +342,16 @@ def run_command(cmd: list[str]) -> None:
 def main() -> int:
     args = parse_args()
     py = sys.executable
+    ensure_runtime_dirs()
+    for output_path in (
+        Path(args.candidates),
+        Path(args.validated),
+        Path(args.final),
+        Path(args.validate_stats_output) if args.validate_stats_output else None,
+        Path(args.near_miss_location_output) if args.near_miss_location_output else None,
+    ):
+        if output_path is not None:
+            ensure_parent(output_path)
 
     harvest_cmd = [
         py,

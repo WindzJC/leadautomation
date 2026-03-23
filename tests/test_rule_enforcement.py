@@ -9,6 +9,7 @@ from lead_utils import is_allowed_retailer_url
 from prospect_harvest import (
     classify_google_cse_status,
     extract_goodreads_outbound_links,
+    extract_ian_directory_candidates,
     extract_iabx_directory_candidates,
     expand_shortlink,
     google_cse_healthcheck,
@@ -67,16 +68,25 @@ class FakeResponse:
 class FakeSession:
     def __init__(self, responses: list[FakeResponse]) -> None:
         self._responses = list(responses)
+        self.calls: list[tuple[str, float]] = []
 
     def get(self, url: str, params=None, timeout: float = 0.0, headers=None, allow_redirects: bool = False):  # noqa: ANN001
+        self.calls.append((url, timeout))
         if not self._responses:
             raise AssertionError("No more fake responses configured")
-        return self._responses.pop(0)
+        event = self._responses.pop(0)
+        if isinstance(event, BaseException):
+            raise event
+        return event
 
     def head(self, url: str, timeout: float = 0.0, allow_redirects: bool = False):  # noqa: ANN001
+        self.calls.append((url, timeout))
         if not self._responses:
             raise AssertionError("No more fake responses configured")
-        return self._responses.pop(0)
+        event = self._responses.pop(0)
+        if isinstance(event, BaseException):
+            raise event
+        return event
 
 
 def test_harvest_blocks_noisy_and_irrelevant_hosts() -> None:
@@ -323,6 +333,66 @@ def test_goodreads_outbound_only_promotes_author_contact_like_urls() -> None:
     )
 
 
+def test_extract_ian_directory_candidates_fast_fails_after_timeout_streak() -> None:
+    session = FakeSession(
+        [
+            FakeResponse(
+                text="""
+                <html><body>
+                  <a href="/jane-doe.html">Jane Doe</a>
+                  <a href="/slow-one.html">Slow One</a>
+                  <a href="/slow-two.html">Slow Two</a>
+                  <a href="/too-late.html">Too Late</a>
+                </body></html>
+                """,
+                url="https://www.independentauthornetwork.com/author-directory.html",
+            ),
+                FakeResponse(
+                    text="""
+                    <html><body>
+                      <h1>Jane Doe</h1>
+                      <div class="paragraph">Jane Doe is an indie fantasy author of Skyfall and other novels.</div>
+                      <a href="https://janedoeauthor.com/">Official Website</a>
+                    </body></html>
+                    """,
+                    url="https://www.independentauthornetwork.com/jane-doe.html",
+                ),
+            requests.Timeout("slow profile"),
+            requests.Timeout("slow profile"),
+            FakeResponse(
+                text="""
+                <html><body>
+                  <h1>Should Not Fetch</h1>
+                  <div class="paragraph">Indie fantasy author.</div>
+                  <a href="https://toolateauthor.com/">Official Website</a>
+                </body></html>
+                """,
+                url="https://www.independentauthornetwork.com/too-late.html",
+            ),
+        ]
+    )
+
+    rows = extract_ian_directory_candidates(
+        session=session,
+        timeout=12.0,
+        rotation_offset=0,
+        page_budget=1,
+        outbound_per_profile=1,
+        max_profiles_per_page=6,
+        max_total_profiles=6,
+        max_consecutive_profile_failures=2,
+        max_profile_timeouts=2,
+    )
+
+    assert [row["CandidateURL"] for row in rows] == ["https://janedoeauthor.com/"]
+    assert [url for url, _ in session.calls] == [
+        "https://www.independentauthornetwork.com/author-directory.html",
+        "https://www.independentauthornetwork.com/jane-doe.html",
+        "https://www.independentauthornetwork.com/slow-one.html",
+        "https://www.independentauthornetwork.com/slow-two.html",
+    ]
+
+
 def test_preferred_candidate_url_requires_book_listing_paths() -> None:
     assert is_preferred_candidate_url("https://www.goodreads.com/book/show/123-example")
     assert is_preferred_candidate_url("https://www.amazon.com/dp/B012345678")
@@ -534,6 +604,62 @@ def test_harvest_uses_directories_before_web_fallbacks() -> None:
     assert stats["per_source"]["ian_directory"] == 6
     assert stats["per_source"]["web_search"] == 4
     assert all(not row["CandidateURL"].startswith("https://www.amazon.com/b") for row in rows)
+
+
+def test_harvest_skips_expanded_ian_retry_when_initial_pass_is_empty() -> None:
+    epic_rows = [
+        {
+            "CandidateURL": f"https://epic{idx}.example/contact",
+            "SourceType": "epic_directory",
+            "SourceQuery": "epic:author-directory",
+            "DiscoveredAtUTC": "2026-03-06T00:00:00Z",
+        }
+        for idx in range(1, 5)
+    ]
+
+    with (
+        patch("prospect_harvest.extract_epic_directory_candidates", return_value=epic_rows),
+        patch("prospect_harvest.extract_iabx_directory_candidates", return_value=[]),
+        patch(
+            "prospect_harvest.extract_ian_directory_candidates",
+            side_effect=[[], AssertionError("expanded IAN retry should be skipped")],
+        ),
+        patch("prospect_harvest.harvest_openlibrary_candidates", return_value=[]),
+        patch("prospect_harvest.harvest_goodreads_candidates", return_value=[]),
+        patch("prospect_harvest.search_duckduckgo", return_value=["https://search.example/contact"]),
+        patch("prospect_harvest.search_bing_html", return_value=[]),
+        patch("prospect_harvest.search_bing_rss", return_value=[]),
+        patch("prospect_harvest.time.sleep", return_value=None),
+    ):
+        rows, stats = harvest(
+            queries=["q1"],
+            per_query=5,
+            target=5,
+            min_candidates=5,
+            pause_seconds=0.0,
+            max_per_domain=0,
+            goodreads_pages=1,
+            max_goodreads_candidates=0,
+            goodreads_outbound_per_url=2,
+            include_goodreads_outbound=False,
+            goodreads_rotation_offset=0,
+            max_openlibrary_candidates=0,
+            openlibrary_per_subject=1,
+            include_openlibrary=False,
+            brave_api_key="",
+            google_api_key="",
+            google_cx="",
+            search_timeout=5.0,
+            goodreads_timeout=12.0,
+            http_retries=0,
+            harvest_time_budget=30.0,
+            disable_web_fallback=False,
+        )
+
+    assert len(rows) == 5
+    assert rows[-1]["CandidateURL"] == "https://search.example/contact"
+    assert stats["per_source"]["epic_directory"] == 4
+    assert stats["per_source"]["web_search"] == 1
 
 
 def test_listing_domain_rule_is_amazon_com_or_bn_only() -> None:

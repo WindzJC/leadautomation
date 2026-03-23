@@ -247,6 +247,19 @@ SCOUT_GENERIC_AUTHOR_TOKENS = {
     "writer",
     "writing",
 }
+SCOUT_LISTING_HARD_DEAD_END_REASONS = {"listing_not_found"}
+SCOUT_LISTING_RETAILER_FRICTION_REASONS = {
+    "listing_amazon_interstitial_no_bn_candidate",
+    "listing_amazon_interstitial_bn_blocked",
+    "listing_amazon_interstitial_bn_failed_other",
+    "listing_interstitial_or_redirect_state",
+}
+SCOUT_LISTING_FAILURE_PREFIX = "listing_"
+SCOUT_SOURCE_TYPE_BY_DOMAIN = {
+    "epicindie.net": "epic_directory",
+    "iabx.org": "iabx_directory",
+    "independentauthornetwork.com": "ian_directory",
+}
 INTAKE_SCORE_HIGH_THRESHOLD = 40
 INTAKE_SCORE_LOW_THRESHOLD = 15
 INTAKE_SCORE_BANDS: List[Tuple[str, int | None]] = [
@@ -400,15 +413,22 @@ def looks_like_plausible_author_identity(source_title: str, candidate_url: str) 
     return bool(domain_slug and is_plausible_author_name(domain_slug))
 
 
-def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> Dict[str, object]:
+def score_candidate_intake(
+    row: Dict[str, str],
+    *,
+    validation_profile: str,
+    agent_hunt_listing_feedback: Dict[str, object] | None = None,
+) -> Dict[str, object]:
     require_us_location = profile_requires_us_location(validation_profile)
     strict_verified = is_fully_verified_profile(validation_profile)
     scout_mode = is_agent_hunt_profile(validation_profile)
     candidate_url = row.get("CandidateURL", "") or ""
     source_type = (row.get("SourceType", "") or "").strip().lower()
+    source_query = (row.get("SourceQuery", "") or "").strip().lower()
     source_title = (row.get("SourceTitle", "") or "").strip()
     source_snippet = (row.get("SourceSnippet", "") or "").strip()
     source_url = row.get("SourceURL", "") or ""
+    source_domain = registrable_domain(source_url)
     combined = " ".join(part for part in (source_title, source_snippet) if part).strip()
     lowered = combined.lower()
     parsed = urlparse(candidate_url)
@@ -478,6 +498,16 @@ def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> D
     if any(hint in lowered for hint in ("wikipedia", "new york times bestseller", "usa today bestseller", "wall street journal bestseller")):
         add_component("obvious_dead_end_signal", -20)
 
+    if scout_mode and agent_hunt_listing_feedback:
+        query_penalty = int((agent_hunt_listing_feedback.get("query_penalties", {}) or {}).get(source_query, 0) or 0)
+        source_type_penalty = int((agent_hunt_listing_feedback.get("source_type_penalties", {}) or {}).get(source_type, 0) or 0)
+        source_domain_penalty = int(
+            (agent_hunt_listing_feedback.get("source_domain_penalties", {}) or {}).get(source_domain, 0) or 0
+        )
+        total_penalty = min(12, query_penalty + source_type_penalty + source_domain_penalty)
+        if total_penalty:
+            add_component("prior_listing_friction_penalty", -total_penalty)
+
     positive_features = [
         {"feature": name, "contribution": value}
         for name, value in sorted(((name, value) for name, value in components.items() if value > 0), key=lambda item: item[1], reverse=True)
@@ -491,7 +521,7 @@ def score_candidate_intake(row: Dict[str, str], *, validation_profile: str) -> D
         "identity": candidate_identity_from_row(row),
         "candidate_url": normalize_url(candidate_url) or candidate_url,
         "source_type": source_type,
-        "source_query": (row.get("SourceQuery", "") or "").strip().lower(),
+        "source_query": source_query,
         "source_url": normalize_url(source_url) or source_url,
         "score": int(score),
         "band": candidate_score_band(int(score)),
@@ -506,6 +536,7 @@ def order_candidates_for_strict_validation(
     candidate_rows: List[Dict[str, str]],
     *,
     validation_profile: str,
+    agent_hunt_listing_feedback: Dict[str, object] | None = None,
 ) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
     scored_rows: List[Tuple[int, int, Dict[str, str], Dict[str, object]]] = []
     score_map: Dict[str, Dict[str, object]] = {}
@@ -515,7 +546,11 @@ def order_candidates_for_strict_validation(
     enabled = is_fully_verified_profile(validation_profile) or is_agent_hunt_profile(validation_profile)
 
     for index, row in enumerate(candidate_rows):
-        scored = score_candidate_intake(row, validation_profile=validation_profile)
+        scored = score_candidate_intake(
+            row,
+            validation_profile=validation_profile,
+            agent_hunt_listing_feedback=agent_hunt_listing_feedback,
+        )
         score = int(scored["score"])
         scored_rows.append((score, index, row, scored))
         score_map[str(scored["identity"])] = scored
@@ -552,6 +587,11 @@ def order_candidates_for_strict_validation(
             }
             for record in ordered_scores[:10]
         ],
+        "agent_hunt_listing_feedback_applied": {
+            "query_penalties": dict((agent_hunt_listing_feedback or {}).get("query_penalties", {}) or {}),
+            "source_type_penalties": dict((agent_hunt_listing_feedback or {}).get("source_type_penalties", {}) or {}),
+            "source_domain_penalties": dict((agent_hunt_listing_feedback or {}).get("source_domain_penalties", {}) or {}),
+        },
     }
 
 
@@ -1338,27 +1378,178 @@ def row_has_definitive_non_us_location(row: Dict[str, str]) -> bool:
     return not is_us_location(location)
 
 
-def scout_reject_reason(row: Dict[str, str]) -> str:
-    author_name = (row.get("AuthorName", "") or "").strip()
-    if (
-        not row_has_clean_author_name(row)
-        or not is_plausible_author_name(author_name)
-        or looks_like_generic_scout_author_name(author_name)
-    ):
-        return "bad_author_name"
-    if row_has_definitive_non_us_location(row):
-        return "non_us_location"
-    if not (row.get("SourceURL", "") or "").strip():
-        return "missing_source_url"
-    if not row_has_scout_email(row):
-        return "no_visible_author_email"
-    if not row_is_contactable(row):
-        return "missing_contact_path"
+def normalized_scout_author_identity(row: Dict[str, str]) -> str:
+    return normalize_person_name((row.get("AuthorName", "") or "").strip())
+
+
+def best_scout_candidate_domain(row: Dict[str, str]) -> str:
+    for field in ("AuthorWebsite", "ContactURL", "ContactPageURL", "SubscribeURL", "SourceURL"):
+        domain = registrable_domain(row.get(field, ""))
+        if domain:
+            return domain
     return ""
 
 
+def infer_source_type_from_source_url(source_url: str) -> str:
+    domain = registrable_domain(source_url)
+    if not domain:
+        return "unknown"
+    return SCOUT_SOURCE_TYPE_BY_DOMAIN.get(domain, domain)
+
+
+def infer_scout_email_quality(email: str, *, candidate_url: str = "", source_url: str = "") -> str:
+    normalized = (email or "").strip().lower()
+    if "@" not in normalized:
+        return ""
+    local_part, domain_part = normalized.split("@", 1)
+    if local_part in ROLE_EMAIL_LOCALS:
+        return "risky_role"
+    email_domain = registrable_domain(f"https://{domain_part}")
+    candidate_domain = registrable_domain(candidate_url) or registrable_domain(source_url)
+    if email_domain and candidate_domain and email_domain == candidate_domain:
+        return "same_domain"
+    return "labeled_off_domain"
+
+
+def scout_export_row_key(row: Dict[str, str]) -> Tuple[str, str, str]:
+    return (
+        normalize_person_name((row.get("AuthorName", "") or "").strip()),
+        (row.get("AuthorEmail", "") or "").strip().lower(),
+        best_scout_source_url(row).strip().lower(),
+    )
+
+
+def dedupe_scout_rows(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    unique: set[Tuple[str, str, str]] = set()
+    deduped: List[Dict[str, str]] = []
+    for row in rows:
+        key = scout_export_row_key(row)
+        if not all(key):
+            continue
+        if key in unique:
+            continue
+        unique.add(key)
+        deduped.append(row)
+    return deduped
+
+
+def classify_agent_hunt_listing_failure(
+    reject_reason: str,
+    *,
+    record: Dict[str, object] | None = None,
+) -> str:
+    normalized = (reject_reason or "").strip().lower()
+    if not normalized.startswith(SCOUT_LISTING_FAILURE_PREFIX):
+        return ""
+    if normalized in SCOUT_LISTING_HARD_DEAD_END_REASONS:
+        return "listing_absent"
+    if normalized in SCOUT_LISTING_RETAILER_FRICTION_REASONS or normalized.startswith("listing_amazon_interstitial_"):
+        if record is not None and (
+            bool(record.get("listing_recovery_attempted", False))
+            or str(record.get("next_action", "") or "").strip() == "try_listing_proof"
+            or str(record.get("book_url", "") or "").strip()
+            or str(record.get("listing_snippet", "") or "").strip()
+        ):
+            return "listing_retailer_friction_recoverable"
+        return "listing_retailer_friction_blocked"
+    return "listing_other_failure"
+
+
+def build_scout_row_from_candidate_outcome(record: Dict[str, object]) -> Dict[str, str]:
+    candidate_url = str(record.get("candidate_url", "") or "").strip()
+    source_url = str(record.get("source_url", "") or "").strip()
+    email = str(record.get("email", "") or "").strip().lower()
+    return {
+        "AuthorName": str(record.get("author_name", "") or "").strip(),
+        "AuthorEmail": email,
+        "AuthorEmailSourceURL": candidate_url or source_url,
+        "EmailQuality": infer_scout_email_quality(email, candidate_url=candidate_url, source_url=source_url),
+        "AuthorWebsite": candidate_url,
+        "ContactPageURL": candidate_url,
+        "SourceURL": source_url or candidate_url,
+        "SourceTitle": "",
+        "SourceSnippet": "",
+        "ListingURL": str(record.get("book_url", "") or "").strip(),
+        "ListingStatus": "unverified",
+        "ListingFailReason": str(record.get("reject_reason", "") or "").strip(),
+    }
+
+
+def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[str, object]:
+    listing_failure_reason = str(record.get("reject_reason", "") or "").strip()
+    listing_failure_category = classify_agent_hunt_listing_failure(listing_failure_reason, record=record)
+    row = build_scout_row_from_candidate_outcome(record)
+    base_assessment = assess_agent_hunt_row(row)
+    if listing_failure_category not in {"listing_retailer_friction_blocked", "listing_retailer_friction_recoverable"}:
+        return {
+            "qualified": False,
+            "status": "rejected",
+            "reason": listing_failure_reason or str(base_assessment.get("reason", "") or ""),
+            "listing_failure_reason": listing_failure_reason,
+            "listing_failure_category": listing_failure_category,
+            "row": row,
+        }
+    if not bool(base_assessment.get("qualified", False)):
+        return {
+            "qualified": False,
+            "status": str(base_assessment.get("status", "rejected") or "rejected"),
+            "reason": str(base_assessment.get("reason", "") or ""),
+            "listing_failure_reason": listing_failure_reason,
+            "listing_failure_category": listing_failure_category,
+            "row": row,
+        }
+    return {
+        "qualified": True,
+        "status": "qualified_listing_blocked",
+        "reason": "",
+        "listing_failure_reason": listing_failure_reason,
+        "listing_failure_category": listing_failure_category,
+        "row": row,
+    }
+
+
+def generic_scout_author_name_reason(value: str) -> str:
+    author = re.sub(r"\s+", " ", (value or "").strip(" -|")).strip()
+    if not author:
+        return "bad_author_name_empty"
+    tokens = normalize_person_name(author).split()
+    if len(tokens) < 2:
+        return "bad_author_name_single_token"
+    lowered = author.lower()
+    if any(snippet in lowered for snippet in SCOUT_GENERIC_AUTHOR_SNIPPETS):
+        return "bad_author_name_generic_phrase"
+    return "bad_author_name_generic_tokens"
+
+
+def assess_agent_hunt_row(row: Dict[str, str]) -> Dict[str, str | bool]:
+    author_name = (row.get("AuthorName", "") or "").strip()
+    if not row_has_clean_author_name(row):
+        return {"qualified": False, "status": "rejected", "reason": "bad_author_name_unclean"}
+    if looks_like_generic_scout_author_name(author_name):
+        return {"qualified": False, "status": "rejected", "reason": generic_scout_author_name_reason(author_name)}
+    if not is_plausible_author_name(author_name):
+        return {"qualified": False, "status": "rejected", "reason": "bad_author_name_implausible"}
+    if row_has_definitive_non_us_location(row):
+        return {"qualified": False, "status": "rejected", "reason": "non_us_location"}
+    if not (row.get("SourceURL", "") or "").strip():
+        return {"qualified": False, "status": "rejected", "reason": "missing_source_url"}
+    if not row_is_contactable(row):
+        return {"qualified": False, "status": "rejected", "reason": "missing_contact_path"}
+    if not row_has_scout_email(row):
+        return {
+            "qualified": False,
+            "status": "scoutworthy_not_outreach_ready",
+            "reason": "scoutworthy_missing_visible_email",
+        }
+    return {"qualified": True, "status": "qualified", "reason": ""}
+
+
+def scout_reject_reason(row: Dict[str, str]) -> str:
+    return str(assess_agent_hunt_row(row).get("reason", "") or "")
+
+
 def row_is_agent_hunt_qualified(row: Dict[str, str]) -> bool:
-    return scout_reject_reason(row) == ""
+    return bool(assess_agent_hunt_row(row).get("qualified", False))
 
 
 def row_is_fully_verified(row: Dict[str, str], require_us_location: bool = True) -> bool:
@@ -1448,24 +1639,311 @@ def summarize_row_domains(rows: List[Dict[str, str]], *, source_selector: Callab
     return [{"domain": domain, "count": count} for domain, count in counts.most_common(limit)]
 
 
+def summarize_counter(counter: Counter[str], *, key_name: str, limit: int = 10) -> List[Dict[str, object]]:
+    return [{key_name: key, "count": count} for key, count in counter.most_common(limit)]
+
+
+def build_candidate_outcome_lookup(candidate_outcome_records: List[Dict[str, object]]) -> Dict[Tuple[str, str], Dict[str, str]]:
+    lookup: Dict[Tuple[str, str], Dict[str, str]] = {}
+    for record in candidate_outcome_records:
+        source_url = str(record.get("source_url", "") or "").strip()
+        candidate_domain = registrable_domain(str(record.get("candidate_domain", "") or "").strip())
+        if not candidate_domain:
+            candidate_domain = registrable_domain(str(record.get("candidate_url", "") or "").strip())
+        if not source_url or not candidate_domain:
+            continue
+        lookup.setdefault(
+            (source_url, candidate_domain),
+            {
+                "source_query": str(record.get("source_query", "") or "").strip() or "<unknown>",
+                "source_type": str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url),
+                "source_url": source_url,
+            },
+        )
+    return lookup
+
+
+def build_agent_hunt_convergence_stats(
+    *,
+    validated_rows: List[Dict[str, str]],
+    row_assessments: List[Dict[str, str | bool]],
+    existing_master_rows: List[Dict[str, str]],
+    candidate_outcome_records: List[Dict[str, object]],
+    rescued_candidate_identities: set[str] | None = None,
+) -> Dict[str, object]:
+    existing_author_domains: set[str] = set()
+    existing_author_names: set[str] = set()
+    for row in existing_master_rows:
+        identity = normalized_scout_author_identity(row)
+        if identity:
+            existing_author_names.add(identity)
+        for field in ("AuthorWebsite", "ContactURL", "ContactPageURL", "SubscribeURL", "SourceURL"):
+            domain = registrable_domain(row.get(field, ""))
+            if domain:
+                existing_author_domains.add(domain)
+    identity_counts: Counter[str] = Counter()
+    qualified_identity_counts: Counter[str] = Counter()
+    novelty_counts: Counter[str] = Counter()
+    novel_url_fail_reasons: Counter[str] = Counter()
+    novel_author_fail_reasons: Counter[str] = Counter()
+    repeated_author_counts: Counter[str] = Counter()
+    converged_source_domains: Counter[str] = Counter()
+    converged_source_types: Counter[str] = Counter()
+    converged_source_queries: Counter[str] = Counter()
+    scoutworthy_rows = 0
+    outcome_lookup = build_candidate_outcome_lookup(candidate_outcome_records)
+    rescued_candidate_identities = set(rescued_candidate_identities or set())
+
+    prepared_rows: List[Dict[str, object]] = []
+    for record in candidate_outcome_records:
+        if candidate_identity_from_outcome(record) in rescued_candidate_identities:
+            continue
+        reason = str(record.get("reject_reason", "") or "").strip()
+        if not reason or reason == "kept":
+            continue
+        novel_url_fail_reasons[reason] += 1
+
+    for row, assessment in zip(validated_rows, row_assessments):
+        identity = normalized_scout_author_identity(row)
+        candidate_domain = best_scout_candidate_domain(row)
+        author_known = bool(identity and identity in existing_author_names)
+        url_known = bool(candidate_domain and candidate_domain in existing_author_domains)
+        if identity:
+            identity_counts[identity] += 1
+        if bool(assessment.get("qualified", False)) and identity and not author_known:
+            qualified_identity_counts[identity] += 1
+        novelty_key = (
+            f"{'known' if url_known else 'novel'}_candidate_url_"
+            f"{'existing' if author_known else 'novel'}_author"
+        )
+        novelty_counts[novelty_key] += 1
+        if assessment.get("status") == "scoutworthy_not_outreach_ready":
+            scoutworthy_rows += 1
+        prepared_rows.append(
+            {
+                "row": row,
+                "assessment": assessment,
+                "identity": identity,
+                "candidate_domain": candidate_domain,
+                "author_known": author_known,
+                "url_known": url_known,
+            }
+        )
+
+    for item in prepared_rows:
+        identity = str(item.get("identity", "") or "")
+        author_known = bool(item.get("author_known", False))
+        if identity and (author_known or int(identity_counts.get(identity, 0) or 0) > 1):
+            repeated_author_counts[identity] += 1
+
+        if bool(item.get("url_known", False)):
+            continue
+
+        row = item["row"]
+        assessment = item["assessment"]
+        reason = ""
+        if author_known:
+            reason = "existing_author_identity"
+            source_url = (row.get("SourceURL", "") or "").strip()
+            source_domain = registrable_domain(source_url)
+            if source_domain:
+                converged_source_domains[source_domain] += 1
+            candidate_domain = str(item.get("candidate_domain", "") or "")
+            context = outcome_lookup.get((source_url, candidate_domain), {})
+            source_type = str(context.get("source_type", "") or infer_source_type_from_source_url(source_url))
+            source_query = str(context.get("source_query", "") or "<unknown>")
+            converged_source_types[source_type or "unknown"] += 1
+            converged_source_queries[source_query] += 1
+        elif not bool(assessment.get("qualified", False)):
+            reason = str(assessment.get("reason", "") or "")
+            if reason:
+                novel_author_fail_reasons[reason] += 1
+        if reason:
+            novel_url_fail_reasons[reason] += 1
+
+    for identity, count in qualified_identity_counts.items():
+        extra_rows = max(0, int(count or 0) - 1)
+        if extra_rows <= 0:
+            continue
+        novel_url_fail_reasons["duplicate_author_identity_in_batch"] += extra_rows
+
+    return {
+        "repeated_author_identity_count": sum(int(count) for count in repeated_author_counts.values()),
+        "repeated_author_identities": [
+            {
+                "author_identity": identity,
+                "count": count,
+                "already_known": identity in existing_author_names,
+            }
+            for identity, count in repeated_author_counts.most_common(10)
+        ],
+        "candidate_url_vs_author_novelty": dict(novelty_counts),
+        "novel_candidate_url_existing_author_count": int(novelty_counts.get("novel_candidate_url_existing_author", 0) or 0),
+        "top_fail_reasons_for_novel_candidate_urls": dict(novel_url_fail_reasons.most_common(10)),
+        "top_fail_reasons_for_novel_authors": dict(novel_author_fail_reasons.most_common(10)),
+        "top_converged_source_domains": summarize_counter(converged_source_domains, key_name="domain"),
+        "top_converged_source_types": summarize_counter(converged_source_types, key_name="source"),
+        "top_converged_source_queries": summarize_counter(converged_source_queries, key_name="query"),
+        "scoutworthy_not_outreach_ready_rows": scoutworthy_rows,
+    }
+
+
+def build_agent_hunt_listing_friction_stats(
+    *,
+    candidate_outcome_records: List[Dict[str, object]],
+    rescued_listing_records: List[Dict[str, object]],
+) -> Dict[str, object]:
+    top_listing_failure_reasons: Counter[str] = Counter()
+    listing_dead_end_source_domains: Counter[str] = Counter()
+    listing_dead_end_source_types: Counter[str] = Counter()
+    listing_dead_end_source_queries: Counter[str] = Counter()
+    rescued_reason_counts: Counter[str] = Counter()
+    rescued_source_domains: Counter[str] = Counter()
+    rescued_source_types: Counter[str] = Counter()
+    rescued_source_queries: Counter[str] = Counter()
+    category_counts: Counter[str] = Counter()
+
+    for record in candidate_outcome_records:
+        reason = str(record.get("reject_reason", "") or "").strip()
+        category = classify_agent_hunt_listing_failure(reason, record=record)
+        if not category:
+            continue
+        category_counts[category] += 1
+        top_listing_failure_reasons[reason] += 1
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url)
+        source_query = str(record.get("source_query", "") or "").strip() or "<unknown>"
+        if source_domain:
+            listing_dead_end_source_domains[source_domain] += 1
+        if source_type:
+            listing_dead_end_source_types[source_type] += 1
+        listing_dead_end_source_queries[source_query] += 1
+
+    for item in rescued_listing_records:
+        reason = str(item.get("listing_failure_reason", "") or "").strip()
+        row = dict(item.get("row", {}) or {})
+        if not reason or not row:
+            continue
+        rescued_reason_counts[reason] += 1
+        source_url = (row.get("SourceURL", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = infer_source_type_from_source_url(str(row.get("SourceURL", "") or source_url))
+        source_query = str(item.get("source_query", "") or "<unknown>")
+        if source_domain:
+            rescued_source_domains[source_domain] += 1
+        if source_type:
+            rescued_source_types[source_type] += 1
+        rescued_source_queries[source_query] += 1
+
+    return {
+        "top_listing_failure_reasons": dict(top_listing_failure_reasons.most_common(10)),
+        "listing_failure_categories": dict(category_counts),
+        "scoutworthy_listing_blocked_count": len(rescued_listing_records),
+        "scoutworthy_listing_blocked_reasons": dict(rescued_reason_counts),
+        "scoutworthy_listing_blocked_source_domains": summarize_counter(rescued_source_domains, key_name="domain"),
+        "scoutworthy_listing_blocked_source_types": summarize_counter(rescued_source_types, key_name="source"),
+        "scoutworthy_listing_blocked_source_queries": summarize_counter(rescued_source_queries, key_name="query"),
+        "top_listing_dead_end_source_domains": summarize_counter(listing_dead_end_source_domains, key_name="domain"),
+        "top_listing_dead_end_source_types": summarize_counter(listing_dead_end_source_types, key_name="source"),
+        "top_listing_dead_end_source_queries": summarize_counter(listing_dead_end_source_queries, key_name="query"),
+    }
+
+
 def build_agent_hunt_stats(
     *,
     validated_rows: List[Dict[str, str]],
     validator_reject_reasons: Dict[str, object],
     target: int,
+    existing_master_rows: List[Dict[str, str]] | None = None,
+    candidate_outcome_records: List[Dict[str, object]] | None = None,
 ) -> Dict[str, object]:
-    scouted_rows = [row for row in validated_rows if row_is_agent_hunt_qualified(row)]
+    row_assessments = [assess_agent_hunt_row(row) for row in validated_rows]
+    directly_qualified_rows = [
+        row for row, assessment in zip(validated_rows, row_assessments) if bool(assessment.get("qualified", False))
+    ]
+    known_author_identities = {
+        normalized_scout_author_identity(row)
+        for row in list(existing_master_rows or []) + directly_qualified_rows
+        if normalized_scout_author_identity(row)
+    }
+    known_emails = {
+        (row.get("AuthorEmail", "") or "").strip().lower()
+        for row in list(existing_master_rows or []) + directly_qualified_rows
+        if (row.get("AuthorEmail", "") or "").strip()
+    }
+    rescued_listing_records: List[Dict[str, object]] = []
+    rescued_listing_rows: List[Dict[str, str]] = []
+    rescued_candidate_identities: set[str] = set()
+    rescued_listing_reasons: Counter[str] = Counter()
+    for record in list(candidate_outcome_records or []):
+        listing_assessment = assess_agent_hunt_listing_blocked_record(record)
+        if not bool(listing_assessment.get("qualified", False)):
+            continue
+        row = dict(listing_assessment.get("row", {}) or {})
+        if not row:
+            continue
+        identity = normalized_scout_author_identity(row)
+        email = (row.get("AuthorEmail", "") or "").strip().lower()
+        if (identity and identity in known_author_identities) or (email and email in known_emails):
+            continue
+        rescued_candidate_identities.add(candidate_identity_from_outcome(record))
+        rescued_listing_rows.append(row)
+        rescued_listing_reasons[str(listing_assessment.get("listing_failure_reason", "") or "")] += 1
+        rescued_listing_records.append(
+            {
+                **listing_assessment,
+                "source_query": str(record.get("source_query", "") or "").strip() or "<unknown>",
+                "source_type": str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(
+                    str(record.get("source_url", "") or "")
+                ),
+            }
+        )
+        if identity:
+            known_author_identities.add(identity)
+        if email:
+            known_emails.add(email)
+    scouted_rows = dedupe_scout_rows(directly_qualified_rows + rescued_listing_rows)
     strict_rows = [row for row in scouted_rows if row_is_fully_verified(row, require_us_location=True)]
     scout_reject_counts: Counter[str] = Counter()
-    for row in validated_rows:
-        reason = scout_reject_reason(row)
-        if reason:
+    scoutworthy_counts: Counter[str] = Counter()
+    scoutworthy_rows: List[Dict[str, str]] = []
+    for row, assessment in zip(validated_rows, row_assessments):
+        status = str(assessment.get("status", "") or "")
+        reason = str(assessment.get("reason", "") or "")
+        if not reason:
+            continue
+        if status == "scoutworthy_not_outreach_ready":
+            scoutworthy_counts[reason] += 1
+            scoutworthy_rows.append(row)
+        else:
             scout_reject_counts[reason] += 1
     combined_rejects: Counter[str] = Counter()
     merge_counter_dict(combined_rejects, validator_reject_reasons)
+    for reason, count in rescued_listing_reasons.items():
+        if not reason:
+            continue
+        remaining = max(0, int(combined_rejects.get(reason, 0) or 0) - int(count))
+        if remaining:
+            combined_rejects[reason] = remaining
+        elif reason in combined_rejects:
+            del combined_rejects[reason]
     merge_counter_dict(combined_rejects, dict(scout_reject_counts))
+    convergence_stats = build_agent_hunt_convergence_stats(
+        validated_rows=validated_rows,
+        row_assessments=row_assessments,
+        existing_master_rows=list(existing_master_rows or []),
+        candidate_outcome_records=list(candidate_outcome_records or []),
+        rescued_candidate_identities=rescued_candidate_identities,
+    )
+    listing_friction_stats = build_agent_hunt_listing_friction_stats(
+        candidate_outcome_records=list(candidate_outcome_records or []),
+        rescued_listing_records=rescued_listing_records,
+    )
     return {
         "scouted_rows": scouted_rows,
+        "listing_blocked_scout_rows": rescued_listing_rows,
+        "rescued_candidate_identities": sorted(rescued_candidate_identities),
         "strict_rows": strict_rows,
         "scouted_target": int(target),
         "scouted_progress": len(scouted_rows),
@@ -1473,8 +1951,16 @@ def build_agent_hunt_stats(
         "strict_rows_written": len(strict_rows),
         "top_reject_reasons": dict(combined_rejects.most_common(10)),
         "scout_gate_reject_reasons": dict(scout_reject_counts),
+        "scoutworthy_not_outreach_ready_count": len(scoutworthy_rows),
+        "scoutworthy_not_outreach_ready_reasons": dict(scoutworthy_counts),
+        "scoutworthy_not_outreach_ready_source_domains": summarize_row_domains(
+            scoutworthy_rows,
+            source_selector=lambda row: row.get("SourceURL", ""),
+        ),
+        "listing_friction": listing_friction_stats,
         "scouted_source_domains": summarize_row_domains(scouted_rows, source_selector=best_scout_source_url),
         "strict_source_domains": summarize_row_domains(strict_rows, source_selector=best_verified_source_url),
+        "author_convergence": convergence_stats,
     }
 
 
@@ -1871,6 +2357,73 @@ def suppress_pre_validate_candidates(
             {"source": source, "new": int(count)}
             for source, count in source_new.most_common(10)
         ],
+    }
+
+
+def build_agent_hunt_listing_feedback(
+    candidate_outcome_records: List[Dict[str, object]],
+    *,
+    rescued_candidate_identities: set[str] | None = None,
+) -> Dict[str, object]:
+    source_domain_totals: Counter[str] = Counter()
+    source_domain_listing_friction: Counter[str] = Counter()
+    source_type_totals: Counter[str] = Counter()
+    source_type_listing_friction: Counter[str] = Counter()
+    query_totals: Counter[str] = Counter()
+    query_listing_friction: Counter[str] = Counter()
+
+    rescued_candidate_identities = set(rescued_candidate_identities or set())
+    for record in candidate_outcome_records:
+        if candidate_identity_from_outcome(record) in rescued_candidate_identities:
+            continue
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url)
+        source_query = str(record.get("source_query", "") or "").strip() or "<unknown>"
+        reason = str(record.get("reject_reason", "") or "").strip()
+        listing_failure_category = classify_agent_hunt_listing_failure(reason, record=record)
+
+        if source_domain:
+            source_domain_totals[source_domain] += 1
+        if source_type:
+            source_type_totals[source_type] += 1
+        query_totals[source_query] += 1
+
+        if listing_failure_category not in {
+            "listing_absent",
+            "listing_retailer_friction_blocked",
+            "listing_retailer_friction_recoverable",
+        }:
+            continue
+
+        if source_domain:
+            source_domain_listing_friction[source_domain] += 1
+        if source_type:
+            source_type_listing_friction[source_type] += 1
+        query_listing_friction[source_query] += 1
+
+    def build_penalties(total_counts: Counter[str], friction_counts: Counter[str]) -> Dict[str, int]:
+        penalties: Dict[str, int] = {}
+        for key, friction_count in friction_counts.items():
+            total_count = int(total_counts.get(key, 0) or 0)
+            if total_count < 3 or friction_count < 2:
+                continue
+            ratio = friction_count / total_count if total_count else 0.0
+            if ratio >= 0.85:
+                penalties[key] = 6
+            elif ratio >= 0.7:
+                penalties[key] = 4
+            elif ratio >= 0.5:
+                penalties[key] = 2
+        return penalties
+
+    return {
+        "query_penalties": build_penalties(query_totals, query_listing_friction),
+        "source_type_penalties": build_penalties(source_type_totals, source_type_listing_friction),
+        "source_domain_penalties": build_penalties(source_domain_totals, source_domain_listing_friction),
+        "top_listing_friction_queries": summarize_counter(query_listing_friction, key_name="query"),
+        "top_listing_friction_source_types": summarize_counter(source_type_listing_friction, key_name="source"),
+        "top_listing_friction_source_domains": summarize_counter(source_domain_listing_friction, key_name="domain"),
     }
 
 
@@ -2380,6 +2933,7 @@ def main() -> int:
         print(f"[INFO] starting with {starting_total} existing goal-qualified leads in {master_path}")
     else:
         starting_total = 0
+    agent_hunt_listing_feedback: Dict[str, object] = {}
     write_live_status(
         status="running",
         stage="starting",
@@ -2644,6 +3198,7 @@ def main() -> int:
             filtered_candidate_rows, candidate_scoring_context = order_candidates_for_strict_validation(
                 filtered_candidate_rows,
                 validation_profile=validation_profile,
+                agent_hunt_listing_feedback=agent_hunt_listing_feedback if is_agent_hunt_profile(validation_profile) else None,
             )
             write_candidate_rows(filtered_candidates_path, filtered_candidate_rows)
             suppression_message = (
@@ -3048,12 +3603,32 @@ def main() -> int:
             if duplicate_rows:
                 rejected_rows.extend(build_duplicate_rejected_rows(duplicate_rows, run_tag))
                 write_rejected_rows(rejected_export_path, rejected_rows)
+        existing_master_rows = list(master_rows)
         master_batch_rows, queue_only_batch_rows = split_rows_by_merge_policy(
             batch_rows,
             policy=args.merge_policy,
             validation_profile=validation_profile,
         )
-        before = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
+        verified_output_count = 0
+        scouted_output_count = 0
+        agent_hunt_stats: Dict[str, object] = {}
+        candidate_outcome_records = [
+            record
+            for stats in validate_slice_stats_list
+            for record in list((stats.get("candidate_outcome_records", []) or []))
+        ]
+        if is_agent_hunt_profile(validation_profile):
+            agent_hunt_stats = build_agent_hunt_stats(
+                validated_rows=batch_rows,
+                validator_reject_reasons=validation_orchestration_stats.get("reject_reasons", {}),
+                target=max(1, goal_target),
+                existing_master_rows=existing_master_rows,
+                candidate_outcome_records=candidate_outcome_records,
+            )
+            rescued_listing_rows = list(agent_hunt_stats.get("listing_blocked_scout_rows", []) or [])
+            if rescued_listing_rows:
+                master_batch_rows = dedupe(master_batch_rows + rescued_listing_rows)
+        before = count_goal_rows(existing_master_rows, validation_profile=validation_profile, policy=args.merge_policy)
         master_rows = dedupe(master_rows + master_batch_rows)
         after = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
         added = after - before
@@ -3083,14 +3658,10 @@ def main() -> int:
                 with_header=args.minimal_with_header,
             )
             print(f"[INFO] wrote {minimal_count} rows -> {args.minimal_output}")
-        verified_output_count = 0
-        scouted_output_count = 0
-        agent_hunt_stats: Dict[str, object] = {}
         if is_agent_hunt_profile(validation_profile):
-            agent_hunt_stats = build_agent_hunt_stats(
-                validated_rows=batch_rows,
-                validator_reject_reasons=validation_orchestration_stats.get("reject_reasons", {}),
-                target=max(1, goal_target),
+            agent_hunt_listing_feedback = build_agent_hunt_listing_feedback(
+                candidate_outcome_records,
+                rescued_candidate_identities=set(agent_hunt_stats.get("rescued_candidate_identities", []) or []),
             )
             scouted_rows = list(agent_hunt_stats.get("scouted_rows", []) or [])
             strict_rows = list(agent_hunt_stats.get("strict_rows", []) or [])
@@ -3177,8 +3748,20 @@ def main() -> int:
                 "strict_rows_written": int(agent_hunt_stats.get("strict_rows_written", 0) or 0),
                 "top_reject_reasons": dict(agent_hunt_stats.get("top_reject_reasons", {}) or {}),
                 "scout_gate_reject_reasons": dict(agent_hunt_stats.get("scout_gate_reject_reasons", {}) or {}),
+                "scoutworthy_not_outreach_ready_count": int(
+                    agent_hunt_stats.get("scoutworthy_not_outreach_ready_count", 0) or 0
+                ),
+                "scoutworthy_not_outreach_ready_reasons": dict(
+                    agent_hunt_stats.get("scoutworthy_not_outreach_ready_reasons", {}) or {}
+                ),
+                "scoutworthy_not_outreach_ready_source_domains": list(
+                    agent_hunt_stats.get("scoutworthy_not_outreach_ready_source_domains", []) or []
+                ),
+                "listing_friction": dict(agent_hunt_stats.get("listing_friction", {}) or {}),
                 "scouted_source_domains": list(agent_hunt_stats.get("scouted_source_domains", []) or []),
                 "strict_source_domains": list(agent_hunt_stats.get("strict_source_domains", []) or []),
+                "author_convergence": dict(agent_hunt_stats.get("author_convergence", {}) or {}),
+                "listing_feedback_for_next_batch": dict(agent_hunt_listing_feedback or {}),
             }
         if harvest_stats:
             run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")

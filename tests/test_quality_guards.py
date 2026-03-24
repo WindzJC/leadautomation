@@ -49,18 +49,22 @@ from run_lead_finder_loop import (
     assess_agent_hunt_row,
     assess_agent_hunt_listing_blocked_record,
     apply_validation_profile_defaults,
+    build_agent_hunt_source_quality_feedback,
     build_agent_hunt_stats,
     build_agent_hunt_listing_feedback,
     build_rotating_queries,
     keep_verified_rows,
     orchestrate_candidate_replacements,
     order_candidates_for_strict_validation,
+    recover_agent_hunt_listing_friction_email_record,
     row_is_agent_hunt_qualified,
     row_qualifies_for_master,
     score_candidate_intake,
     split_rows_by_merge_policy,
+    suppress_agent_hunt_source_quality_candidates,
     suppress_pre_validate_candidates,
     summarize_candidate_intake_scores,
+    throttle_agent_hunt_epic_directory_candidates,
     write_scouted_rows,
     write_verified_rows,
 )
@@ -1070,6 +1074,23 @@ def test_agent_hunt_marks_plausible_contactable_no_email_row_as_scoutworthy_not_
     assert not row_is_agent_hunt_qualified(row)
 
 
+def test_agent_hunt_marks_strong_row_as_qualified() -> None:
+    row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://janedoeauthor.com/about",
+        "Location": "",
+    }
+
+    assessment = assess_agent_hunt_row(row)
+
+    assert assessment == {"qualified": True, "status": "qualified", "reason": ""}
+
+
 def test_agent_hunt_listing_blocked_record_is_classified_distinctly_from_hard_dead_end() -> None:
     listing_blocked_record = {
         "author_name": "Jane Doe",
@@ -1103,6 +1124,28 @@ def test_agent_hunt_listing_blocked_record_is_classified_distinctly_from_hard_de
     assert dead_end["listing_failure_category"] == "listing_absent"
 
 
+def test_agent_hunt_listing_blocked_record_routes_plausible_no_email_row_to_caution() -> None:
+    record = {
+        "author_name": "Jane Doe",
+        "candidate_url": "https://janedoeauthor.com/about",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "email": "",
+        "reject_reason": "listing_amazon_interstitial_bn_blocked",
+        "listing_recovery_attempted": True,
+        "next_action": "try_listing_proof",
+        "listing_snippet": "Find the books on Amazon",
+    }
+
+    assessment = assess_agent_hunt_listing_blocked_record(record)
+
+    assert assessment["qualified"] is False
+    assert assessment["status"] == "scoutworthy_not_outreach_ready"
+    assert assessment["reason"] == "listing_blocked:listing_amazon_interstitial_bn_blocked"
+    assert assessment["promotion_blocker_reason"] == "listing_blocked:listing_amazon_interstitial_bn_blocked"
+
+
 def test_agent_hunt_listing_blocked_record_still_rejects_obvious_low_value_row() -> None:
     record = {
         "author_name": "- Inspiring Creative Writing -",
@@ -1120,6 +1163,140 @@ def test_agent_hunt_listing_blocked_record_still_rejects_obvious_low_value_row()
 
     assert assessment["qualified"] is False
     assert assessment["reason"] == "bad_author_name_generic_phrase"
+
+
+def test_recover_agent_hunt_listing_friction_email_record_promotes_visible_email_row() -> None:
+    record = {
+        "author_name": "Mary Roe",
+        "candidate_url": "https://maryroeauthor.com/about",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "email": "",
+        "reject_reason": "listing_amazon_interstitial_no_bn_candidate",
+        "listing_recovery_attempted": True,
+        "next_action": "try_listing_proof",
+        "listing_snippet": "Available on Amazon",
+    }
+    pages = {
+        "https://maryroeauthor.com/about": """
+            <html><body>
+              <a href="/contact">Contact Mary</a>
+            </body></html>
+        """,
+        "https://maryroeauthor.com/contact": """
+            <html><body>
+              <p>For media inquiries email mary@maryroeauthor.com</p>
+            </body></html>
+        """,
+    }
+
+    def fake_fetch(url: str) -> dict[str, object]:
+        normalized = url.rstrip("/")
+        html = pages.get(normalized)
+        if html is None:
+            return {
+                "ok": False,
+                "url": normalized,
+                "text": "",
+                "soup": None,
+                "failure_reason": "404",
+            }
+        return {
+            "ok": True,
+            "url": normalized,
+            "text": BeautifulSoup(html, "html.parser").get_text(" ", strip=True),
+            "soup": BeautifulSoup(html, "html.parser"),
+            "failure_reason": "",
+        }
+
+    recovered = recover_agent_hunt_listing_friction_email_record(record, fetch_page=fake_fetch)
+    assessment = assess_agent_hunt_listing_blocked_record(recovered)
+
+    assert recovered["agent_hunt_email_recovery_attempted"] is True
+    assert recovered["agent_hunt_email_recovery_success"] is True
+    assert recovered["email"] == "mary@maryroeauthor.com"
+    assert recovered["agent_hunt_email_recovery_source_url"] == "https://maryroeauthor.com/contact"
+    assert assessment["qualified"] is True
+    assert assessment["status"] == "qualified_listing_blocked"
+
+
+def test_recover_agent_hunt_listing_friction_email_record_without_visible_email_stays_caution() -> None:
+    record = {
+        "author_name": "Mary Roe",
+        "candidate_url": "https://maryroeauthor.com/about",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "email": "",
+        "reject_reason": "listing_amazon_interstitial_bn_blocked",
+        "listing_recovery_attempted": True,
+        "next_action": "try_listing_proof",
+        "listing_snippet": "Available on Barnes & Noble",
+    }
+    pages = {
+        "https://maryroeauthor.com/about": """
+            <html><body>
+              <a href="/contact">Contact Mary</a>
+            </body></html>
+        """,
+        "https://maryroeauthor.com/contact": """
+            <html><body>
+              <a href="mailto:mary@maryroeauthor.com">Contact me</a>
+            </body></html>
+        """,
+    }
+
+    def fake_fetch(url: str) -> dict[str, object]:
+        normalized = url.rstrip("/")
+        html = pages.get(normalized)
+        if html is None:
+            return {
+                "ok": False,
+                "url": normalized,
+                "text": "",
+                "soup": None,
+                "failure_reason": "404",
+            }
+        return {
+            "ok": True,
+            "url": normalized,
+            "text": BeautifulSoup(html, "html.parser").get_text(" ", strip=True),
+            "soup": BeautifulSoup(html, "html.parser"),
+            "failure_reason": "",
+        }
+
+    recovered = recover_agent_hunt_listing_friction_email_record(record, fetch_page=fake_fetch)
+    assessment = assess_agent_hunt_listing_blocked_record(recovered)
+
+    assert recovered["agent_hunt_email_recovery_attempted"] is True
+    assert recovered["agent_hunt_email_recovery_success"] is False
+    assert recovered["agent_hunt_email_recovery_fail_reason"] == "no_visible_text_email"
+    assert assessment["qualified"] is False
+    assert assessment["status"] == "scoutworthy_not_outreach_ready"
+    assert assessment["promotion_blocker_reason"] == "listing_friction_email_recovery_failed:no_visible_text_email"
+
+
+def test_recover_agent_hunt_listing_friction_email_record_skips_obvious_junk() -> None:
+    record = {
+        "author_name": "- Inspiring Creative Writing -",
+        "candidate_url": "https://tansielexington.com",
+        "source_url": "https://www.epicindie.net/authordirectory",
+        "source_type": "epic_directory",
+        "source_query": "epic:author-directory",
+        "email": "",
+        "reject_reason": "listing_amazon_interstitial_bn_blocked",
+        "listing_recovery_attempted": True,
+        "next_action": "try_listing_proof",
+    }
+
+    def fake_fetch(url: str) -> dict[str, object]:
+        raise AssertionError(f"unexpected fetch for {url}")
+
+    recovered = recover_agent_hunt_listing_friction_email_record(record, fetch_page=fake_fetch)
+
+    assert recovered["agent_hunt_email_recovery_attempted"] is False
+    assert recovered["agent_hunt_email_recovery_skipped_reason"] == "not_listing_friction_caution"
 
 
 def test_agent_hunt_rejects_junk_branding_author_name() -> None:
@@ -1217,8 +1394,14 @@ def test_build_agent_hunt_stats_reports_scout_progress_and_domains() -> None:
     assert result["scouted_progress"] == 1
     assert result["scouted_rows_written"] == 1
     assert result["strict_rows_written"] == 0
+    assert result["routing_counts"] == {
+        "qualified": 1,
+        "scoutworthy_not_outreach_ready": 0,
+        "rejected": 1,
+    }
     assert result["top_reject_reasons"]["page_fetch_failed_404"] == 2
     assert result["top_reject_reasons"]["non_us_location"] == 1
+    assert result["top_rejected_reasons"] == {"non_us_location": 1}
     assert result["scouted_source_domains"][0]["domain"] == "janedoeauthor.com"
 
 
@@ -1319,9 +1502,21 @@ def test_build_agent_hunt_stats_reports_scoutworthy_and_author_convergence() -> 
         candidate_outcome_records=candidate_outcome_records,
     )
 
+    assert result["routing_counts"] == {
+        "qualified": 3,
+        "scoutworthy_not_outreach_ready": 1,
+        "rejected": 1,
+    }
+    assert result["top_caution_reasons"] == {"scoutworthy_missing_visible_email": 1}
+    assert result["top_reasons_caution_fail_promotion_to_qualified"] == {"scoutworthy_missing_visible_email": 1}
     assert result["scoutworthy_not_outreach_ready_count"] == 1
     assert result["scoutworthy_not_outreach_ready_reasons"] == {"scoutworthy_missing_visible_email": 1}
     assert result["top_reject_reasons"]["enterprise_or_famous"] == 2
+    assert result["caution_source_types"] == [{"type": "epic_directory", "count": 1}]
+    assert result["caution_source_queries"] == [{"query": "epic:author-directory", "count": 1}]
+    assert result["rejected_source_domains"] == [{"domain": "epicindie.net", "count": 1}]
+    assert result["rejected_source_types"] == [{"type": "epic_directory", "count": 1}]
+    assert result["rejected_source_queries"] == [{"query": "epic:author-directory", "count": 1}]
     convergence = result["author_convergence"]
     assert convergence["candidate_url_vs_author_novelty"]["novel_candidate_url_existing_author"] == 1
     assert convergence["novel_candidate_url_existing_author_count"] == 1
@@ -1364,6 +1559,19 @@ def test_build_agent_hunt_stats_reports_listing_friction_and_retains_blocked_row
             "listing_snippet": "Available on Amazon",
         },
         {
+            "candidate_domain": "maryroeauthor.com",
+            "candidate_url": "https://maryroeauthor.com/about",
+            "source_type": "epic_directory",
+            "source_query": "epic:author-directory",
+            "source_url": "https://www.epicindie.net/authordirectory",
+            "author_name": "Mary Roe",
+            "email": "",
+            "reject_reason": "listing_amazon_interstitial_bn_blocked",
+            "listing_recovery_attempted": True,
+            "next_action": "try_listing_proof",
+            "listing_snippet": "Available on Barnes & Noble",
+        },
+        {
             "candidate_domain": "harddeadend.com",
             "candidate_url": "https://harddeadend.com/about",
             "source_type": "iabx_directory",
@@ -1379,6 +1587,7 @@ def test_build_agent_hunt_stats_reports_listing_friction_and_retains_blocked_row
         validated_rows=validated_rows,
         validator_reject_reasons={
             "listing_amazon_interstitial_no_bn_candidate": 1,
+            "listing_amazon_interstitial_bn_blocked": 1,
             "listing_not_found": 1,
         },
         target=20,
@@ -1388,20 +1597,112 @@ def test_build_agent_hunt_stats_reports_listing_friction_and_retains_blocked_row
 
     assert result["scouted_rows_written"] == 1
     assert result["scouted_rows"][0]["AuthorName"] == "Jane Doe"
+    assert result["scouted_rows"][0]["SourceURL"] == "https://www.epicindie.net/authordirectory"
+    assert result["routing_counts"] == {
+        "qualified": 1,
+        "scoutworthy_not_outreach_ready": 1,
+        "rejected": 1,
+    }
     assert result["top_reject_reasons"] == {"listing_not_found": 1}
+    assert result["top_rejected_reasons"] == {"listing_not_found": 1}
+    assert result["top_caution_reasons"] == {
+        "listing_blocked:listing_amazon_interstitial_bn_blocked": 1
+    }
+    assert result["top_reasons_caution_fail_promotion_to_qualified"] == {
+        "listing_blocked:listing_amazon_interstitial_bn_blocked": 1
+    }
+    assert result["scoutworthy_not_outreach_ready_count"] == 1
+    assert result["listing_blocked_caution_rows"][0]["AuthorName"] == "Mary Roe"
     listing_friction = result["listing_friction"]
+    assert listing_friction["qualified_listing_blocked_count"] == 1
+    assert listing_friction["qualified_listing_blocked_reasons"] == {
+        "listing_amazon_interstitial_no_bn_candidate": 1
+    }
     assert listing_friction["scoutworthy_listing_blocked_count"] == 1
     assert listing_friction["scoutworthy_listing_blocked_reasons"] == {
-        "listing_amazon_interstitial_no_bn_candidate": 1
+        "listing_amazon_interstitial_bn_blocked": 1
     }
     assert listing_friction["top_listing_failure_reasons"] == {
         "listing_amazon_interstitial_no_bn_candidate": 1,
+        "listing_amazon_interstitial_bn_blocked": 1,
         "listing_not_found": 1,
     }
+    assert listing_friction["scoutworthy_listing_blocked_source_queries"] == [
+        {"query": "epic:author-directory", "count": 1}
+    ]
     assert listing_friction["top_listing_dead_end_source_queries"] == [
-        {"query": "epic:author-directory", "count": 1},
+        {"query": "epic:author-directory", "count": 2},
         {"query": "iabx:author-directory", "count": 1},
     ]
+
+
+def test_build_agent_hunt_stats_reports_listing_friction_email_recovery_stats() -> None:
+    candidate_outcome_records = [
+        {
+            "candidate_domain": "maryroeauthor.com",
+            "candidate_url": "https://maryroeauthor.com/about",
+            "source_type": "epic_directory",
+            "source_query": "epic:author-directory",
+            "source_url": "https://www.epicindie.net/authordirectory",
+            "author_name": "Mary Roe",
+            "email": "mary@maryroeauthor.com",
+            "reject_reason": "listing_amazon_interstitial_no_bn_candidate",
+            "listing_recovery_attempted": True,
+            "next_action": "try_listing_proof",
+            "listing_snippet": "Available on Amazon",
+            "agent_hunt_email_recovery_attempted": True,
+            "agent_hunt_email_recovery_success": True,
+            "agent_hunt_email_recovery_source_url": "https://maryroeauthor.com/contact",
+            "agent_hunt_email_recovered_email": "mary@maryroeauthor.com",
+            "agent_hunt_email_recovered_email_quality": "same_domain",
+            "agent_hunt_email_recovery_proof_snippet": "email mary@maryroeauthor.com",
+        },
+        {
+            "candidate_domain": "janeroeauthor.com",
+            "candidate_url": "https://janeroeauthor.com/about",
+            "source_type": "iabx_directory",
+            "source_query": "iabx:author-directory",
+            "source_url": "https://www.iabx.org/author-directory",
+            "author_name": "Jane Roe",
+            "email": "",
+            "reject_reason": "listing_amazon_interstitial_bn_blocked",
+            "listing_recovery_attempted": True,
+            "next_action": "try_listing_proof",
+            "listing_snippet": "Available on Barnes & Noble",
+            "agent_hunt_email_recovery_attempted": True,
+            "agent_hunt_email_recovery_success": False,
+            "agent_hunt_email_recovery_fail_reason": "no_visible_email_found",
+        },
+    ]
+
+    result = build_agent_hunt_stats(
+        validated_rows=[],
+        validator_reject_reasons={
+            "listing_amazon_interstitial_no_bn_candidate": 1,
+            "listing_amazon_interstitial_bn_blocked": 1,
+        },
+        target=20,
+        existing_master_rows=[],
+        candidate_outcome_records=candidate_outcome_records,
+    )
+
+    assert result["scouted_rows_written"] == 1
+    assert result["scouted_rows"][0]["AuthorName"] == "Mary Roe"
+    assert result["scouted_rows"][0]["SourceURL"] == "https://www.epicindie.net/authordirectory"
+    assert result["scouted_rows"][0]["AuthorEmail"] == "mary@maryroeauthor.com"
+    assert result["listing_friction_email_recovery_attempted_count"] == 2
+    assert result["listing_friction_email_recovery_success_count"] == 1
+    assert result["listing_friction_email_recovery_fail_count"] == 1
+    assert result["top_listing_friction_email_recovery_fail_reasons"] == {"no_visible_email_found": 1}
+    assert result["listing_friction_email_recovered_source_queries"] == [
+        {"query": "epic:author-directory", "count": 1}
+    ]
+    assert result["listing_friction_email_recovery_failed_source_queries"] == [
+        {"query": "iabx:author-directory", "count": 1}
+    ]
+    assert result["top_reasons_caution_fail_promotion_to_qualified"] == {
+        "listing_friction_email_recovery_failed:no_visible_email_found": 1
+    }
 
 
 def test_build_agent_hunt_listing_feedback_reports_listing_friction_concentration() -> None:
@@ -1426,9 +1727,12 @@ def test_build_agent_hunt_listing_feedback_reports_listing_friction_concentratio
 
     result = build_agent_hunt_listing_feedback(records)
 
-    assert result["query_penalties"] == {"epic:author-directory": 4}
-    assert result["source_type_penalties"] == {"epic_directory": 4}
-    assert result["source_domain_penalties"] == {"epicindie.net": 4}
+    assert result["query_penalties"] == {"epic:author-directory": 6}
+    assert result["source_type_penalties"] == {"epic_directory": 6}
+    assert result["source_domain_penalties"] == {"epicindie.net": 6}
+    assert result["penalized_queries"] == [{"query": "epic:author-directory", "penalty": 6}]
+    assert result["penalized_source_types"] == [{"source": "epic_directory", "penalty": 6}]
+    assert result["penalized_source_domains"] == [{"domain": "epicindie.net", "penalty": 6}]
 
 
 def test_score_candidate_intake_applies_agent_hunt_listing_feedback_penalty() -> None:
@@ -1454,6 +1758,260 @@ def test_score_candidate_intake_applies_agent_hunt_listing_feedback_penalty() ->
 
     assert penalized["score"] < baseline["score"]
     assert penalized["components"]["prior_listing_friction_penalty"] == -8
+
+
+def test_build_agent_hunt_source_quality_feedback_reports_epic_directory_junk() -> None:
+    records = [
+        {
+            "candidate_url": f"https://candidate{i}.example/about",
+            "source_url": "https://www.epicindie.net/authordirectory",
+            "source_type": "epic_directory",
+            "source_query": "epic:author-directory",
+            "reject_reason": "bad_author_name_generic_phrase",
+        }
+        for i in range(2)
+    ] + [
+        {
+            "candidate_url": "https://candidate3.example/about",
+            "source_url": "https://www.epicindie.net/authordirectory",
+            "source_type": "epic_directory",
+            "source_query": "epic:author-directory",
+            "reject_reason": "enterprise_or_famous",
+        }
+    ]
+
+    result = build_agent_hunt_source_quality_feedback(records)
+
+    assert result["query_penalties"] == {"epic:author-directory": 8}
+    assert result["source_type_penalties"] == {"epic_directory": 8}
+    assert result["source_domain_penalties"] == {"epicindie.net": 8}
+    assert result["top_source_quality_failure_reasons"] == {
+        "bad_author_name": 2,
+        "enterprise_or_famous": 1,
+    }
+
+
+def test_score_candidate_intake_applies_agent_hunt_source_quality_feedback_penalty() -> None:
+    row = {
+        "CandidateURL": "https://janedoeauthor.com/about",
+        "SourceType": "epic_directory",
+        "SourceQuery": "epic:author-directory",
+        "SourceURL": "https://www.epicindie.net/authordirectory",
+        "SourceTitle": "Jane Doe",
+        "SourceSnippet": "Jane Doe indie fantasy author based in Ohio. jane@janedoeauthor.com",
+    }
+
+    baseline = score_candidate_intake(row, validation_profile="agent_hunt")
+    penalized = score_candidate_intake(
+        row,
+        validation_profile="agent_hunt",
+        agent_hunt_source_quality_feedback={
+            "query_penalties": {"epic:author-directory": 4},
+            "source_type_penalties": {"epic_directory": 2},
+            "source_domain_penalties": {"epicindie.net": 2},
+        },
+    )
+
+    assert penalized["score"] < baseline["score"]
+    assert penalized["components"]["prior_source_quality_penalty"] == -8
+
+
+def test_suppress_agent_hunt_source_quality_candidates_rejects_obvious_epic_junk() -> None:
+    junk_row = {
+        "CandidateURL": "https://creativewriting.example/",
+        "SourceType": "epic_directory",
+        "SourceQuery": "epic:author-directory",
+        "SourceURL": "https://www.epicindie.net/authordirectory",
+        "SourceTitle": "Inspiring Creative Writing",
+        "SourceSnippet": "Official website for creative writing books and new releases.",
+    }
+    kept_row = {
+        "CandidateURL": "https://janedoeauthor.com/",
+        "SourceType": "epic_directory",
+        "SourceQuery": "epic:author-directory",
+        "SourceURL": "https://www.epicindie.net/authordirectory",
+        "SourceTitle": "Jane Doe",
+        "SourceSnippet": "Jane Doe indie fantasy author based in Ohio. jane@janedoeauthor.com",
+    }
+
+    ordered_rows, scoring = order_candidates_for_strict_validation(
+        [junk_row, kept_row],
+        validation_profile="agent_hunt",
+    )
+    kept_rows, stats = suppress_agent_hunt_source_quality_candidates(
+        ordered_rows,
+        scoring_context=scoring,
+    )
+
+    assert kept_rows == [kept_row]
+    assert stats["suppressed_by_source_quality_count"] == 1
+    assert stats["top_source_quality_suppression_reasons"] == {
+        "bad_author_name_generic_source_title": 1
+    }
+    assert stats["source_quality_suppressed_source_domains"] == [{"domain": "epicindie.net", "count": 1}]
+
+
+def test_suppress_agent_hunt_source_quality_candidates_preserves_plausible_epic_row() -> None:
+    row = {
+        "CandidateURL": "https://janedoeauthor.com/",
+        "SourceType": "epic_directory",
+        "SourceQuery": "epic:author-directory",
+        "SourceURL": "https://www.epicindie.net/authordirectory",
+        "SourceTitle": "Jane Doe",
+        "SourceSnippet": "Jane Doe indie fantasy author based in Ohio. Contact jane@janedoeauthor.com",
+    }
+
+    ordered_rows, scoring = order_candidates_for_strict_validation(
+        [row],
+        validation_profile="agent_hunt",
+        agent_hunt_source_quality_feedback={
+            "query_penalties": {"epic:author-directory": 4},
+            "source_type_penalties": {"epic_directory": 2},
+            "source_domain_penalties": {"epicindie.net": 2},
+        },
+    )
+    kept_rows, stats = suppress_agent_hunt_source_quality_candidates(
+        ordered_rows,
+        scoring_context=scoring,
+    )
+
+    assert kept_rows == [row]
+    assert kept_rows[0]["SourceURL"] == "https://www.epicindie.net/authordirectory"
+    assert stats["suppressed_by_source_quality_count"] == 0
+    assert stats["source_quality_penalty_before_after_source_types"] == [
+        {"source": "epic_directory", "before": 1, "after": 1, "suppressed": 0}
+    ]
+
+
+def test_throttle_agent_hunt_epic_directory_candidates_limits_batch_share() -> None:
+    epic_rows = [
+        {
+            "CandidateURL": f"https://epic{i}.example/",
+            "SourceType": "epic_directory",
+            "SourceQuery": "epic:author-directory",
+            "SourceURL": "https://www.epicindie.net/authordirectory",
+            "SourceTitle": "Jane Doe",
+            "SourceSnippet": f"Jane Doe indie fantasy author based in Ohio. jane{i}@example.com",
+        }
+        for i in range(26)
+    ]
+    ian_rows = [
+        {
+            "CandidateURL": f"https://ian{i}.example/",
+            "SourceType": "ian_directory",
+            "SourceQuery": "independent-author-network:author-directory",
+            "SourceURL": "https://independentauthornetwork.com/authors",
+            "SourceTitle": "Mary Roe",
+            "SourceSnippet": f"Mary Roe author based in Ohio. mary{i}@example.com",
+        }
+        for i in range(2)
+    ]
+    ordered_rows, scoring = order_candidates_for_strict_validation(
+        epic_rows + ian_rows,
+        validation_profile="agent_hunt",
+    )
+
+    kept_rows, stats = throttle_agent_hunt_epic_directory_candidates(
+        ordered_rows,
+        scoring_context=scoring,
+    )
+
+    kept_epic = [row for row in kept_rows if row["SourceType"] == "epic_directory"]
+    kept_ian = [row for row in kept_rows if row["SourceType"] == "ian_directory"]
+
+    assert len(kept_epic) == 24
+    assert len(kept_ian) == 2
+    assert stats["epic_directory_throttled_count"] == 2
+    assert stats["epic_directory_before_count"] == 26
+    assert stats["epic_directory_after_count"] == 24
+    assert stats["epic_directory_throttled_source_domains"] == [{"domain": "epicindie.net", "count": 2}]
+    assert stats["epic_directory_throttled_source_queries"] == [{"query": "epic:author-directory", "count": 2}]
+
+
+def test_summarize_candidate_intake_scores_reports_listing_feedback_penalized_candidates() -> None:
+    row = {
+        "CandidateURL": "https://janedoeauthor.com/about",
+        "SourceType": "epic_directory",
+        "SourceQuery": "epic:author-directory",
+        "SourceURL": "https://www.epicindie.net/authordirectory",
+        "SourceTitle": "Jane Doe, indie author",
+        "SourceSnippet": "Author website contact jane@janedoeauthor.com",
+    }
+    scored = score_candidate_intake(
+        row,
+        validation_profile="agent_hunt",
+        agent_hunt_listing_feedback={
+            "query_penalties": {"epic:author-directory": 6},
+            "source_type_penalties": {},
+            "source_domain_penalties": {},
+        },
+    )
+
+    result = summarize_candidate_intake_scores(
+        ordered_candidate_rows=[row],
+        scoring_context={
+            "enabled": True,
+            "distribution": {str(scored["band"]): 1},
+            "avg_score": float(scored["score"]),
+            "max_score": int(scored["score"]),
+            "min_score": int(scored["score"]),
+            "high_score_threshold": 40,
+            "low_score_threshold": 15,
+            "top_candidates": [],
+            "score_map": {str(scored["identity"]): scored},
+            "score_map_by_url": {str(scored["candidate_url"]): scored},
+        },
+        candidate_outcome_records=[],
+        orchestration_stats={"processed_candidates": 1, "slice_summaries": []},
+    )
+
+    assert result["listing_feedback_penalized_candidates_total"] == 1
+    assert result["listing_feedback_penalized_source_types"] == [{"source": "epic_directory", "count": 1}]
+    assert result["listing_feedback_penalized_source_queries"] == [{"query": "epic:author-directory", "count": 1}]
+    assert result["listing_feedback_penalized_source_domains"] == [{"domain": "epicindie.net", "count": 1}]
+
+
+def test_summarize_candidate_intake_scores_reports_source_quality_penalized_candidates() -> None:
+    row = {
+        "CandidateURL": "https://janedoeauthor.com/about",
+        "SourceType": "epic_directory",
+        "SourceQuery": "epic:author-directory",
+        "SourceURL": "https://www.epicindie.net/authordirectory",
+        "SourceTitle": "Jane Doe",
+        "SourceSnippet": "Jane Doe indie fantasy author based in Ohio. jane@janedoeauthor.com",
+    }
+    scored = score_candidate_intake(
+        row,
+        validation_profile="agent_hunt",
+        agent_hunt_source_quality_feedback={
+            "query_penalties": {"epic:author-directory": 6},
+            "source_type_penalties": {},
+            "source_domain_penalties": {},
+        },
+    )
+
+    result = summarize_candidate_intake_scores(
+        ordered_candidate_rows=[row],
+        scoring_context={
+            "enabled": True,
+            "distribution": {str(scored["band"]): 1},
+            "avg_score": float(scored["score"]),
+            "max_score": int(scored["score"]),
+            "min_score": int(scored["score"]),
+            "high_score_threshold": 40,
+            "low_score_threshold": 15,
+            "top_candidates": [],
+            "score_map": {str(scored["identity"]): scored},
+            "score_map_by_url": {str(scored["candidate_url"]): scored},
+        },
+        candidate_outcome_records=[],
+        orchestration_stats={"processed_candidates": 1, "slice_summaries": []},
+    )
+
+    assert result["source_quality_feedback_penalized_candidates_total"] == 1
+    assert result["source_quality_feedback_penalized_source_types"] == [{"source": "epic_directory", "count": 1}]
+    assert result["source_quality_feedback_penalized_source_queries"] == [{"query": "epic:author-directory", "count": 1}]
+    assert result["source_quality_feedback_penalized_source_domains"] == [{"domain": "epicindie.net", "count": 1}]
 
 
 def test_build_rotating_queries_expands_safely_after_stale_runs() -> None:

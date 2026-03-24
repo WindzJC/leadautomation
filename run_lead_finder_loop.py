@@ -19,7 +19,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean
 from typing import Any, Callable, Dict, Iterable, List, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from lead_utils import canonical_listing_key, normalize_person_name, registrable_domain
 from persistent_dedupe import PersistentDedupeStore
@@ -30,9 +30,18 @@ from prospect_validate import (
     STRICT_MASTER_TITLE_METHODS,
     US_STATE_CODES,
     US_STATE_NAMES,
+    build_session,
+    choose_author_email_record,
+    dedupe_urls,
+    extract_links,
+    extract_page_email_records,
+    fetch_with_meta,
+    find_contact_link_from_links,
+    find_subscribe_link_from_links,
     is_plausible_author_name,
     is_us_location,
     normalize_url,
+    select_supporting_pages,
 )
 from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, config_arg_default, load_runtime_config
 
@@ -255,6 +264,44 @@ SCOUT_LISTING_RETAILER_FRICTION_REASONS = {
     "listing_interstitial_or_redirect_state",
 }
 SCOUT_LISTING_FAILURE_PREFIX = "listing_"
+SCOUT_LISTING_HOT_PATH_SOURCE_TYPES = {"epic_directory"}
+SCOUT_LISTING_HOT_PATH_SOURCE_QUERIES = {"epic:author-directory"}
+SCOUT_LISTING_HOT_PATH_SOURCE_DOMAINS = {"epicindie.net"}
+SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_TYPES = {"epic_directory"}
+SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_QUERIES = {"epic:author-directory"}
+SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_DOMAINS = {"epicindie.net"}
+SCOUT_SOURCE_QUALITY_FEEDBACK_REASONS = {"enterprise_or_famous"}
+AGENT_HUNT_EPIC_DIRECTORY_MAX_CANDIDATES_PER_BATCH = 24
+SCOUT_ENTERPRISE_OR_FAMOUS_HINTS = (
+    "new york times bestseller",
+    "nyt bestseller",
+    "usa today bestseller",
+    "wall street journal bestseller",
+    "wsj bestseller",
+    "wikipedia",
+    "penguin random house",
+    "harpercollins",
+    "simon & schuster",
+    "hachette",
+    "macmillan",
+    "big five publisher",
+    "imprint of",
+)
+SCOUT_EMAIL_RECOVERY_TIMEOUT_SECONDS = 4.0
+SCOUT_EMAIL_RECOVERY_RETRY_SECONDS = 45.0
+SCOUT_EMAIL_RECOVERY_MAX_PAGES = 6
+SCOUT_EMAIL_RECOVERY_SUPPORT_PAGE_LIMIT = 4
+SCOUT_EMAIL_RECOVERY_PATH_HINTS = (
+    "/contact",
+    "/about",
+    "/about-author",
+    "/about-the-author",
+    "/bio",
+    "/newsletter",
+    "/subscribe",
+    "/press",
+    "/media",
+)
 SCOUT_SOURCE_TYPE_BY_DOMAIN = {
     "epicindie.net": "epic_directory",
     "iabx.org": "iabx_directory",
@@ -413,11 +460,38 @@ def looks_like_plausible_author_identity(source_title: str, candidate_url: str) 
     return bool(domain_slug and is_plausible_author_name(domain_slug))
 
 
+def normalize_source_author_label(value: str) -> str:
+    return re.sub(r"^\s*author\s+", "", (value or "").strip(), flags=re.IGNORECASE)
+
+
+def text_has_enterprise_or_famous_hint(text: str) -> bool:
+    lowered = (text or "").strip().lower()
+    return any(hint in lowered for hint in SCOUT_ENTERPRISE_OR_FAMOUS_HINTS)
+
+
+def is_source_quality_hot_path(source_type: str, source_query: str, source_domain: str) -> bool:
+    return bool(
+        source_type in SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_TYPES
+        or source_query in SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_QUERIES
+        or source_domain in SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_DOMAINS
+    )
+
+
+def classify_agent_hunt_source_quality_feedback_reason(reject_reason: str) -> str:
+    normalized = (reject_reason or "").strip().lower()
+    if normalized.startswith("bad_author_name"):
+        return "bad_author_name"
+    if normalized in SCOUT_SOURCE_QUALITY_FEEDBACK_REASONS:
+        return normalized
+    return ""
+
+
 def score_candidate_intake(
     row: Dict[str, str],
     *,
     validation_profile: str,
     agent_hunt_listing_feedback: Dict[str, object] | None = None,
+    agent_hunt_source_quality_feedback: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
     require_us_location = profile_requires_us_location(validation_profile)
     strict_verified = is_fully_verified_profile(validation_profile)
@@ -431,6 +505,7 @@ def score_candidate_intake(
     source_domain = registrable_domain(source_url)
     combined = " ".join(part for part in (source_title, source_snippet) if part).strip()
     lowered = combined.lower()
+    normalized_source_title = normalize_source_author_label(source_title)
     parsed = urlparse(candidate_url)
     path = (parsed.path or "/").lower()
     score = 0
@@ -452,6 +527,15 @@ def score_candidate_intake(
 
     if source_type == "epic_directory":
         add_component("rich_directory_source", 2)
+        if text_has_enterprise_or_famous_hint(combined):
+            add_component("epic_enterprise_or_famous_hint", -20)
+        elif normalized_source_title:
+            if looks_like_generic_scout_author_name(normalized_source_title):
+                add_component("epic_generic_author_title", -18)
+            elif not is_plausible_author_name(normalized_source_title):
+                add_component("epic_implausible_author_title", -12)
+            else:
+                add_component("epic_named_author_title", 4)
     elif source_type == "iabx_directory":
         add_component("thin_directory_source", -4)
 
@@ -507,6 +591,17 @@ def score_candidate_intake(
         total_penalty = min(12, query_penalty + source_type_penalty + source_domain_penalty)
         if total_penalty:
             add_component("prior_listing_friction_penalty", -total_penalty)
+    if scout_mode and agent_hunt_source_quality_feedback:
+        query_penalty = int((agent_hunt_source_quality_feedback.get("query_penalties", {}) or {}).get(source_query, 0) or 0)
+        source_type_penalty = int(
+            (agent_hunt_source_quality_feedback.get("source_type_penalties", {}) or {}).get(source_type, 0) or 0
+        )
+        source_domain_penalty = int(
+            (agent_hunt_source_quality_feedback.get("source_domain_penalties", {}) or {}).get(source_domain, 0) or 0
+        )
+        total_penalty = min(12, query_penalty + source_type_penalty + source_domain_penalty)
+        if total_penalty:
+            add_component("prior_source_quality_penalty", -total_penalty)
 
     positive_features = [
         {"feature": name, "contribution": value}
@@ -537,6 +632,7 @@ def order_candidates_for_strict_validation(
     *,
     validation_profile: str,
     agent_hunt_listing_feedback: Dict[str, object] | None = None,
+    agent_hunt_source_quality_feedback: Dict[str, object] | None = None,
 ) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
     scored_rows: List[Tuple[int, int, Dict[str, str], Dict[str, object]]] = []
     score_map: Dict[str, Dict[str, object]] = {}
@@ -550,6 +646,7 @@ def order_candidates_for_strict_validation(
             row,
             validation_profile=validation_profile,
             agent_hunt_listing_feedback=agent_hunt_listing_feedback,
+            agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
         )
         score = int(scored["score"])
         scored_rows.append((score, index, row, scored))
@@ -591,6 +688,11 @@ def order_candidates_for_strict_validation(
             "query_penalties": dict((agent_hunt_listing_feedback or {}).get("query_penalties", {}) or {}),
             "source_type_penalties": dict((agent_hunt_listing_feedback or {}).get("source_type_penalties", {}) or {}),
             "source_domain_penalties": dict((agent_hunt_listing_feedback or {}).get("source_domain_penalties", {}) or {}),
+        },
+        "agent_hunt_source_quality_feedback_applied": {
+            "query_penalties": dict((agent_hunt_source_quality_feedback or {}).get("query_penalties", {}) or {}),
+            "source_type_penalties": dict((agent_hunt_source_quality_feedback or {}).get("source_type_penalties", {}) or {}),
+            "source_domain_penalties": dict((agent_hunt_source_quality_feedback or {}).get("source_domain_penalties", {}) or {}),
         },
     }
 
@@ -665,6 +767,14 @@ def summarize_candidate_intake_scores(
     low_score_total = 0
     low_score_skipped = 0
     low_score_delayed = 0
+    listing_penalized_total = 0
+    source_quality_penalized_total = 0
+    listing_penalized_source_types: Counter[str] = Counter()
+    listing_penalized_source_queries: Counter[str] = Counter()
+    listing_penalized_source_domains: Counter[str] = Counter()
+    source_quality_penalized_source_types: Counter[str] = Counter()
+    source_quality_penalized_source_queries: Counter[str] = Counter()
+    source_quality_penalized_source_domains: Counter[str] = Counter()
     candidate_score_records: List[Dict[str, object]] = []
     for index, row in enumerate(ordered_candidate_rows):
         scored = score_map.get(candidate_identity_from_row(row))
@@ -689,6 +799,28 @@ def summarize_candidate_intake_scores(
                 "kept": bool((outcome_record or {}).get("kept", False)),
             }
         )
+        if int(dict(scored.get("components", {}) or {}).get("prior_listing_friction_penalty", 0) or 0) < 0:
+            listing_penalized_total += 1
+            source_type = str(scored.get("source_type", "") or "").strip()
+            source_query = str(scored.get("source_query", "") or "").strip()
+            source_domain = registrable_domain(str(scored.get("source_url", "") or "").strip())
+            if source_type:
+                listing_penalized_source_types[source_type] += 1
+            if source_query:
+                listing_penalized_source_queries[source_query] += 1
+            if source_domain:
+                listing_penalized_source_domains[source_domain] += 1
+        if int(dict(scored.get("components", {}) or {}).get("prior_source_quality_penalty", 0) or 0) < 0:
+            source_quality_penalized_total += 1
+            source_type = str(scored.get("source_type", "") or "").strip()
+            source_query = str(scored.get("source_query", "") or "").strip()
+            source_domain = registrable_domain(str(scored.get("source_url", "") or "").strip())
+            if source_type:
+                source_quality_penalized_source_types[source_type] += 1
+            if source_query:
+                source_quality_penalized_source_queries[source_query] += 1
+            if source_domain:
+                source_quality_penalized_source_domains[source_domain] += 1
         if score >= low_threshold:
             continue
         low_score_total += 1
@@ -758,6 +890,32 @@ def summarize_candidate_intake_scores(
         "low_score_candidates_total": low_score_total,
         "low_score_candidates_skipped": low_score_skipped,
         "low_score_candidates_delayed": low_score_delayed,
+        "listing_feedback_penalized_candidates_total": listing_penalized_total,
+        "listing_feedback_penalized_source_types": summarize_counter(
+            listing_penalized_source_types,
+            key_name="source",
+        ),
+        "listing_feedback_penalized_source_queries": summarize_counter(
+            listing_penalized_source_queries,
+            key_name="query",
+        ),
+        "listing_feedback_penalized_source_domains": summarize_counter(
+            listing_penalized_source_domains,
+            key_name="domain",
+        ),
+        "source_quality_feedback_penalized_candidates_total": source_quality_penalized_total,
+        "source_quality_feedback_penalized_source_types": summarize_counter(
+            source_quality_penalized_source_types,
+            key_name="source",
+        ),
+        "source_quality_feedback_penalized_source_queries": summarize_counter(
+            source_quality_penalized_source_queries,
+            key_name="query",
+        ),
+        "source_quality_feedback_penalized_source_domains": summarize_counter(
+            source_quality_penalized_source_domains,
+            key_name="domain",
+        ),
         "top_prevalidate_candidates": list(scoring_context.get("top_candidates", []) or []),
         "candidate_intake_score_records": candidate_score_records,
     }
@@ -1458,14 +1616,20 @@ def classify_agent_hunt_listing_failure(
 def build_scout_row_from_candidate_outcome(record: Dict[str, object]) -> Dict[str, str]:
     candidate_url = str(record.get("candidate_url", "") or "").strip()
     source_url = str(record.get("source_url", "") or "").strip()
-    email = str(record.get("email", "") or "").strip().lower()
+    email = str(record.get("agent_hunt_email_recovered_email", "") or record.get("email", "") or "").strip().lower()
+    email_source_url = str(
+        record.get("agent_hunt_email_recovery_source_url", "") or record.get("email_source_url", "") or candidate_url or source_url
+    ).strip()
+    contact_page_url = str(record.get("agent_hunt_email_recovery_source_url", "") or candidate_url).strip()
+    email_quality = str(record.get("agent_hunt_email_recovered_email_quality", "") or "").strip()
     return {
         "AuthorName": str(record.get("author_name", "") or "").strip(),
         "AuthorEmail": email,
-        "AuthorEmailSourceURL": candidate_url or source_url,
-        "EmailQuality": infer_scout_email_quality(email, candidate_url=candidate_url, source_url=source_url),
+        "AuthorEmailSourceURL": email_source_url,
+        "AuthorEmailProofSnippet": str(record.get("agent_hunt_email_recovery_proof_snippet", "") or record.get("email_snippet", "") or "").strip(),
+        "EmailQuality": email_quality or infer_scout_email_quality(email, candidate_url=candidate_url, source_url=source_url),
         "AuthorWebsite": candidate_url,
-        "ContactPageURL": candidate_url,
+        "ContactPageURL": contact_page_url,
         "SourceURL": source_url or candidate_url,
         "SourceTitle": "",
         "SourceSnippet": "",
@@ -1473,6 +1637,200 @@ def build_scout_row_from_candidate_outcome(record: Dict[str, object]) -> Dict[st
         "ListingStatus": "unverified",
         "ListingFailReason": str(record.get("reject_reason", "") or "").strip(),
     }
+
+
+def build_agent_hunt_email_recovery_fetcher() -> Tuple[Callable[[str], Dict[str, object]], object]:
+    session = build_session()
+    robots_cache: Dict[str, Tuple[object | None, float]] = {}
+    robots_text_cache: Dict[str, str] = {}
+
+    def fetch_page(url: str) -> Dict[str, object]:
+        result = fetch_with_meta(
+            session=session,
+            url=url,
+            timeout=SCOUT_EMAIL_RECOVERY_TIMEOUT_SECONDS,
+            robots_cache=robots_cache,
+            robots_text_cache=robots_text_cache,
+            ignore_robots=False,
+            retry_seconds=SCOUT_EMAIL_RECOVERY_RETRY_SECONDS,
+            expect_html=True,
+        )
+        return {
+            "ok": bool(result.ok and result.soup),
+            "url": result.final_url or result.url,
+            "text": result.text,
+            "soup": result.soup,
+            "failure_reason": result.failure_reason,
+        }
+
+    return fetch_page, session
+
+
+def build_agent_hunt_email_recovery_urls(
+    candidate_url: str,
+    *,
+    landing_page: Dict[str, object] | None = None,
+) -> List[str]:
+    normalized_candidate = normalize_url(candidate_url)
+    if not normalized_candidate:
+        return []
+    candidate_domain = registrable_domain(normalized_candidate)
+    parsed = urlparse(normalized_candidate)
+    origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+    candidates: List[str] = []
+
+    def add(url: str) -> None:
+        normalized = normalize_url(url)
+        if not normalized:
+            return
+        if candidate_domain and registrable_domain(normalized) != candidate_domain:
+            return
+        candidates.append(normalized)
+
+    add(normalized_candidate)
+
+    landing_url = normalize_url(str((landing_page or {}).get("url", "") or "")) or normalized_candidate
+    landing_soup = (landing_page or {}).get("soup")
+    if landing_url:
+        add(landing_url)
+    if landing_url and landing_soup is not None:
+        links = dedupe_urls(extract_links(landing_url, landing_soup))
+        add(find_contact_link_from_links(origin or landing_url, links))
+        add(find_subscribe_link_from_links(origin or landing_url, links))
+        for url in select_supporting_pages(landing_url, links, limit=SCOUT_EMAIL_RECOVERY_SUPPORT_PAGE_LIMIT):
+            add(url)
+
+    base_for_hints = origin or landing_url or normalized_candidate
+    for hint in SCOUT_EMAIL_RECOVERY_PATH_HINTS:
+        add(urljoin(base_for_hints.rstrip("/") + "/", hint.lstrip("/")))
+
+    return dedupe_urls(candidates)[:SCOUT_EMAIL_RECOVERY_MAX_PAGES]
+
+
+def recover_agent_hunt_listing_friction_email_record(
+    record: Dict[str, object],
+    *,
+    fetch_page: Callable[[str], Dict[str, object]] | None = None,
+) -> Dict[str, object]:
+    updated = dict(record)
+    listing_assessment = assess_agent_hunt_listing_blocked_record(updated)
+    if (
+        str(listing_assessment.get("status", "") or "") != "scoutworthy_not_outreach_ready"
+        or str(listing_assessment.get("base_scout_reason", "") or "") != "scoutworthy_missing_visible_email"
+    ):
+        updated["agent_hunt_email_recovery_attempted"] = False
+        updated["agent_hunt_email_recovery_skipped_reason"] = "not_listing_friction_caution"
+        return updated
+
+    row = dict(listing_assessment.get("row", {}) or {})
+    candidate_url = normalize_url(str(updated.get("candidate_url", "") or row.get("AuthorWebsite", "") or ""))
+    if not candidate_url:
+        updated["agent_hunt_email_recovery_attempted"] = False
+        updated["agent_hunt_email_recovery_skipped_reason"] = "missing_candidate_url"
+        return updated
+
+    local_fetch_page = fetch_page
+    session = None
+    if local_fetch_page is None:
+        local_fetch_page, session = build_agent_hunt_email_recovery_fetcher()
+
+    try:
+        landing_page = local_fetch_page(candidate_url)
+        recovery_urls = build_agent_hunt_email_recovery_urls(candidate_url, landing_page=landing_page)
+        updated["agent_hunt_email_recovery_attempted"] = True
+        updated["agent_hunt_email_recovery_skipped_reason"] = ""
+        updated["agent_hunt_email_recovery_attempted_url_count"] = len(recovery_urls)
+
+        if not recovery_urls:
+            updated["agent_hunt_email_recovery_success"] = False
+            updated["agent_hunt_email_recovery_fail_reason"] = "no_recovery_urls"
+            return updated
+
+        attempted_results: Dict[str, Dict[str, object]] = {}
+        if normalize_url(str(landing_page.get("url", "") or "")) in recovery_urls:
+            attempted_results[normalize_url(str(landing_page.get("url", "") or ""))] = landing_page
+        elif candidate_url in recovery_urls:
+            attempted_results[candidate_url] = landing_page
+
+        email_records: List[Dict[str, str]] = []
+        fetch_failures: Counter[str] = Counter()
+        visible_but_unusable = False
+        successful_fetches = 0
+
+        for recovery_url in recovery_urls:
+            result = attempted_results.get(recovery_url)
+            if result is None:
+                result = local_fetch_page(recovery_url)
+                attempted_results[recovery_url] = result
+            if not bool(result.get("ok", False)) or result.get("soup") is None:
+                failure_reason = str(result.get("failure_reason", "") or "fetch_failed").strip() or "fetch_failed"
+                fetch_failures[failure_reason] += 1
+                continue
+            successful_fetches += 1
+            source_url = normalize_url(str(result.get("url", "") or recovery_url)) or recovery_url
+            page_records = extract_page_email_records(
+                source_url,
+                str(result.get("text", "") or ""),
+                result.get("soup"),
+                candidate_url,
+            )
+            if any(str(page_record.get("visible_text", "") or "").strip().lower() != "true" for page_record in page_records):
+                visible_but_unusable = True
+            email_records.extend(page_records)
+
+        best_record = choose_author_email_record(
+            email_records,
+            candidate_url,
+            author_name=str(updated.get("author_name", "") or ""),
+            require_visible_text=True,
+        )
+        if best_record:
+            updated["agent_hunt_email_recovery_success"] = True
+            updated["agent_hunt_email_recovery_fail_reason"] = ""
+            updated["agent_hunt_email_recovery_source_url"] = str(best_record.get("source_url", "") or "").strip()
+            updated["agent_hunt_email_recovered_email"] = str(best_record.get("email", "") or "").strip().lower()
+            updated["agent_hunt_email_recovered_email_quality"] = str(best_record.get("quality", "") or "").strip()
+            updated["agent_hunt_email_recovery_proof_snippet"] = str(best_record.get("proof_snippet", "") or "").strip()
+            updated["agent_hunt_email_recovery_method"] = str(best_record.get("method", "") or "").strip()
+            updated["email"] = updated["agent_hunt_email_recovered_email"]
+            updated["email_snippet"] = updated["agent_hunt_email_recovery_proof_snippet"]
+            return updated
+
+        updated["agent_hunt_email_recovery_success"] = False
+        if visible_but_unusable:
+            updated["agent_hunt_email_recovery_fail_reason"] = "no_visible_text_email"
+        elif successful_fetches:
+            updated["agent_hunt_email_recovery_fail_reason"] = "no_visible_email_found"
+        elif fetch_failures:
+            fail_reason, _ = fetch_failures.most_common(1)[0]
+            updated["agent_hunt_email_recovery_fail_reason"] = f"page_fetch_failed:{fail_reason}"
+        else:
+            updated["agent_hunt_email_recovery_fail_reason"] = "no_visible_email_found"
+        return updated
+    finally:
+        if session is not None:
+            session.close()
+
+
+def recover_agent_hunt_listing_friction_emails(
+    candidate_outcome_records: List[Dict[str, object]],
+    *,
+    fetch_page: Callable[[str], Dict[str, object]] | None = None,
+) -> List[Dict[str, object]]:
+    if not candidate_outcome_records:
+        return []
+    local_fetch_page = fetch_page
+    session = None
+    if local_fetch_page is None:
+        local_fetch_page, session = build_agent_hunt_email_recovery_fetcher()
+    try:
+        return [
+            recover_agent_hunt_listing_friction_email_record(record, fetch_page=local_fetch_page)
+            for record in candidate_outcome_records
+        ]
+    finally:
+        if session is not None:
+            session.close()
 
 
 def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[str, object]:
@@ -1487,15 +1845,36 @@ def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[
             "reason": listing_failure_reason or str(base_assessment.get("reason", "") or ""),
             "listing_failure_reason": listing_failure_reason,
             "listing_failure_category": listing_failure_category,
+            "promotion_blocker_reason": listing_failure_reason or str(base_assessment.get("reason", "") or ""),
             "row": row,
         }
     if not bool(base_assessment.get("qualified", False)):
+        if str(base_assessment.get("status", "") or "") == "scoutworthy_not_outreach_ready":
+            caution_reason = f"listing_blocked:{listing_failure_reason}"
+            promotion_blocker_reason = caution_reason
+            if bool(record.get("agent_hunt_email_recovery_attempted", False)) and not bool(
+                record.get("agent_hunt_email_recovery_success", False)
+            ):
+                fail_reason = str(record.get("agent_hunt_email_recovery_fail_reason", "") or "").strip()
+                if fail_reason:
+                    promotion_blocker_reason = f"listing_friction_email_recovery_failed:{fail_reason}"
+            return {
+                "qualified": False,
+                "status": "scoutworthy_not_outreach_ready",
+                "reason": caution_reason,
+                "listing_failure_reason": listing_failure_reason,
+                "listing_failure_category": listing_failure_category,
+                "promotion_blocker_reason": promotion_blocker_reason,
+                "base_scout_reason": str(base_assessment.get("reason", "") or ""),
+                "row": row,
+            }
         return {
             "qualified": False,
             "status": str(base_assessment.get("status", "rejected") or "rejected"),
             "reason": str(base_assessment.get("reason", "") or ""),
             "listing_failure_reason": listing_failure_reason,
             "listing_failure_category": listing_failure_category,
+            "promotion_blocker_reason": str(base_assessment.get("reason", "") or ""),
             "row": row,
         }
     return {
@@ -1504,6 +1883,7 @@ def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[
         "reason": "",
         "listing_failure_reason": listing_failure_reason,
         "listing_failure_category": listing_failure_category,
+        "promotion_blocker_reason": "",
         "row": row,
     }
 
@@ -1663,6 +2043,42 @@ def build_candidate_outcome_lookup(candidate_outcome_records: List[Dict[str, obj
     return lookup
 
 
+def build_route_source_context(
+    *,
+    row: Dict[str, str],
+    outcome_lookup: Dict[Tuple[str, str], Dict[str, str]],
+) -> Dict[str, str]:
+    source_url = (row.get("SourceURL", "") or "").strip()
+    candidate_domain = best_scout_candidate_domain(row)
+    context = outcome_lookup.get((source_url, candidate_domain), {}) if source_url and candidate_domain else {}
+    source_type = str(context.get("source_type", "") or infer_source_type_from_source_url(source_url))
+    source_query = str(context.get("source_query", "") or "<unknown>")
+    return {
+        "source_url": source_url,
+        "source_domain": registrable_domain(source_url),
+        "source_type": source_type or "unknown",
+        "source_query": source_query or "<unknown>",
+    }
+
+
+def summarize_route_source_contexts(
+    route_records: List[Dict[str, str]],
+    *,
+    route: str,
+    key_name: str,
+    limit: int = 10,
+) -> List[Dict[str, object]]:
+    counter: Counter[str] = Counter()
+    for record in route_records:
+        if str(record.get("route", "") or "") != route:
+            continue
+        key = str(record.get(key_name, "") or "").strip()
+        if not key:
+            continue
+        counter[key] += 1
+    return summarize_counter(counter, key_name=key_name.replace("source_", ""), limit=limit)
+
+
 def build_agent_hunt_convergence_stats(
     *,
     validated_rows: List[Dict[str, str]],
@@ -1791,16 +2207,21 @@ def build_agent_hunt_convergence_stats(
 def build_agent_hunt_listing_friction_stats(
     *,
     candidate_outcome_records: List[Dict[str, object]],
-    rescued_listing_records: List[Dict[str, object]],
+    qualified_listing_records: List[Dict[str, object]],
+    caution_listing_records: List[Dict[str, object]],
 ) -> Dict[str, object]:
     top_listing_failure_reasons: Counter[str] = Counter()
     listing_dead_end_source_domains: Counter[str] = Counter()
     listing_dead_end_source_types: Counter[str] = Counter()
     listing_dead_end_source_queries: Counter[str] = Counter()
-    rescued_reason_counts: Counter[str] = Counter()
-    rescued_source_domains: Counter[str] = Counter()
-    rescued_source_types: Counter[str] = Counter()
-    rescued_source_queries: Counter[str] = Counter()
+    qualified_reason_counts: Counter[str] = Counter()
+    qualified_source_domains: Counter[str] = Counter()
+    qualified_source_types: Counter[str] = Counter()
+    qualified_source_queries: Counter[str] = Counter()
+    caution_reason_counts: Counter[str] = Counter()
+    caution_source_domains: Counter[str] = Counter()
+    caution_source_types: Counter[str] = Counter()
+    caution_source_queries: Counter[str] = Counter()
     category_counts: Counter[str] = Counter()
 
     for record in candidate_outcome_records:
@@ -1820,33 +2241,104 @@ def build_agent_hunt_listing_friction_stats(
             listing_dead_end_source_types[source_type] += 1
         listing_dead_end_source_queries[source_query] += 1
 
-    for item in rescued_listing_records:
+    for item in qualified_listing_records:
         reason = str(item.get("listing_failure_reason", "") or "").strip()
         row = dict(item.get("row", {}) or {})
         if not reason or not row:
             continue
-        rescued_reason_counts[reason] += 1
+        qualified_reason_counts[reason] += 1
         source_url = (row.get("SourceURL", "") or "").strip()
         source_domain = registrable_domain(source_url)
         source_type = infer_source_type_from_source_url(str(row.get("SourceURL", "") or source_url))
         source_query = str(item.get("source_query", "") or "<unknown>")
         if source_domain:
-            rescued_source_domains[source_domain] += 1
+            qualified_source_domains[source_domain] += 1
         if source_type:
-            rescued_source_types[source_type] += 1
-        rescued_source_queries[source_query] += 1
+            qualified_source_types[source_type] += 1
+        qualified_source_queries[source_query] += 1
+
+    for item in caution_listing_records:
+        reason = str(item.get("listing_failure_reason", "") or "").strip()
+        row = dict(item.get("row", {}) or {})
+        if not reason or not row:
+            continue
+        caution_reason_counts[reason] += 1
+        source_url = (row.get("SourceURL", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = infer_source_type_from_source_url(str(row.get("SourceURL", "") or source_url))
+        source_query = str(item.get("source_query", "") or "<unknown>")
+        if source_domain:
+            caution_source_domains[source_domain] += 1
+        if source_type:
+            caution_source_types[source_type] += 1
+        caution_source_queries[source_query] += 1
 
     return {
         "top_listing_failure_reasons": dict(top_listing_failure_reasons.most_common(10)),
         "listing_failure_categories": dict(category_counts),
-        "scoutworthy_listing_blocked_count": len(rescued_listing_records),
-        "scoutworthy_listing_blocked_reasons": dict(rescued_reason_counts),
-        "scoutworthy_listing_blocked_source_domains": summarize_counter(rescued_source_domains, key_name="domain"),
-        "scoutworthy_listing_blocked_source_types": summarize_counter(rescued_source_types, key_name="source"),
-        "scoutworthy_listing_blocked_source_queries": summarize_counter(rescued_source_queries, key_name="query"),
+        "qualified_listing_blocked_count": len(qualified_listing_records),
+        "qualified_listing_blocked_reasons": dict(qualified_reason_counts),
+        "qualified_listing_blocked_source_domains": summarize_counter(qualified_source_domains, key_name="domain"),
+        "qualified_listing_blocked_source_types": summarize_counter(qualified_source_types, key_name="source"),
+        "qualified_listing_blocked_source_queries": summarize_counter(qualified_source_queries, key_name="query"),
+        "scoutworthy_listing_blocked_count": len(caution_listing_records),
+        "scoutworthy_listing_blocked_reasons": dict(caution_reason_counts),
+        "scoutworthy_listing_blocked_source_domains": summarize_counter(caution_source_domains, key_name="domain"),
+        "scoutworthy_listing_blocked_source_types": summarize_counter(caution_source_types, key_name="source"),
+        "scoutworthy_listing_blocked_source_queries": summarize_counter(caution_source_queries, key_name="query"),
         "top_listing_dead_end_source_domains": summarize_counter(listing_dead_end_source_domains, key_name="domain"),
         "top_listing_dead_end_source_types": summarize_counter(listing_dead_end_source_types, key_name="source"),
         "top_listing_dead_end_source_queries": summarize_counter(listing_dead_end_source_queries, key_name="query"),
+    }
+
+
+def build_agent_hunt_email_recovery_stats(candidate_outcome_records: List[Dict[str, object]]) -> Dict[str, object]:
+    fail_reasons: Counter[str] = Counter()
+    recovered_source_domains: Counter[str] = Counter()
+    recovered_source_types: Counter[str] = Counter()
+    recovered_source_queries: Counter[str] = Counter()
+    failed_source_domains: Counter[str] = Counter()
+    failed_source_types: Counter[str] = Counter()
+    failed_source_queries: Counter[str] = Counter()
+    attempted = 0
+    success = 0
+
+    for record in candidate_outcome_records:
+        if not bool(record.get("agent_hunt_email_recovery_attempted", False)):
+            continue
+        attempted += 1
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url)
+        source_query = str(record.get("source_query", "") or "").strip() or "<unknown>"
+        if bool(record.get("agent_hunt_email_recovery_success", False)):
+            success += 1
+            if source_domain:
+                recovered_source_domains[source_domain] += 1
+            if source_type:
+                recovered_source_types[source_type] += 1
+            recovered_source_queries[source_query] += 1
+            continue
+        fail_reason = str(record.get("agent_hunt_email_recovery_fail_reason", "") or "").strip() or "unknown"
+        fail_reasons[fail_reason] += 1
+        if source_domain:
+            failed_source_domains[source_domain] += 1
+        if source_type:
+            failed_source_types[source_type] += 1
+        failed_source_queries[source_query] += 1
+
+    fail_count = max(0, attempted - success)
+    return {
+        "listing_friction_email_recovery_attempted_count": attempted,
+        "listing_friction_email_recovery_success_count": success,
+        "listing_friction_email_recovery_fail_count": fail_count,
+        "top_listing_friction_email_recovery_fail_reasons": dict(fail_reasons.most_common(10)),
+        "listing_friction_email_recovered_source_domains": summarize_counter(recovered_source_domains, key_name="domain"),
+        "listing_friction_email_recovered_source_types": summarize_counter(recovered_source_types, key_name="source"),
+        "listing_friction_email_recovered_source_queries": summarize_counter(recovered_source_queries, key_name="query"),
+        "listing_friction_email_recovery_failed_source_domains": summarize_counter(failed_source_domains, key_name="domain"),
+        "listing_friction_email_recovery_failed_source_types": summarize_counter(failed_source_types, key_name="source"),
+        "listing_friction_email_recovery_failed_source_queries": summarize_counter(failed_source_queries, key_name="query"),
     }
 
 
@@ -1862,6 +2354,7 @@ def build_agent_hunt_stats(
     directly_qualified_rows = [
         row for row, assessment in zip(validated_rows, row_assessments) if bool(assessment.get("qualified", False))
     ]
+    outcome_lookup = build_candidate_outcome_lookup(list(candidate_outcome_records or []))
     known_author_identities = {
         normalized_scout_author_identity(row)
         for row in list(existing_master_rows or []) + directly_qualified_rows
@@ -1876,8 +2369,77 @@ def build_agent_hunt_stats(
     rescued_listing_rows: List[Dict[str, str]] = []
     rescued_candidate_identities: set[str] = set()
     rescued_listing_reasons: Counter[str] = Counter()
+    caution_candidate_identities: set[str] = set()
+    caution_listing_records: List[Dict[str, object]] = []
+    caution_listing_rows: List[Dict[str, str]] = []
+    caution_listing_reasons: Counter[str] = Counter()
+    caution_promotion_blockers: Counter[str] = Counter()
+    scout_reject_counts: Counter[str] = Counter()
+    scoutworthy_counts: Counter[str] = Counter()
+    scoutworthy_rows: List[Dict[str, str]] = []
+    route_counts: Counter[str] = Counter()
+    route_reason_counts: Dict[str, Counter[str]] = defaultdict(Counter)
+    route_source_records: List[Dict[str, str]] = []
+
+    for row, assessment in zip(validated_rows, row_assessments):
+        route = str(assessment.get("status", "rejected") or "rejected")
+        reason = str(assessment.get("reason", "") or "")
+        route_counts[route] += 1
+        if reason:
+            route_reason_counts[route][reason] += 1
+            if route == "scoutworthy_not_outreach_ready":
+                caution_promotion_blockers[reason] += 1
+        route_context = build_route_source_context(row=row, outcome_lookup=outcome_lookup)
+        route_source_records.append(
+            {
+                "route": route,
+                "reason": reason,
+                **route_context,
+            }
+        )
+
     for record in list(candidate_outcome_records or []):
         listing_assessment = assess_agent_hunt_listing_blocked_record(record)
+        assessment_status = str(listing_assessment.get("status", "") or "rejected")
+        if assessment_status == "scoutworthy_not_outreach_ready":
+            row = dict(listing_assessment.get("row", {}) or {})
+            if not row:
+                continue
+            identity = normalized_scout_author_identity(row)
+            email = (row.get("AuthorEmail", "") or "").strip().lower()
+            if (identity and identity in known_author_identities) or (email and email in known_emails):
+                continue
+            reason = str(listing_assessment.get("reason", "") or "")
+            caution_candidate_identities.add(candidate_identity_from_outcome(record))
+            caution_listing_reasons[str(listing_assessment.get("listing_failure_reason", "") or "")] += 1
+            if reason:
+                route_reason_counts["scoutworthy_not_outreach_ready"][reason] += 1
+                caution_promotion_blockers[str(listing_assessment.get("promotion_blocker_reason", "") or reason)] += 1
+                scoutworthy_counts[reason] += 1
+            route_counts["scoutworthy_not_outreach_ready"] += 1
+            route_source_records.append(
+                {
+                    "route": "scoutworthy_not_outreach_ready",
+                    "reason": reason,
+                    "source_url": str(record.get("source_url", "") or "").strip(),
+                    "source_domain": registrable_domain(str(record.get("source_url", "") or "").strip()),
+                    "source_type": str(record.get("source_type", "") or "").strip()
+                    or infer_source_type_from_source_url(str(record.get("source_url", "") or "").strip()),
+                    "source_query": str(record.get("source_query", "") or "").strip() or "<unknown>",
+                }
+            )
+            scoutworthy_rows.append(row)
+            caution_listing_rows.append(row)
+            caution_listing_records.append(
+                {
+                    **listing_assessment,
+                    "source_query": str(record.get("source_query", "") or "").strip() or "<unknown>",
+                    "source_type": str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(
+                        str(record.get("source_url", "") or "")
+                    ),
+                }
+            )
+            continue
         if not bool(listing_assessment.get("qualified", False)):
             continue
         row = dict(listing_assessment.get("row", {}) or {})
@@ -1899,15 +2461,25 @@ def build_agent_hunt_stats(
                 ),
             }
         )
+        route_counts["qualified"] += 1
+        route_reason_counts["qualified"][f"listing_blocked:{str(listing_assessment.get('listing_failure_reason', '') or '')}"] += 1
+        route_source_records.append(
+            {
+                "route": "qualified",
+                "reason": f"listing_blocked:{str(listing_assessment.get('listing_failure_reason', '') or '')}",
+                "source_url": str(record.get("source_url", "") or "").strip(),
+                "source_domain": registrable_domain(str(record.get("source_url", "") or "").strip()),
+                "source_type": str(record.get("source_type", "") or "").strip()
+                or infer_source_type_from_source_url(str(record.get("source_url", "") or "").strip()),
+                "source_query": str(record.get("source_query", "") or "").strip() or "<unknown>",
+            }
+        )
         if identity:
             known_author_identities.add(identity)
         if email:
             known_emails.add(email)
     scouted_rows = dedupe_scout_rows(directly_qualified_rows + rescued_listing_rows)
     strict_rows = [row for row in scouted_rows if row_is_fully_verified(row, require_us_location=True)]
-    scout_reject_counts: Counter[str] = Counter()
-    scoutworthy_counts: Counter[str] = Counter()
-    scoutworthy_rows: List[Dict[str, str]] = []
     for row, assessment in zip(validated_rows, row_assessments):
         status = str(assessment.get("status", "") or "")
         reason = str(assessment.get("reason", "") or "")
@@ -1928,7 +2500,36 @@ def build_agent_hunt_stats(
             combined_rejects[reason] = remaining
         elif reason in combined_rejects:
             del combined_rejects[reason]
+    for reason, count in caution_listing_reasons.items():
+        if not reason:
+            continue
+        remaining = max(0, int(combined_rejects.get(reason, 0) or 0) - int(count))
+        if remaining:
+            combined_rejects[reason] = remaining
+        elif reason in combined_rejects:
+            del combined_rejects[reason]
     merge_counter_dict(combined_rejects, dict(scout_reject_counts))
+    for record in list(candidate_outcome_records or []):
+        identity_key = candidate_identity_from_outcome(record)
+        if identity_key in rescued_candidate_identities or identity_key in caution_candidate_identities:
+            continue
+        reason = str(record.get("reject_reason", "") or "").strip()
+        if not reason or reason == "kept":
+            continue
+        route_counts["rejected"] += 1
+        route_reason_counts["rejected"][reason] += 1
+        source_url = str(record.get("source_url", "") or "").strip()
+        route_source_records.append(
+            {
+                "route": "rejected",
+                "reason": reason,
+                "source_url": source_url,
+                "source_domain": registrable_domain(source_url),
+                "source_type": str(record.get("source_type", "") or "").strip()
+                or infer_source_type_from_source_url(source_url),
+                "source_query": str(record.get("source_query", "") or "").strip() or "<unknown>",
+            }
+        )
     convergence_stats = build_agent_hunt_convergence_stats(
         validated_rows=validated_rows,
         row_assessments=row_assessments,
@@ -1938,11 +2539,14 @@ def build_agent_hunt_stats(
     )
     listing_friction_stats = build_agent_hunt_listing_friction_stats(
         candidate_outcome_records=list(candidate_outcome_records or []),
-        rescued_listing_records=rescued_listing_records,
+        qualified_listing_records=rescued_listing_records,
+        caution_listing_records=caution_listing_records,
     )
+    email_recovery_stats = build_agent_hunt_email_recovery_stats(list(candidate_outcome_records or []))
     return {
         "scouted_rows": scouted_rows,
         "listing_blocked_scout_rows": rescued_listing_rows,
+        "listing_blocked_caution_rows": caution_listing_rows,
         "rescued_candidate_identities": sorted(rescued_candidate_identities),
         "strict_rows": strict_rows,
         "scouted_target": int(target),
@@ -1951,13 +2555,29 @@ def build_agent_hunt_stats(
         "strict_rows_written": len(strict_rows),
         "top_reject_reasons": dict(combined_rejects.most_common(10)),
         "scout_gate_reject_reasons": dict(scout_reject_counts),
+        "routing_counts": {
+            "qualified": int(route_counts.get("qualified", 0) or 0),
+            "scoutworthy_not_outreach_ready": int(route_counts.get("scoutworthy_not_outreach_ready", 0) or 0),
+            "rejected": int(route_counts.get("rejected", 0) or 0),
+        },
+        "top_caution_reasons": dict(route_reason_counts["scoutworthy_not_outreach_ready"].most_common(10)),
+        "top_rejected_reasons": dict(route_reason_counts["rejected"].most_common(10)),
+        "top_reasons_caution_fail_promotion_to_qualified": dict(
+            caution_promotion_blockers.most_common(10)
+        ),
         "scoutworthy_not_outreach_ready_count": len(scoutworthy_rows),
         "scoutworthy_not_outreach_ready_reasons": dict(scoutworthy_counts),
         "scoutworthy_not_outreach_ready_source_domains": summarize_row_domains(
             scoutworthy_rows,
             source_selector=lambda row: row.get("SourceURL", ""),
         ),
+        "caution_source_types": summarize_route_source_contexts(route_source_records, route="scoutworthy_not_outreach_ready", key_name="source_type"),
+        "caution_source_queries": summarize_route_source_contexts(route_source_records, route="scoutworthy_not_outreach_ready", key_name="source_query"),
+        "rejected_source_domains": summarize_route_source_contexts(route_source_records, route="rejected", key_name="source_domain"),
+        "rejected_source_types": summarize_route_source_contexts(route_source_records, route="rejected", key_name="source_type"),
+        "rejected_source_queries": summarize_route_source_contexts(route_source_records, route="rejected", key_name="source_query"),
         "listing_friction": listing_friction_stats,
+        **email_recovery_stats,
         "scouted_source_domains": summarize_row_domains(scouted_rows, source_selector=best_scout_source_url),
         "strict_source_domains": summarize_row_domains(strict_rows, source_selector=best_verified_source_url),
         "author_convergence": convergence_stats,
@@ -2402,28 +3022,348 @@ def build_agent_hunt_listing_feedback(
             source_type_listing_friction[source_type] += 1
         query_listing_friction[source_query] += 1
 
-    def build_penalties(total_counts: Counter[str], friction_counts: Counter[str]) -> Dict[str, int]:
+    def build_penalties(
+        total_counts: Counter[str],
+        friction_counts: Counter[str],
+        *,
+        hot_paths: set[str] | None = None,
+    ) -> Dict[str, int]:
         penalties: Dict[str, int] = {}
+        hot_paths = set(hot_paths or set())
         for key, friction_count in friction_counts.items():
             total_count = int(total_counts.get(key, 0) or 0)
             if total_count < 3 or friction_count < 2:
                 continue
             ratio = friction_count / total_count if total_count else 0.0
+            penalty = 0
             if ratio >= 0.85:
-                penalties[key] = 6
+                penalty = 6
             elif ratio >= 0.7:
-                penalties[key] = 4
+                penalty = 4
             elif ratio >= 0.5:
-                penalties[key] = 2
+                penalty = 2
+            if penalty and key in hot_paths and ratio >= 0.7:
+                penalty = min(8, penalty + 2)
+            if penalty:
+                penalties[key] = penalty
         return penalties
 
+    query_penalties = build_penalties(
+        query_totals,
+        query_listing_friction,
+        hot_paths=SCOUT_LISTING_HOT_PATH_SOURCE_QUERIES,
+    )
+    source_type_penalties = build_penalties(
+        source_type_totals,
+        source_type_listing_friction,
+        hot_paths=SCOUT_LISTING_HOT_PATH_SOURCE_TYPES,
+    )
+    source_domain_penalties = build_penalties(
+        source_domain_totals,
+        source_domain_listing_friction,
+        hot_paths=SCOUT_LISTING_HOT_PATH_SOURCE_DOMAINS,
+    )
     return {
-        "query_penalties": build_penalties(query_totals, query_listing_friction),
-        "source_type_penalties": build_penalties(source_type_totals, source_type_listing_friction),
-        "source_domain_penalties": build_penalties(source_domain_totals, source_domain_listing_friction),
+        "query_penalties": query_penalties,
+        "source_type_penalties": source_type_penalties,
+        "source_domain_penalties": source_domain_penalties,
         "top_listing_friction_queries": summarize_counter(query_listing_friction, key_name="query"),
         "top_listing_friction_source_types": summarize_counter(source_type_listing_friction, key_name="source"),
         "top_listing_friction_source_domains": summarize_counter(source_domain_listing_friction, key_name="domain"),
+        "penalized_queries": [{"query": key, "penalty": value} for key, value in sorted(query_penalties.items())],
+        "penalized_source_types": [{"source": key, "penalty": value} for key, value in sorted(source_type_penalties.items())],
+        "penalized_source_domains": [{"domain": key, "penalty": value} for key, value in sorted(source_domain_penalties.items())],
+    }
+
+
+def build_agent_hunt_source_quality_feedback(
+    candidate_outcome_records: List[Dict[str, object]],
+) -> Dict[str, object]:
+    source_domain_totals: Counter[str] = Counter()
+    source_domain_quality_failures: Counter[str] = Counter()
+    source_type_totals: Counter[str] = Counter()
+    source_type_quality_failures: Counter[str] = Counter()
+    query_totals: Counter[str] = Counter()
+    query_quality_failures: Counter[str] = Counter()
+    failure_reasons: Counter[str] = Counter()
+
+    for record in candidate_outcome_records:
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url)
+        source_query = str(record.get("source_query", "") or "").strip() or "<unknown>"
+        reason = classify_agent_hunt_source_quality_feedback_reason(str(record.get("reject_reason", "") or ""))
+
+        if source_domain:
+            source_domain_totals[source_domain] += 1
+        if source_type:
+            source_type_totals[source_type] += 1
+        query_totals[source_query] += 1
+
+        if not reason:
+            continue
+
+        failure_reasons[reason] += 1
+        if source_domain:
+            source_domain_quality_failures[source_domain] += 1
+        if source_type:
+            source_type_quality_failures[source_type] += 1
+        query_quality_failures[source_query] += 1
+
+    def build_penalties(
+        total_counts: Counter[str],
+        failure_counts: Counter[str],
+        *,
+        hot_paths: set[str] | None = None,
+    ) -> Dict[str, int]:
+        penalties: Dict[str, int] = {}
+        hot_paths = set(hot_paths or set())
+        for key, failure_count in failure_counts.items():
+            total_count = int(total_counts.get(key, 0) or 0)
+            if total_count < 3 or failure_count < 2:
+                continue
+            ratio = failure_count / total_count if total_count else 0.0
+            penalty = 0
+            if ratio >= 0.85:
+                penalty = 6
+            elif ratio >= 0.7:
+                penalty = 4
+            elif ratio >= 0.5:
+                penalty = 2
+            if penalty and key in hot_paths and ratio >= 0.7:
+                penalty = min(8, penalty + 2)
+            if penalty:
+                penalties[key] = penalty
+        return penalties
+
+    query_penalties = build_penalties(
+        query_totals,
+        query_quality_failures,
+        hot_paths=SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_QUERIES,
+    )
+    source_type_penalties = build_penalties(
+        source_type_totals,
+        source_type_quality_failures,
+        hot_paths=SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_TYPES,
+    )
+    source_domain_penalties = build_penalties(
+        source_domain_totals,
+        source_domain_quality_failures,
+        hot_paths=SCOUT_SOURCE_QUALITY_HOT_PATH_SOURCE_DOMAINS,
+    )
+    return {
+        "query_penalties": query_penalties,
+        "source_type_penalties": source_type_penalties,
+        "source_domain_penalties": source_domain_penalties,
+        "top_source_quality_failure_reasons": dict(failure_reasons.most_common(10)),
+        "top_source_quality_failure_queries": summarize_counter(query_quality_failures, key_name="query"),
+        "top_source_quality_failure_source_types": summarize_counter(
+            source_type_quality_failures,
+            key_name="source",
+        ),
+        "top_source_quality_failure_source_domains": summarize_counter(
+            source_domain_quality_failures,
+            key_name="domain",
+        ),
+        "penalized_queries": [{"query": key, "penalty": value} for key, value in sorted(query_penalties.items())],
+        "penalized_source_types": [{"source": key, "penalty": value} for key, value in sorted(source_type_penalties.items())],
+        "penalized_source_domains": [{"domain": key, "penalty": value} for key, value in sorted(source_domain_penalties.items())],
+    }
+
+
+def classify_agent_hunt_source_quality_suppression_reason(
+    row: Dict[str, str],
+    scored: Dict[str, object],
+) -> str:
+    source_type = str(scored.get("source_type", "") or "").strip()
+    source_query = str(scored.get("source_query", "") or "").strip()
+    source_domain = registrable_domain(str(scored.get("source_url", "") or "").strip())
+    if not is_source_quality_hot_path(source_type, source_query, source_domain):
+        return ""
+
+    components = dict(scored.get("components", {}) or {})
+    score = int(scored.get("score", 0) or 0)
+    if int(components.get("epic_enterprise_or_famous_hint", 0) or 0) < 0:
+        return "enterprise_or_famous_source_hint"
+    if int(components.get("epic_generic_author_title", 0) or 0) < 0:
+        return "bad_author_name_generic_source_title"
+    if int(components.get("epic_implausible_author_title", 0) or 0) < 0 and score <= INTAKE_SCORE_HIGH_THRESHOLD - 10:
+        return "bad_author_name_implausible_source_title"
+    if int(components.get("prior_source_quality_penalty", 0) or 0) < 0:
+        author_label = normalize_source_author_label(str(row.get("SourceTitle", "") or ""))
+        if (not author_label or not looks_like_plausible_author_identity(author_label, str(row.get("CandidateURL", "") or ""))) and score <= (
+            INTAKE_SCORE_LOW_THRESHOLD + 8
+        ):
+            return "repeated_junk_source_low_score"
+    return ""
+
+
+def summarize_before_after_counter(
+    before_counts: Counter[str],
+    after_counts: Counter[str],
+    *,
+    key_name: str,
+) -> List[Dict[str, object]]:
+    out: List[Dict[str, object]] = []
+    for key, before in sorted(before_counts.items(), key=lambda item: (-item[1], item[0])):
+        after = int(after_counts.get(key, 0))
+        out.append(
+            {
+                key_name: key,
+                "before": int(before),
+                "after": after,
+                "suppressed": int(before) - after,
+            }
+        )
+    return out[:10]
+
+
+def suppress_agent_hunt_source_quality_candidates(
+    candidate_rows: List[Dict[str, str]],
+    *,
+    scoring_context: Dict[str, object],
+) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
+    score_map = dict(scoring_context.get("score_map", {}) or {})
+    score_map_by_url = dict(scoring_context.get("score_map_by_url", {}) or {})
+    kept: List[Dict[str, str]] = []
+    reason_counts: Counter[str] = Counter()
+    suppressed_source_domains: Counter[str] = Counter()
+    suppressed_source_types: Counter[str] = Counter()
+    suppressed_source_queries: Counter[str] = Counter()
+    before_penalized_domains: Counter[str] = Counter()
+    before_penalized_source_types: Counter[str] = Counter()
+    before_penalized_source_queries: Counter[str] = Counter()
+    after_penalized_domains: Counter[str] = Counter()
+    after_penalized_source_types: Counter[str] = Counter()
+    after_penalized_source_queries: Counter[str] = Counter()
+    suppressed_due_to_feedback_count = 0
+
+    for row in candidate_rows:
+        scored = score_map.get(candidate_identity_from_row(row))
+        if not scored:
+            scored = score_map_by_url.get(normalize_url(row.get("CandidateURL", "")) or row.get("CandidateURL", ""))
+        if not scored:
+            kept.append(row)
+            continue
+        source_type = str(scored.get("source_type", "") or "").strip()
+        source_query = str(scored.get("source_query", "") or "").strip()
+        source_domain = registrable_domain(str(scored.get("source_url", "") or "").strip())
+        components = dict(scored.get("components", {}) or {})
+        is_penalized = int(components.get("prior_source_quality_penalty", 0) or 0) < 0 or is_source_quality_hot_path(
+            source_type,
+            source_query,
+            source_domain,
+        )
+        if is_penalized:
+            if source_domain:
+                before_penalized_domains[source_domain] += 1
+            if source_type:
+                before_penalized_source_types[source_type] += 1
+            if source_query:
+                before_penalized_source_queries[source_query] += 1
+        reason = classify_agent_hunt_source_quality_suppression_reason(row, scored)
+        if reason:
+            reason_counts[reason] += 1
+            if source_domain:
+                suppressed_source_domains[source_domain] += 1
+            if source_type:
+                suppressed_source_types[source_type] += 1
+            if source_query:
+                suppressed_source_queries[source_query] += 1
+            if int(components.get("prior_source_quality_penalty", 0) or 0) < 0:
+                suppressed_due_to_feedback_count += 1
+            continue
+        kept.append(row)
+        if is_penalized:
+            if source_domain:
+                after_penalized_domains[source_domain] += 1
+            if source_type:
+                after_penalized_source_types[source_type] += 1
+            if source_query:
+                after_penalized_source_queries[source_query] += 1
+
+    return kept, {
+        "suppressed_by_source_quality_count": int(sum(reason_counts.values())),
+        "top_source_quality_suppression_reasons": dict(reason_counts.most_common(10)),
+        "source_quality_suppressed_source_domains": summarize_counter(suppressed_source_domains, key_name="domain"),
+        "source_quality_suppressed_source_types": summarize_counter(suppressed_source_types, key_name="source"),
+        "source_quality_suppressed_source_queries": summarize_counter(suppressed_source_queries, key_name="query"),
+        "suppressed_due_to_source_quality_feedback_count": suppressed_due_to_feedback_count,
+        "source_quality_penalty_before_after_source_domains": summarize_before_after_counter(
+            before_penalized_domains,
+            after_penalized_domains,
+            key_name="domain",
+        ),
+        "source_quality_penalty_before_after_source_types": summarize_before_after_counter(
+            before_penalized_source_types,
+            after_penalized_source_types,
+            key_name="source",
+        ),
+        "source_quality_penalty_before_after_source_queries": summarize_before_after_counter(
+            before_penalized_source_queries,
+            after_penalized_source_queries,
+            key_name="query",
+        ),
+    }
+
+
+def throttle_agent_hunt_epic_directory_candidates(
+    candidate_rows: List[Dict[str, str]],
+    *,
+    scoring_context: Dict[str, object],
+) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
+    score_map = dict(scoring_context.get("score_map", {}) or {})
+    score_map_by_url = dict(scoring_context.get("score_map_by_url", {}) or {})
+    epic_rows: List[Tuple[int, int, Dict[str, str], Dict[str, object]]] = []
+
+    for index, row in enumerate(candidate_rows):
+        scored = score_map.get(candidate_identity_from_row(row))
+        if not scored:
+            scored = score_map_by_url.get(normalize_url(row.get("CandidateURL", "")) or row.get("CandidateURL", ""))
+        source_type = str((scored or {}).get("source_type", "") or row.get("SourceType", "") or "").strip()
+        if source_type == "epic_directory":
+            epic_rows.append((int((scored or {}).get("score", 0) or 0), index, row, dict(scored or {})))
+
+    epic_before = len(epic_rows)
+    if epic_before <= AGENT_HUNT_EPIC_DIRECTORY_MAX_CANDIDATES_PER_BATCH:
+        return candidate_rows, {
+            "epic_directory_throttled_count": 0,
+            "epic_directory_before_count": epic_before,
+            "epic_directory_after_count": epic_before,
+            "epic_directory_throttle_cap": AGENT_HUNT_EPIC_DIRECTORY_MAX_CANDIDATES_PER_BATCH,
+            "epic_directory_throttle_applied": False,
+        }
+
+    epic_rows.sort(key=lambda item: (-item[0], item[1]))
+    kept_epic_rows = [row for _, _, row, _ in epic_rows[:AGENT_HUNT_EPIC_DIRECTORY_MAX_CANDIDATES_PER_BATCH]]
+    kept_identity_keys = {candidate_identity_from_row(row) for row in kept_epic_rows}
+    throttled_rows = [row for _, _, row, _ in epic_rows if candidate_identity_from_row(row) not in kept_identity_keys]
+    throttled_source_domains: Counter[str] = Counter()
+    throttled_source_queries: Counter[str] = Counter()
+    for row in throttled_rows:
+        source_domain = registrable_domain(row.get("SourceURL", ""))
+        source_query = (row.get("SourceQuery", "") or "").strip()
+        if source_domain:
+            throttled_source_domains[source_domain] += 1
+        if source_query:
+            throttled_source_queries[source_query] += 1
+
+    kept_ordered: List[Dict[str, str]] = []
+    for row in candidate_rows:
+        if (row.get("SourceType", "") or "").strip() == "epic_directory":
+            if candidate_identity_from_row(row) in kept_identity_keys:
+                kept_ordered.append(row)
+        else:
+            kept_ordered.append(row)
+
+    return kept_ordered, {
+        "epic_directory_throttled_count": len(throttled_rows),
+        "epic_directory_before_count": epic_before,
+        "epic_directory_after_count": len(kept_epic_rows),
+        "epic_directory_throttle_cap": AGENT_HUNT_EPIC_DIRECTORY_MAX_CANDIDATES_PER_BATCH,
+        "epic_directory_throttle_applied": True,
+        "epic_directory_throttled_source_domains": summarize_counter(throttled_source_domains, key_name="domain"),
+        "epic_directory_throttled_source_queries": summarize_counter(throttled_source_queries, key_name="query"),
     }
 
 
@@ -2934,6 +3874,7 @@ def main() -> int:
     else:
         starting_total = 0
     agent_hunt_listing_feedback: Dict[str, object] = {}
+    agent_hunt_source_quality_feedback: Dict[str, object] = {}
     write_live_status(
         status="running",
         stage="starting",
@@ -3199,7 +4140,31 @@ def main() -> int:
                 filtered_candidate_rows,
                 validation_profile=validation_profile,
                 agent_hunt_listing_feedback=agent_hunt_listing_feedback if is_agent_hunt_profile(validation_profile) else None,
+                agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback if is_agent_hunt_profile(validation_profile) else None,
             )
+            if is_agent_hunt_profile(validation_profile):
+                filtered_candidate_rows, source_quality_suppression_stats = suppress_agent_hunt_source_quality_candidates(
+                    filtered_candidate_rows,
+                    scoring_context=candidate_scoring_context,
+                )
+                suppression_stats.update(source_quality_suppression_stats)
+                filtered_candidate_rows, candidate_scoring_context = order_candidates_for_strict_validation(
+                    filtered_candidate_rows,
+                    validation_profile=validation_profile,
+                    agent_hunt_listing_feedback=agent_hunt_listing_feedback,
+                    agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
+                )
+                filtered_candidate_rows, epic_directory_throttle_stats = throttle_agent_hunt_epic_directory_candidates(
+                    filtered_candidate_rows,
+                    scoring_context=candidate_scoring_context,
+                )
+                suppression_stats.update(epic_directory_throttle_stats)
+                filtered_candidate_rows, candidate_scoring_context = order_candidates_for_strict_validation(
+                    filtered_candidate_rows,
+                    validation_profile=validation_profile,
+                    agent_hunt_listing_feedback=agent_hunt_listing_feedback,
+                    agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
+                )
             write_candidate_rows(filtered_candidates_path, filtered_candidate_rows)
             suppression_message = (
                 f"[INFO] batch {run_idx}: suppressed {suppression_stats['suppressed_pre_validate_total']} "
@@ -3618,6 +4583,7 @@ def main() -> int:
             for record in list((stats.get("candidate_outcome_records", []) or []))
         ]
         if is_agent_hunt_profile(validation_profile):
+            candidate_outcome_records = recover_agent_hunt_listing_friction_emails(candidate_outcome_records)
             agent_hunt_stats = build_agent_hunt_stats(
                 validated_rows=batch_rows,
                 validator_reject_reasons=validation_orchestration_stats.get("reject_reasons", {}),
@@ -3628,6 +4594,9 @@ def main() -> int:
             rescued_listing_rows = list(agent_hunt_stats.get("listing_blocked_scout_rows", []) or [])
             if rescued_listing_rows:
                 master_batch_rows = dedupe(master_batch_rows + rescued_listing_rows)
+            caution_listing_rows = list(agent_hunt_stats.get("listing_blocked_caution_rows", []) or [])
+            if caution_listing_rows:
+                queue_only_batch_rows = dedupe(queue_only_batch_rows + caution_listing_rows)
         before = count_goal_rows(existing_master_rows, validation_profile=validation_profile, policy=args.merge_policy)
         master_rows = dedupe(master_rows + master_batch_rows)
         after = count_goal_rows(master_rows, validation_profile=validation_profile, policy=args.merge_policy)
@@ -3663,6 +4632,7 @@ def main() -> int:
                 candidate_outcome_records,
                 rescued_candidate_identities=set(agent_hunt_stats.get("rescued_candidate_identities", []) or []),
             )
+            agent_hunt_source_quality_feedback = build_agent_hunt_source_quality_feedback(candidate_outcome_records)
             scouted_rows = list(agent_hunt_stats.get("scouted_rows", []) or [])
             strict_rows = list(agent_hunt_stats.get("strict_rows", []) or [])
             if not args.no_scouted_output:
@@ -3748,6 +4718,12 @@ def main() -> int:
                 "strict_rows_written": int(agent_hunt_stats.get("strict_rows_written", 0) or 0),
                 "top_reject_reasons": dict(agent_hunt_stats.get("top_reject_reasons", {}) or {}),
                 "scout_gate_reject_reasons": dict(agent_hunt_stats.get("scout_gate_reject_reasons", {}) or {}),
+                "routing_counts": dict(agent_hunt_stats.get("routing_counts", {}) or {}),
+                "top_caution_reasons": dict(agent_hunt_stats.get("top_caution_reasons", {}) or {}),
+                "top_rejected_reasons": dict(agent_hunt_stats.get("top_rejected_reasons", {}) or {}),
+                "top_reasons_caution_fail_promotion_to_qualified": dict(
+                    agent_hunt_stats.get("top_reasons_caution_fail_promotion_to_qualified", {}) or {}
+                ),
                 "scoutworthy_not_outreach_ready_count": int(
                     agent_hunt_stats.get("scoutworthy_not_outreach_ready_count", 0) or 0
                 ),
@@ -3757,11 +4733,47 @@ def main() -> int:
                 "scoutworthy_not_outreach_ready_source_domains": list(
                     agent_hunt_stats.get("scoutworthy_not_outreach_ready_source_domains", []) or []
                 ),
+                "caution_source_types": list(agent_hunt_stats.get("caution_source_types", []) or []),
+                "caution_source_queries": list(agent_hunt_stats.get("caution_source_queries", []) or []),
+                "rejected_source_domains": list(agent_hunt_stats.get("rejected_source_domains", []) or []),
+                "rejected_source_types": list(agent_hunt_stats.get("rejected_source_types", []) or []),
+                "rejected_source_queries": list(agent_hunt_stats.get("rejected_source_queries", []) or []),
                 "listing_friction": dict(agent_hunt_stats.get("listing_friction", {}) or {}),
+                "listing_friction_email_recovery_attempted_count": int(
+                    agent_hunt_stats.get("listing_friction_email_recovery_attempted_count", 0) or 0
+                ),
+                "listing_friction_email_recovery_success_count": int(
+                    agent_hunt_stats.get("listing_friction_email_recovery_success_count", 0) or 0
+                ),
+                "listing_friction_email_recovery_fail_count": int(
+                    agent_hunt_stats.get("listing_friction_email_recovery_fail_count", 0) or 0
+                ),
+                "top_listing_friction_email_recovery_fail_reasons": dict(
+                    agent_hunt_stats.get("top_listing_friction_email_recovery_fail_reasons", {}) or {}
+                ),
+                "listing_friction_email_recovered_source_domains": list(
+                    agent_hunt_stats.get("listing_friction_email_recovered_source_domains", []) or []
+                ),
+                "listing_friction_email_recovered_source_types": list(
+                    agent_hunt_stats.get("listing_friction_email_recovered_source_types", []) or []
+                ),
+                "listing_friction_email_recovered_source_queries": list(
+                    agent_hunt_stats.get("listing_friction_email_recovered_source_queries", []) or []
+                ),
+                "listing_friction_email_recovery_failed_source_domains": list(
+                    agent_hunt_stats.get("listing_friction_email_recovery_failed_source_domains", []) or []
+                ),
+                "listing_friction_email_recovery_failed_source_types": list(
+                    agent_hunt_stats.get("listing_friction_email_recovery_failed_source_types", []) or []
+                ),
+                "listing_friction_email_recovery_failed_source_queries": list(
+                    agent_hunt_stats.get("listing_friction_email_recovery_failed_source_queries", []) or []
+                ),
                 "scouted_source_domains": list(agent_hunt_stats.get("scouted_source_domains", []) or []),
                 "strict_source_domains": list(agent_hunt_stats.get("strict_source_domains", []) or []),
                 "author_convergence": dict(agent_hunt_stats.get("author_convergence", {}) or {}),
                 "listing_feedback_for_next_batch": dict(agent_hunt_listing_feedback or {}),
+                "source_quality_feedback_for_next_batch": dict(agent_hunt_source_quality_feedback or {}),
             }
         if harvest_stats:
             run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")

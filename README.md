@@ -150,6 +150,12 @@ This keeps the staged validator behavior, writes a separate 3-column no-header s
 
 `fully_verified_leads.csv` remains strict-only and is not loosened by `agent_hunt`.
 
+## Current Operating Note
+- `agent_hunt` is now considered tuned enough for the current source mix.
+- `epic_directory` / `epic:author-directory` is a known low-ceiling source under the real `--listing-strict` off path.
+- The pipeline now suppresses obvious `epic_directory` junk earlier and throttles its per-batch share, but further yield gains are more likely to come from improving source mix than from more internal routing tweaks.
+- Prefer future work on stronger sources, weaker-source share reduction, and source ranking by observed yield before revisiting pipeline internals.
+
 Astra outbound preset:
 ```bash
 python run_lead_finder_loop.py \

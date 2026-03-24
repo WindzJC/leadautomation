@@ -8,10 +8,12 @@ from typing import Any, Callable
 from dashboard.data_loader import (
     PROJECT_ROOT,
     RunContext,
+    context_output_paths,
     discover_run_contexts,
     list_run_tags,
     load_run_bundle,
     read_json_file,
+    read_lead_export,
     run_file_map,
 )
 from dashboard.runner import get_run_status
@@ -24,6 +26,7 @@ RUN_ARTIFACT_PATH_KEYS = {
     "validated": "validated_export",
     "rejected": "rejected_export",
     "final": "final",
+    "new_leads": "new_leads",
     "log": "pipeline_stdout",
 }
 RUN_ARTIFACT_LABELS = {
@@ -31,6 +34,7 @@ RUN_ARTIFACT_LABELS = {
     "validated": "Validated CSV",
     "rejected": "Rejected CSV",
     "final": "Final Leads CSV",
+    "new_leads": "New Leads CSV",
     "log": "Run Log",
 }
 
@@ -269,15 +273,19 @@ def load_rejected_rows(api_run_id: str, base_dir: Path | None = None) -> list[di
 def _project_minimal_lead_rows(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
     projected: list[dict[str, str]] = []
     for row in rows:
+        author_name = str(row.get("AuthorName", "") or "").strip()
+        author_email = str(row.get("AuthorEmail", "") or "").strip()
         source_url = (
             str(row.get("SourceURL", "") or "").strip()
             or str(row.get("AuthorEmailSourceURL", "") or "").strip()
             or str(row.get("CandidateURL", "") or "").strip()
         )
+        if not (author_name and author_email and source_url):
+            continue
         projected.append(
             {
-                "AuthorName": str(row.get("AuthorName", "") or "").strip(),
-                "AuthorEmail": str(row.get("AuthorEmail", "") or "").strip(),
+                "AuthorName": author_name,
+                "AuthorEmail": author_email,
                 "SourceURL": source_url,
             }
         )
@@ -286,13 +294,35 @@ def _project_minimal_lead_rows(rows: list[dict[str, Any]]) -> list[dict[str, str
 
 def load_lead_output(api_run_id: str, base_dir: Path | None = None) -> dict[str, Any]:
     detail = load_run_detail(api_run_id, base_dir=base_dir)
+    context = detail["context"]
     bundle = detail["bundle"]
+    new_leads_path = bundle.get("paths", {}).get("new_leads")
+    if isinstance(new_leads_path, Path) and new_leads_path.is_file():
+        return {"source": "new_leads", "rows": read_lead_export(new_leads_path)}
+    output_paths = context_output_paths(context)
+
+    verified_rows = read_lead_export(output_paths["fully_verified_leads"])
+    if verified_rows:
+        return {"source": "fully_verified_leads", "rows": verified_rows}
+
+    scouted_rows = read_lead_export(output_paths["scouted_leads"])
+    if scouted_rows:
+        return {"source": "scouted_leads", "rows": scouted_rows}
+
+    lead_export_rows = read_lead_export(output_paths["lead_export"])
+    if lead_export_rows:
+        return {"source": output_paths["lead_export"].stem, "rows": lead_export_rows}
+
     final_rows = list(bundle.get("final_rows") or [])
-    if final_rows:
-        return {"source": "final", "rows": _project_minimal_lead_rows(final_rows)}
+    projected_final_rows = _project_minimal_lead_rows(final_rows)
+    if projected_final_rows:
+        return {"source": "final", "rows": projected_final_rows}
+
     validated_rows = list(bundle.get("validated_export_rows") or bundle.get("validated_rows") or [])
-    if validated_rows:
-        return {"source": "validated", "rows": _project_minimal_lead_rows(validated_rows)}
+    projected_validated_rows = _project_minimal_lead_rows(validated_rows)
+    if projected_validated_rows:
+        return {"source": "validated", "rows": projected_validated_rows}
+
     return {"source": "final", "rows": []}
 
 
@@ -366,11 +396,20 @@ def _runner_state_is_stale(status: dict[str, Any]) -> bool:
     )
 
 
+def _runner_status_is_terminal(status: dict[str, Any]) -> bool:
+    return str(status.get("status_label", "") or "").strip().lower() in {"stopped", "finished", "failed"}
+
+
 def load_live_status(
     base_dir: Path | None = None,
     runner_status_provider: Callable[[], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     root = (base_dir or PROJECT_ROOT).resolve()
+    provider = runner_status_provider or get_run_status
+    runner_status = provider()
+    if runner_status and _runner_status_is_terminal(runner_status):
+        return _runner_status_to_live_payload(runner_status)
+
     preferred = root / STATE_DIR / LIVE_STATUS_FILENAME
     legacy = root / LEGACY_STATE_DIR / LIVE_STATUS_FILENAME
     path = resolve_with_legacy(preferred, legacy)
@@ -381,8 +420,6 @@ def load_live_status(
         payload.setdefault("stage", str(payload.get("status", "") or "idle"))
         return payload
 
-    provider = runner_status_provider or get_run_status
-    runner_status = provider()
     if runner_status and _runner_state_is_stale(runner_status):
         return {
             "active": False,

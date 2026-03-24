@@ -4,7 +4,13 @@ import csv
 from pathlib import Path
 
 from prospect_dedupe import dedupe
-from run_lead_finder_loop import build_rotating_queries, write_contact_queue_rows, write_minimal_rows
+from run_lead_finder_loop import (
+    build_new_lead_export_rows,
+    build_rotating_queries,
+    write_contact_queue_rows,
+    write_minimal_rows,
+    write_projected_lead_export_rows,
+)
 
 
 def test_dedupe_by_email_author_or_listing() -> None:
@@ -105,3 +111,31 @@ def test_rotating_queries_are_author_site_focused() -> None:
     assert any('"indie author" "official website" "contact"' == query for query in queries)
     assert any('"self-published author" "official website"' == query for query in queries)
     assert any('"fantasy" "indie author" "official website"' == query for query in queries)
+
+
+def test_build_new_lead_export_rows_only_keeps_rows_not_already_in_export() -> None:
+    existing_rows = [
+        {"AuthorName": "Jane Doe", "AuthorEmail": "jane@example.com", "SourceURL": "https://janedoe.example/about"},
+    ]
+    current_rows = [
+        {"AuthorName": "Jane Doe", "AuthorEmail": "jane@example.com", "SourceURL": "https://janedoe.example/about"},
+        {"AuthorName": "New Author", "AuthorEmail": "new@example.com", "SourceURL": "https://new.example/contact"},
+    ]
+
+    assert build_new_lead_export_rows(current_rows, existing_rows) == [
+        {"AuthorName": "New Author", "AuthorEmail": "new@example.com", "SourceURL": "https://new.example/contact"},
+    ]
+
+
+def test_write_projected_lead_export_rows_writes_three_columns_without_header(tmp_path: Path) -> None:
+    output_path = tmp_path / "new_leads.csv"
+    rows = [
+        {"AuthorName": "New Author", "AuthorEmail": "NEW@EXAMPLE.COM", "SourceURL": "https://new.example/contact"},
+    ]
+
+    count = write_projected_lead_export_rows(output_path, rows)
+
+    assert count == 1
+    with output_path.open("r", encoding="utf-8", newline="") as fh:
+        data = list(csv.reader(fh))
+    assert data == [["New Author", "new@example.com", "https://new.example/contact"]]

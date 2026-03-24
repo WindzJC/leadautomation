@@ -253,6 +253,7 @@ def run_file_map(context: RunContext, run_tag: str) -> dict[str, Path]:
         "validated_export": resolve_csv_path(context.root_path, f"validated_run_{run_tag}.csv"),
         "rejected_export": resolve_csv_path(context.root_path, f"rejected_run_{run_tag}.csv"),
         "final": runs / f"run_{run_tag}_final.csv",
+        "new_leads": runs / f"run_{run_tag}_new_leads.csv",
         "pipeline_stdout": runs / f"run_{run_tag}_pipeline.stdout.log",
         "pipeline_stderr": runs / f"run_{run_tag}_pipeline.stderr.log",
     }
@@ -271,6 +272,7 @@ def load_run_bundle(context: RunContext, run_tag: str) -> dict[str, Any]:
         "validated_export_rows": read_csv_with_header(paths["validated_export"]),
         "rejected_rows": read_csv_with_header(paths["rejected_export"]),
         "final_rows": read_csv_with_header(paths["final"]),
+        "new_leads_rows": read_lead_export(paths["new_leads"]),
     }
 
 

@@ -1,6 +1,7 @@
 const state = {
   runs: [],
   selectedRunId: "",
+  leadRows: [],
 };
 let runConfigSaveTimer = null;
 
@@ -26,6 +27,33 @@ const RUN_FORM_FIELDS = [
   "run_folder_name",
   "listing_strict",
 ];
+
+const RUN_PRESETS = {
+  safe_day: {
+    validation_profile: "agent_hunt",
+    goal_final: 200,
+    max_runs: 12,
+    max_stale_runs: 4,
+    target: 80,
+    min_candidates: 50,
+    max_candidates: 50,
+    batch_min: 20,
+    batch_max: 20,
+    listing_strict: false,
+  },
+  aggressive_day: {
+    validation_profile: "agent_hunt",
+    goal_final: 250,
+    max_runs: 15,
+    max_stale_runs: 5,
+    target: 100,
+    min_candidates: 60,
+    max_candidates: 60,
+    batch_min: 20,
+    batch_max: 20,
+    listing_strict: false,
+  },
+};
 
 function setError(message) {
   const banner = document.getElementById("error-banner");
@@ -267,6 +295,7 @@ function renderSelectedRows(rejectedRows, validatedRows) {
 function renderLeadOutput(payload) {
   const rows = payload.rows || [];
   const source = payload.source || "final";
+  state.leadRows = rows;
   document.getElementById("lead-output-count").textContent = `${rows.length} rows`;
   document.getElementById("lead-output-source").textContent = rows.length
     ? `Showing ${prettifyLabel(source)} lead output`
@@ -274,19 +303,69 @@ function renderLeadOutput(payload) {
   renderTableBody(
     "lead-output-table-body",
     rows,
-    ["AuthorName", "AuthorEmail", "SourceURL"],
+    ["AuthorName", "AuthorEmail"],
     "No accepted leads for this run.",
   );
+  updateLeadCopyUi();
+}
+
+function buildLeadCopyText(rows) {
+  return rows
+    .map((row) => `${row.AuthorName || ""},${row.AuthorEmail || ""}`)
+    .join("\n");
+}
+
+function setLeadCopyStatus(message) {
+  document.getElementById("lead-output-copy-status").textContent = message || "";
+}
+
+function updateLeadCopyUi() {
+  const button = document.getElementById("lead-output-copy-button");
+  button.disabled = !state.leadRows.length;
+  if (!state.leadRows.length) {
+    setLeadCopyStatus("");
+  }
+}
+
+async function copyLeadRows() {
+  if (!state.leadRows.length) {
+    return;
+  }
+  const text = buildLeadCopyText(state.leadRows);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const helper = document.createElement("textarea");
+      helper.value = text;
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand("copy");
+      helper.remove();
+    }
+    setLeadCopyStatus(`Copied ${state.leadRows.length} rows`);
+  } catch (_error) {
+    setLeadCopyStatus("Copy failed");
+  }
 }
 
 function applyRunConfig(configPayload) {
   const profiles = configPayload.validation_profiles || [];
   const config = configPayload.config || {};
-  const select = document.getElementById("run-validation-profile");
-  if (!select.options.length) {
-    select.innerHTML = profiles.map((profile) => `<option value="${profile}">${prettifyLabel(profile)}</option>`).join("");
+  const hiddenInput = document.getElementById("run-validation-profile");
+  const overrideSelect = document.getElementById("run-validation-profile-override");
+  const profileLabel = document.getElementById("run-validation-profile-label");
+  if (!overrideSelect.options.length) {
+    overrideSelect.innerHTML = profiles.map((profile) => `<option value="${profile}">${prettifyLabel(profile)}</option>`).join("");
   }
+  const validationProfile = config.validation_profile || "agent_hunt";
+  hiddenInput.value = validationProfile;
+  overrideSelect.value = validationProfile;
+  profileLabel.textContent = prettifyLabel(validationProfile);
   RUN_FORM_FIELDS.forEach((field) => {
+    if (field === "validation_profile") {
+      return;
+    }
     const element = document.querySelector(`[name="${field}"]`);
     if (!element) {
       return;
@@ -317,6 +396,32 @@ function getRunFormPayload() {
     }
   });
   return payload;
+}
+
+function applyRunPreset(presetName) {
+  const preset = RUN_PRESETS[presetName];
+  if (!preset) {
+    return;
+  }
+  const form = document.getElementById("run-control-form");
+  Object.entries(preset).forEach(([field, value]) => {
+    if (field === "validation_profile") {
+      document.getElementById("run-validation-profile").value = value;
+      document.getElementById("run-validation-profile-override").value = value;
+      document.getElementById("run-validation-profile-label").textContent = prettifyLabel(value);
+      return;
+    }
+    const element = form.elements.namedItem(field);
+    if (!element) {
+      return;
+    }
+    if (element.type === "checkbox") {
+      element.checked = Boolean(value);
+    } else {
+      element.value = value;
+    }
+  });
+  scheduleRunConfigSave();
 }
 
 function renderRunControlStatus(status) {
@@ -492,6 +597,15 @@ function bindRunControls() {
   const form = document.getElementById("run-control-form");
   form.addEventListener("submit", handleRunStart);
   document.getElementById("run-stop-button").addEventListener("click", handleRunStop);
+  document.getElementById("lead-output-copy-button").addEventListener("click", copyLeadRows);
+  document.getElementById("preset-safe-day").addEventListener("click", () => applyRunPreset("safe_day"));
+  document.getElementById("preset-aggressive-day").addEventListener("click", () => applyRunPreset("aggressive_day"));
+  document.getElementById("run-validation-profile-override").addEventListener("change", (event) => {
+    const value = event.target.value || "agent_hunt";
+    document.getElementById("run-validation-profile").value = value;
+    document.getElementById("run-validation-profile-label").textContent = prettifyLabel(value);
+    scheduleRunConfigSave();
+  });
   form.querySelectorAll("input, select").forEach((element) => {
     const eventName = element.type === "text" || element.type === "number" ? "change" : "change";
     element.addEventListener(eventName, scheduleRunConfigSave);

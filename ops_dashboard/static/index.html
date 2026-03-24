@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">Internal Ops</p>
           <h1>Lead Finder Dashboard</h1>
-          <p class="subhead">Run history, funnel health, rejects, validated leads, and live status.</p>
+          <p class="subhead">Start a run, watch status, then copy the leads you want to use.</p>
         </div>
         <section class="live-panel">
           <div class="panel-label">Live Status</div>
@@ -31,13 +31,20 @@
           <div>
             <p class="panel-label">Run Control</p>
             <h2>Launch Lead Finder</h2>
+            <p class="panel-meta panel-submeta">Quick day-session presets for `agent_hunt`. They keep your current output folder and remain editable.</p>
+            <div class="preset-toolbar">
+              <button id="preset-safe-day" type="button" class="button-secondary">Safe Day Run</button>
+              <button id="preset-aggressive-day" type="button" class="button-secondary">Aggressive Day Run</button>
+            </div>
           </div>
           <span id="run-control-status" class="panel-meta">Idle</span>
         </div>
         <form id="run-control-form" class="run-form">
           <label>
             <span>Validation Profile</span>
-            <select id="run-validation-profile" name="validation_profile"></select>
+            <div id="run-validation-profile-label" class="static-field">Agent Hunt</div>
+            <input id="run-validation-profile" name="validation_profile" type="hidden" value="agent_hunt" />
+            <small class="field-help">Best default for daily lead harvesting.</small>
           </label>
           <label>
             <span>Goal Final</span>
@@ -88,124 +95,19 @@
             <button id="run-stop-button" type="button" class="button-secondary">Stop Run</button>
           </div>
         </form>
+        <details class="run-settings-advanced">
+          <summary>Advanced run settings</summary>
+          <div class="advanced-run-settings-grid">
+            <label>
+              <span>Profile Override</span>
+              <select id="run-validation-profile-override"></select>
+              <small class="field-help">Only change this if you intentionally want a strict verified mode.</small>
+            </label>
+          </div>
+        </details>
       </section>
 
-      <section id="overview-cards" class="overview-grid"></section>
-
-      <div class="content-grid">
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-label">Overview</p>
-              <h2>Top Reject Reasons</h2>
-            </div>
-            <span id="latest-run-label" class="panel-meta"></span>
-          </div>
-          <div id="top-reject-reasons" class="reason-list"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-label">Run Details</p>
-              <h2 id="selected-run-title">No run selected</h2>
-            </div>
-            <span id="selected-run-status" class="panel-meta"></span>
-          </div>
-          <div id="selected-run-summary" class="selected-summary empty-state">Select a run to load details.</div>
-          <div id="selected-run-funnel" class="funnel-grid"></div>
-          <div id="artifact-links" class="artifact-links empty-state">Select a run to see downloadable artifacts.</div>
-        </section>
-      </div>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <p class="panel-label">History</p>
-            <h2>Runs</h2>
-          </div>
-          <span id="run-count" class="panel-meta"></span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Run</th>
-                <th>Context</th>
-                <th>Status</th>
-                <th>Validated</th>
-                <th>Rejected</th>
-                <th>Duplicates</th>
-                <th>Generated</th>
-              </tr>
-            </thead>
-            <tbody id="runs-table-body"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <div class="content-grid">
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-label">Live Monitor</p>
-              <h2>Run Log</h2>
-            </div>
-            <span id="run-log-meta" class="panel-meta"></span>
-          </div>
-          <pre id="run-log-output" class="log-output">No log output yet.</pre>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-label">Selected Run</p>
-              <h2>Rejected Leads</h2>
-            </div>
-            <span id="rejected-count" class="panel-meta"></span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Author</th>
-                  <th>Book</th>
-                  <th>Domain</th>
-                  <th>Primary Fail</th>
-                  <th>Fail Reasons</th>
-                </tr>
-              </thead>
-              <tbody id="rejected-table-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-label">Selected Run</p>
-              <h2>Validated Leads</h2>
-            </div>
-            <span id="validated-count" class="panel-meta"></span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Author</th>
-                  <th>Book</th>
-                  <th>Email</th>
-                  <th>Listing</th>
-                  <th>Recency</th>
-                </tr>
-              </thead>
-              <tbody id="validated-table-body"></tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      <section class="panel">
+      <section class="panel lead-panel">
         <div class="panel-header">
           <div>
             <p class="panel-label">Selected Run</p>
@@ -214,19 +116,150 @@
           <span id="lead-output-count" class="panel-meta"></span>
         </div>
         <div id="lead-output-source" class="panel-meta panel-submeta"></div>
+        <div class="lead-toolbar">
+          <div class="panel-meta">Showing only <code>AuthorName,AuthorEmail</code>. Full <code>SourceURL</code> auditability stays available in run artifacts.</div>
+          <div class="lead-toolbar-actions">
+            <button id="lead-output-copy-button" type="button" class="button-secondary">Copy Leads</button>
+            <span id="lead-output-copy-status" class="copy-status"></span>
+          </div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Author</th>
                 <th>Email</th>
-                <th>Source URL</th>
               </tr>
             </thead>
             <tbody id="lead-output-table-body"></tbody>
           </table>
         </div>
       </section>
+
+      <details class="advanced-panel">
+        <summary class="advanced-summary">
+          <div>
+            <p class="panel-label">Advanced</p>
+            <h2>Run Analysis And Debugging</h2>
+          </div>
+          <span class="panel-meta">History, rejects, validated rows, artifacts, and logs</span>
+        </summary>
+
+        <section id="overview-cards" class="overview-grid"></section>
+
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">Overview</p>
+                <h2>Top Reject Reasons</h2>
+              </div>
+              <span id="latest-run-label" class="panel-meta"></span>
+            </div>
+            <div id="top-reject-reasons" class="reason-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">Run Details</p>
+                <h2 id="selected-run-title">No run selected</h2>
+              </div>
+              <span id="selected-run-status" class="panel-meta"></span>
+            </div>
+            <div id="selected-run-summary" class="selected-summary empty-state">Select a run to load details.</div>
+            <div id="selected-run-funnel" class="funnel-grid"></div>
+            <div id="artifact-links" class="artifact-links empty-state">Select a run to see downloadable artifacts.</div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">History</p>
+              <h2>Runs</h2>
+            </div>
+            <span id="run-count" class="panel-meta"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Context</th>
+                  <th>Status</th>
+                  <th>Validated</th>
+                  <th>Rejected</th>
+                  <th>Duplicates</th>
+                  <th>Generated</th>
+                </tr>
+              </thead>
+              <tbody id="runs-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">Live Monitor</p>
+                <h2>Run Log</h2>
+              </div>
+              <span id="run-log-meta" class="panel-meta"></span>
+            </div>
+            <pre id="run-log-output" class="log-output">No log output yet.</pre>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">Selected Run</p>
+                <h2>Rejected Leads</h2>
+              </div>
+              <span id="rejected-count" class="panel-meta"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Book</th>
+                    <th>Domain</th>
+                    <th>Primary Fail</th>
+                    <th>Fail Reasons</th>
+                  </tr>
+                </thead>
+                <tbody id="rejected-table-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">Selected Run</p>
+                <h2>Validated Leads</h2>
+              </div>
+              <span id="validated-count" class="panel-meta"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Book</th>
+                    <th>Email</th>
+                    <th>Listing</th>
+                    <th>Recency</th>
+                  </tr>
+                </thead>
+                <tbody id="validated-table-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </details>
     </div>
     <script src="/static/app.js" defer></script>
   </body>

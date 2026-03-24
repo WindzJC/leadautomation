@@ -188,6 +188,34 @@ AUTHOR_PATH_RE = re.compile(r"/(?:author|authors|about|bio)/([^/?#]+)", flags=re
 SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
 ROLE_EMAIL_LOCALS = {"admin", "contact", "hello", "help", "hi", "info", "mail", "office", "sales", "support", "team"}
 SCOUT_ACCEPTABLE_EMAIL_QUALITIES = {"same_domain", "labeled_off_domain", "risky_role"}
+AGENT_HUNT_TIER_1 = "tier_1_safest"
+AGENT_HUNT_TIER_2 = "tier_2_usable_with_caution"
+AGENT_HUNT_TIER_3 = "tier_3_weak_but_usable"
+AGENT_HUNT_TIER_PRIORITY = {
+    AGENT_HUNT_TIER_1: 0,
+    AGENT_HUNT_TIER_2: 1,
+    AGENT_HUNT_TIER_3: 2,
+}
+AGENT_HUNT_TIER_TO_DECISION = {
+    AGENT_HUNT_TIER_1: "KEEP",
+    AGENT_HUNT_TIER_2: "RECHECK",
+    AGENT_HUNT_TIER_3: "RECHECK",
+}
+AGENT_HUNT_REP_EMAIL_TOKENS = {
+    "agent",
+    "agency",
+    "assistant",
+    "booking",
+    "bookings",
+    "manager",
+    "media",
+    "press",
+    "pr",
+    "publicist",
+    "publicity",
+    "rights",
+}
+AGENT_HUNT_REP_EMAIL_DOMAIN_HINTS = ("agency", "assist", "media", "press", "publicity", "rights")
 NON_US_HINTS = (
     "australia",
     "canada",
@@ -1364,28 +1392,77 @@ def write_candidate_rows(path: Path, rows: List[Dict[str, str]]) -> None:
         writer.writerows([{col: row.get(col, "") for col in CANDIDATE_COLUMNS} for row in rows])
 
 
-def write_minimal_rows(path: Path, rows: List[Dict[str, str]], with_header: bool) -> int:
+def build_projected_lead_export_rows(
+    rows: List[Dict[str, str]],
+    *,
+    source_url_getter: Callable[[Dict[str, str]], str],
+) -> List[Dict[str, str]]:
     unique = set()
-    out_rows: List[List[str]] = []
+    projected: List[Dict[str, str]] = []
     for row in rows:
         author = (row.get("AuthorName", "") or "").strip()
         email = (row.get("AuthorEmail", "") or "").strip().lower()
-        source_url = best_verified_source_url(row)
+        source_url = source_url_getter(row).strip()
         if not (author and email and source_url):
             continue
         key = (author.lower(), email, source_url.lower())
         if key in unique:
             continue
         unique.add(key)
-        out_rows.append([author, email, source_url])
+        projected.append(
+            {
+                "AuthorName": author,
+                "AuthorEmail": email,
+                "SourceURL": source_url,
+            }
+        )
+    return projected
 
+
+def build_new_lead_export_rows(
+    current_rows: List[Dict[str, str]],
+    existing_rows: List[Dict[str, str]],
+) -> List[Dict[str, str]]:
+    existing_keys = {
+        (
+            (row.get("AuthorName", "") or "").strip().lower(),
+            (row.get("AuthorEmail", "") or "").strip().lower(),
+            (row.get("SourceURL", "") or "").strip().lower(),
+        )
+        for row in existing_rows
+    }
+    return [
+        row
+        for row in current_rows
+        if (
+            (row.get("AuthorName", "") or "").strip().lower(),
+            (row.get("AuthorEmail", "") or "").strip().lower(),
+            (row.get("SourceURL", "") or "").strip().lower(),
+        )
+        not in existing_keys
+    ]
+
+
+def write_projected_lead_export_rows(path: Path, rows: List[Dict[str, str]], *, with_header: bool = False) -> int:
     ensure_parent(path)
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
         if with_header:
             writer.writerow(MINIMAL_COLUMNS)
-        writer.writerows(out_rows)
-    return len(out_rows)
+        for row in rows:
+            writer.writerow(
+                [
+                    (row.get("AuthorName", "") or "").strip(),
+                    (row.get("AuthorEmail", "") or "").strip().lower(),
+                    (row.get("SourceURL", "") or "").strip(),
+                ]
+            )
+    return len(rows)
+
+
+def write_minimal_rows(path: Path, rows: List[Dict[str, str]], with_header: bool) -> int:
+    projected_rows = build_projected_lead_export_rows(rows, source_url_getter=best_verified_source_url)
+    return write_projected_lead_export_rows(path, projected_rows, with_header=with_header)
 
 
 def best_verified_source_url(row: Dict[str, str]) -> str:
@@ -1405,47 +1482,13 @@ def best_scout_source_url(row: Dict[str, str]) -> str:
 
 
 def write_verified_rows(path: Path, rows: List[Dict[str, str]]) -> int:
-    unique = set()
-    out_rows: List[List[str]] = []
-    for row in rows:
-        author = (row.get("AuthorName", "") or "").strip()
-        email = (row.get("AuthorEmail", "") or "").strip().lower()
-        source_url = best_verified_source_url(row)
-        if not (author and email and source_url):
-            continue
-        key = (author.lower(), email, source_url.lower())
-        if key in unique:
-            continue
-        unique.add(key)
-        out_rows.append([author, email, source_url])
-
-    ensure_parent(path)
-    with path.open("w", encoding="utf-8", newline="") as fh:
-        writer = csv.writer(fh)
-        writer.writerows(out_rows)
-    return len(out_rows)
+    projected_rows = build_projected_lead_export_rows(rows, source_url_getter=best_verified_source_url)
+    return write_projected_lead_export_rows(path, projected_rows)
 
 
 def write_scouted_rows(path: Path, rows: List[Dict[str, str]]) -> int:
-    unique = set()
-    out_rows: List[List[str]] = []
-    for row in rows:
-        author = (row.get("AuthorName", "") or "").strip()
-        email = (row.get("AuthorEmail", "") or "").strip().lower()
-        source_url = best_scout_source_url(row)
-        if not (author and email and source_url):
-            continue
-        key = (author.lower(), email, source_url.lower())
-        if key in unique:
-            continue
-        unique.add(key)
-        out_rows.append([author, email, source_url])
-
-    ensure_parent(path)
-    with path.open("w", encoding="utf-8", newline="") as fh:
-        writer = csv.writer(fh)
-        writer.writerows(out_rows)
-    return len(out_rows)
+    projected_rows = build_projected_lead_export_rows(rows, source_url_getter=best_scout_source_url)
+    return write_projected_lead_export_rows(path, projected_rows)
 
 
 def write_contact_queue_rows(path: Path, rows: List[Dict[str, str]], include_email_rows: bool = False) -> int:
@@ -1569,6 +1612,213 @@ def infer_scout_email_quality(email: str, *, candidate_url: str = "", source_url
     return "labeled_off_domain"
 
 
+def agent_hunt_email_local_tokens(email: str) -> List[str]:
+    normalized = (email or "").strip().lower()
+    if "@" not in normalized:
+        return []
+    local_part = normalized.split("@", 1)[0]
+    return [token for token in re.split(r"[^a-z0-9]+", local_part) if token]
+
+
+def classify_agent_hunt_author_email_match(author_name: str, email: str) -> str:
+    author_tokens = normalize_person_name(author_name).split()
+    local_tokens = agent_hunt_email_local_tokens(email)
+    if not author_tokens or not local_tokens:
+        return "none"
+    if all(token in ROLE_EMAIL_LOCALS for token in local_tokens):
+        return "role"
+    author_compact = "".join(author_tokens)
+    local_compact = "".join(local_tokens)
+    if author_compact and len(author_compact) >= 5 and (
+        author_compact in local_compact or (len(local_compact) >= 5 and local_compact in author_compact)
+    ):
+        return "clear"
+    given = author_tokens[0]
+    surname = author_tokens[-1] if len(author_tokens) >= 2 else ""
+    initials = "".join(token[0] for token in author_tokens if token)
+    if surname and surname in local_compact:
+        return "partial"
+    if given and len(given) >= 3 and given in local_compact:
+        return "partial"
+    if initials and len(initials) >= 2 and initials in local_compact:
+        return "partial"
+    return "none"
+
+
+def row_has_author_aligned_email_domain(row: Dict[str, str]) -> bool:
+    email = (row.get("AuthorEmail", "") or "").strip().lower()
+    if "@" not in email:
+        return False
+    email_domain = registrable_domain(f"https://{email.split('@', 1)[1]}")
+    if not email_domain:
+        return False
+    for field in ("AuthorWebsite", "ContactPageURL", "SubscribeURL", "SourceURL", "AuthorEmailSourceURL"):
+        if registrable_domain(row.get(field, "")) == email_domain:
+            return True
+    return False
+
+
+def row_has_rep_or_agency_only_email(row: Dict[str, str]) -> bool:
+    email = (row.get("AuthorEmail", "") or "").strip().lower()
+    if "@" not in email:
+        return False
+    local_tokens = set(agent_hunt_email_local_tokens(email))
+    domain_part = email.split("@", 1)[1]
+    if not local_tokens:
+        return False
+    has_rep_signal = bool(local_tokens & AGENT_HUNT_REP_EMAIL_TOKENS) or any(
+        hint in domain_part for hint in AGENT_HUNT_REP_EMAIL_DOMAIN_HINTS
+    )
+    if not has_rep_signal:
+        return False
+    if row_has_author_aligned_email_domain(row):
+        return False
+    match_strength = classify_agent_hunt_author_email_match((row.get("AuthorName", "") or "").strip(), email)
+    return match_strength in {"none", "role"}
+
+
+def classify_agent_hunt_outreach_tier(row: Dict[str, str]) -> Dict[str, object]:
+    email = (row.get("AuthorEmail", "") or "").strip().lower()
+    quality = (row.get("EmailQuality", "") or "").strip()
+    if not email:
+        return {
+            "tier": "",
+            "decision": "RECHECK",
+            "reason": "missing_public_email",
+            "email_match": "none",
+            "same_domain_support": False,
+        }
+    if quality not in SCOUT_ACCEPTABLE_EMAIL_QUALITIES:
+        return {
+            "tier": "",
+            "decision": "REPLACE",
+            "reason": "unusable_public_email",
+            "email_match": "none",
+            "same_domain_support": False,
+        }
+    if row_has_rep_or_agency_only_email(row):
+        return {
+            "tier": "",
+            "decision": "REPLACE",
+            "reason": "rep_or_agency_only_email",
+            "email_match": classify_agent_hunt_author_email_match((row.get("AuthorName", "") or "").strip(), email),
+            "same_domain_support": row_has_author_aligned_email_domain(row),
+        }
+
+    email_match = classify_agent_hunt_author_email_match((row.get("AuthorName", "") or "").strip(), email)
+    same_domain_support = row_has_author_aligned_email_domain(row)
+    contactable = row_is_contactable(row)
+
+    if quality == "same_domain":
+        if email_match in {"clear", "partial"} and contactable:
+            return {
+                "tier": AGENT_HUNT_TIER_1,
+                "decision": AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_1],
+                "reason": "tier_1_same_domain_clear_match",
+                "email_match": email_match,
+                "same_domain_support": same_domain_support,
+            }
+        if email_match in {"clear", "partial"} or contactable or same_domain_support:
+            return {
+                "tier": AGENT_HUNT_TIER_2,
+                "decision": AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_2],
+                "reason": "tier_2_same_domain_public_email",
+                "email_match": email_match,
+                "same_domain_support": same_domain_support,
+            }
+        return {
+            "tier": AGENT_HUNT_TIER_3,
+            "decision": AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_3],
+            "reason": "tier_3_same_domain_weak_match",
+            "email_match": email_match,
+            "same_domain_support": same_domain_support,
+        }
+    if quality == "labeled_off_domain":
+        if email_match in {"clear", "partial"}:
+            return {
+                "tier": AGENT_HUNT_TIER_2,
+                "decision": AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_2],
+                "reason": "tier_2_off_domain_named_email",
+                "email_match": email_match,
+                "same_domain_support": same_domain_support,
+            }
+        if contactable or same_domain_support:
+            return {
+                "tier": AGENT_HUNT_TIER_3,
+                "decision": AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_3],
+                "reason": "tier_3_off_domain_supported_email",
+                "email_match": email_match,
+                "same_domain_support": same_domain_support,
+            }
+        return {
+            "tier": "",
+            "decision": "REPLACE",
+            "reason": "weak_public_email_match",
+            "email_match": email_match,
+            "same_domain_support": same_domain_support,
+        }
+    if quality == "risky_role" and (contactable or same_domain_support):
+        return {
+            "tier": AGENT_HUNT_TIER_3,
+            "decision": AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_3],
+            "reason": "tier_3_public_role_email",
+            "email_match": email_match,
+            "same_domain_support": same_domain_support,
+        }
+    return {
+        "tier": "",
+        "decision": "REPLACE",
+        "reason": "weak_public_email_match",
+        "email_match": email_match,
+        "same_domain_support": same_domain_support,
+    }
+
+
+def with_agent_hunt_outreach_metadata(
+    row: Dict[str, str],
+    assessment: Dict[str, object],
+) -> Dict[str, str]:
+    updated = dict(row)
+    outreach_tier = str(assessment.get("outreach_tier", "") or "").strip()
+    decision = str(assessment.get("decision", "") or "").strip()
+    tier_reason = str(assessment.get("tier_reason", "") or "").strip()
+    email_match = str(assessment.get("email_match", "") or "").strip()
+    if outreach_tier:
+        updated["AgentHuntOutreachTier"] = outreach_tier
+    if decision:
+        updated["AgentHuntDecision"] = decision
+    if tier_reason:
+        updated["AgentHuntTierReason"] = tier_reason
+    if email_match:
+        updated["AgentHuntEmailMatch"] = email_match
+    return updated
+
+
+def order_agent_hunt_rows_by_priority(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    def sort_key(row: Dict[str, str]) -> Tuple[int, str, str]:
+        tier = str(row.get("AgentHuntOutreachTier", "") or assess_agent_hunt_row(row).get("outreach_tier", "") or "").strip()
+        return (
+            AGENT_HUNT_TIER_PRIORITY.get(tier, 99),
+            (row.get("AuthorName", "") or "").strip().lower(),
+            (row.get("AuthorEmail", "") or "").strip().lower(),
+        )
+
+    return sorted(rows, key=sort_key)
+
+
+def partition_agent_hunt_rows_by_outreach_tier(rows: List[Dict[str, str]]) -> Dict[str, List[Dict[str, str]]]:
+    partitions = {
+        AGENT_HUNT_TIER_1: [],
+        AGENT_HUNT_TIER_2: [],
+        AGENT_HUNT_TIER_3: [],
+    }
+    for row in order_agent_hunt_rows_by_priority(rows):
+        tier = str(row.get("AgentHuntOutreachTier", "") or assess_agent_hunt_row(row).get("outreach_tier", "") or "").strip()
+        if tier in partitions:
+            partitions[tier].append(row)
+    return partitions
+
+
 def scout_export_row_key(row: Dict[str, str]) -> Tuple[str, str, str]:
     return (
         normalize_person_name((row.get("AuthorName", "") or "").strip()),
@@ -1580,7 +1830,7 @@ def scout_export_row_key(row: Dict[str, str]) -> Tuple[str, str, str]:
 def dedupe_scout_rows(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
     unique: set[Tuple[str, str, str]] = set()
     deduped: List[Dict[str, str]] = []
-    for row in rows:
+    for row in order_agent_hunt_rows_by_priority(rows):
         key = scout_export_row_key(row)
         if not all(key):
             continue
@@ -1847,6 +2097,10 @@ def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[
             "listing_failure_category": listing_failure_category,
             "promotion_blocker_reason": listing_failure_reason or str(base_assessment.get("reason", "") or ""),
             "row": row,
+            "decision": str(base_assessment.get("decision", "") or "REPLACE"),
+            "outreach_tier": str(base_assessment.get("outreach_tier", "") or ""),
+            "tier_reason": str(base_assessment.get("tier_reason", "") or ""),
+            "email_match": str(base_assessment.get("email_match", "") or ""),
         }
     if not bool(base_assessment.get("qualified", False)):
         if str(base_assessment.get("status", "") or "") == "scoutworthy_not_outreach_ready":
@@ -1867,6 +2121,10 @@ def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[
                 "promotion_blocker_reason": promotion_blocker_reason,
                 "base_scout_reason": str(base_assessment.get("reason", "") or ""),
                 "row": row,
+                "decision": str(base_assessment.get("decision", "") or "RECHECK"),
+                "outreach_tier": str(base_assessment.get("outreach_tier", "") or ""),
+                "tier_reason": str(base_assessment.get("tier_reason", "") or ""),
+                "email_match": str(base_assessment.get("email_match", "") or ""),
             }
         return {
             "qualified": False,
@@ -1876,6 +2134,10 @@ def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[
             "listing_failure_category": listing_failure_category,
             "promotion_blocker_reason": str(base_assessment.get("reason", "") or ""),
             "row": row,
+            "decision": str(base_assessment.get("decision", "") or "REPLACE"),
+            "outreach_tier": str(base_assessment.get("outreach_tier", "") or ""),
+            "tier_reason": str(base_assessment.get("tier_reason", "") or ""),
+            "email_match": str(base_assessment.get("email_match", "") or ""),
         }
     return {
         "qualified": True,
@@ -1884,7 +2146,11 @@ def assess_agent_hunt_listing_blocked_record(record: Dict[str, object]) -> Dict[
         "listing_failure_reason": listing_failure_reason,
         "listing_failure_category": listing_failure_category,
         "promotion_blocker_reason": "",
-        "row": row,
+        "row": with_agent_hunt_outreach_metadata(row, base_assessment),
+        "decision": str(base_assessment.get("decision", "") or AGENT_HUNT_TIER_TO_DECISION[AGENT_HUNT_TIER_2]),
+        "outreach_tier": str(base_assessment.get("outreach_tier", "") or ""),
+        "tier_reason": str(base_assessment.get("tier_reason", "") or ""),
+        "email_match": str(base_assessment.get("email_match", "") or ""),
     }
 
 
@@ -1904,24 +2170,52 @@ def generic_scout_author_name_reason(value: str) -> str:
 def assess_agent_hunt_row(row: Dict[str, str]) -> Dict[str, str | bool]:
     author_name = (row.get("AuthorName", "") or "").strip()
     if not row_has_clean_author_name(row):
-        return {"qualified": False, "status": "rejected", "reason": "bad_author_name_unclean"}
+        return {"qualified": False, "status": "rejected", "reason": "bad_author_name_unclean", "decision": "REPLACE"}
     if looks_like_generic_scout_author_name(author_name):
-        return {"qualified": False, "status": "rejected", "reason": generic_scout_author_name_reason(author_name)}
+        return {
+            "qualified": False,
+            "status": "rejected",
+            "reason": generic_scout_author_name_reason(author_name),
+            "decision": "REPLACE",
+        }
     if not is_plausible_author_name(author_name):
-        return {"qualified": False, "status": "rejected", "reason": "bad_author_name_implausible"}
+        return {"qualified": False, "status": "rejected", "reason": "bad_author_name_implausible", "decision": "REPLACE"}
     if row_has_definitive_non_us_location(row):
-        return {"qualified": False, "status": "rejected", "reason": "non_us_location"}
+        return {"qualified": False, "status": "rejected", "reason": "non_us_location", "decision": "REPLACE"}
     if not (row.get("SourceURL", "") or "").strip():
-        return {"qualified": False, "status": "rejected", "reason": "missing_source_url"}
-    if not row_is_contactable(row):
-        return {"qualified": False, "status": "rejected", "reason": "missing_contact_path"}
+        return {"qualified": False, "status": "rejected", "reason": "missing_source_url", "decision": "REPLACE"}
     if not row_has_scout_email(row):
+        if not row_is_contactable(row):
+            return {
+                "qualified": False,
+                "status": "rejected",
+                "reason": "missing_public_email_and_contact_path",
+                "decision": "REPLACE",
+            }
         return {
             "qualified": False,
             "status": "scoutworthy_not_outreach_ready",
             "reason": "scoutworthy_missing_visible_email",
+            "decision": "RECHECK",
         }
-    return {"qualified": True, "status": "qualified", "reason": ""}
+    outreach = classify_agent_hunt_outreach_tier(row)
+    if not str(outreach.get("tier", "") or "").strip():
+        return {
+            "qualified": False,
+            "status": "rejected",
+            "reason": str(outreach.get("reason", "") or "weak_public_email_match"),
+            "decision": str(outreach.get("decision", "") or "REPLACE"),
+            "email_match": str(outreach.get("email_match", "") or ""),
+        }
+    return {
+        "qualified": True,
+        "status": "qualified",
+        "reason": "",
+        "decision": str(outreach.get("decision", "") or "RECHECK"),
+        "outreach_tier": str(outreach.get("tier", "") or ""),
+        "tier_reason": str(outreach.get("reason", "") or ""),
+        "email_match": str(outreach.get("email_match", "") or ""),
+    }
 
 
 def scout_reject_reason(row: Dict[str, str]) -> str:
@@ -2352,7 +2646,9 @@ def build_agent_hunt_stats(
 ) -> Dict[str, object]:
     row_assessments = [assess_agent_hunt_row(row) for row in validated_rows]
     directly_qualified_rows = [
-        row for row, assessment in zip(validated_rows, row_assessments) if bool(assessment.get("qualified", False))
+        with_agent_hunt_outreach_metadata(row, assessment)
+        for row, assessment in zip(validated_rows, row_assessments)
+        if bool(assessment.get("qualified", False))
     ]
     outcome_lookup = build_candidate_outcome_lookup(list(candidate_outcome_records or []))
     known_author_identities = {
@@ -2380,6 +2676,9 @@ def build_agent_hunt_stats(
     route_counts: Counter[str] = Counter()
     route_reason_counts: Dict[str, Counter[str]] = defaultdict(Counter)
     route_source_records: List[Dict[str, str]] = []
+    outreach_tier_counts: Counter[str] = Counter()
+    outreach_tier_reason_counts: Dict[str, Counter[str]] = defaultdict(Counter)
+    outreach_decision_counts: Counter[str] = Counter()
 
     for row, assessment in zip(validated_rows, row_assessments):
         route = str(assessment.get("status", "rejected") or "rejected")
@@ -2397,6 +2696,16 @@ def build_agent_hunt_stats(
                 **route_context,
             }
         )
+        if route == "qualified":
+            tier = str(assessment.get("outreach_tier", "") or "").strip()
+            decision = str(assessment.get("decision", "") or "").strip()
+            tier_reason = str(assessment.get("tier_reason", "") or "").strip()
+            if tier:
+                outreach_tier_counts[tier] += 1
+            if decision:
+                outreach_decision_counts[decision] += 1
+            if tier and tier_reason:
+                outreach_tier_reason_counts[tier][tier_reason] += 1
 
     for record in list(candidate_outcome_records or []):
         listing_assessment = assess_agent_hunt_listing_blocked_record(record)
@@ -2452,6 +2761,15 @@ def build_agent_hunt_stats(
         rescued_candidate_identities.add(candidate_identity_from_outcome(record))
         rescued_listing_rows.append(row)
         rescued_listing_reasons[str(listing_assessment.get("listing_failure_reason", "") or "")] += 1
+        tier = str(listing_assessment.get("outreach_tier", "") or "").strip()
+        decision = str(listing_assessment.get("decision", "") or "").strip()
+        tier_reason = str(listing_assessment.get("tier_reason", "") or "").strip()
+        if tier:
+            outreach_tier_counts[tier] += 1
+        if decision:
+            outreach_decision_counts[decision] += 1
+        if tier and tier_reason:
+            outreach_tier_reason_counts[tier][tier_reason] += 1
         rescued_listing_records.append(
             {
                 **listing_assessment,
@@ -2479,6 +2797,7 @@ def build_agent_hunt_stats(
         if email:
             known_emails.add(email)
     scouted_rows = dedupe_scout_rows(directly_qualified_rows + rescued_listing_rows)
+    scouted_rows_by_tier = partition_agent_hunt_rows_by_outreach_tier(scouted_rows)
     strict_rows = [row for row in scouted_rows if row_is_fully_verified(row, require_us_location=True)]
     for row, assessment in zip(validated_rows, row_assessments):
         status = str(assessment.get("status", "") or "")
@@ -2518,6 +2837,7 @@ def build_agent_hunt_stats(
             continue
         route_counts["rejected"] += 1
         route_reason_counts["rejected"][reason] += 1
+        outreach_decision_counts["REPLACE"] += 1
         source_url = str(record.get("source_url", "") or "").strip()
         route_source_records.append(
             {
@@ -2545,6 +2865,7 @@ def build_agent_hunt_stats(
     email_recovery_stats = build_agent_hunt_email_recovery_stats(list(candidate_outcome_records or []))
     return {
         "scouted_rows": scouted_rows,
+        "scouted_rows_by_tier": scouted_rows_by_tier,
         "listing_blocked_scout_rows": rescued_listing_rows,
         "listing_blocked_caution_rows": caution_listing_rows,
         "rescued_candidate_identities": sorted(rescued_candidate_identities),
@@ -2560,6 +2881,15 @@ def build_agent_hunt_stats(
             "scoutworthy_not_outreach_ready": int(route_counts.get("scoutworthy_not_outreach_ready", 0) or 0),
             "rejected": int(route_counts.get("rejected", 0) or 0),
         },
+        "outreach_tier_counts": {
+            AGENT_HUNT_TIER_1: int(outreach_tier_counts.get(AGENT_HUNT_TIER_1, 0) or 0),
+            AGENT_HUNT_TIER_2: int(outreach_tier_counts.get(AGENT_HUNT_TIER_2, 0) or 0),
+            AGENT_HUNT_TIER_3: int(outreach_tier_counts.get(AGENT_HUNT_TIER_3, 0) or 0),
+        },
+        "outreach_decision_counts": dict(outreach_decision_counts),
+        "top_tier_1_reasons": dict(outreach_tier_reason_counts[AGENT_HUNT_TIER_1].most_common(10)),
+        "top_tier_2_reasons": dict(outreach_tier_reason_counts[AGENT_HUNT_TIER_2].most_common(10)),
+        "top_tier_3_reasons": dict(outreach_tier_reason_counts[AGENT_HUNT_TIER_3].most_common(10)),
         "top_caution_reasons": dict(route_reason_counts["scoutworthy_not_outreach_ready"].most_common(10)),
         "top_rejected_reasons": dict(route_reason_counts["rejected"].most_common(10)),
         "top_reasons_caution_fail_promotion_to_qualified": dict(
@@ -3906,6 +4236,10 @@ def main() -> int:
         filtered_candidates_path = runs_dir / f"{run_tag}_candidates.filtered.csv"
         validated_path = runs_dir / f"{run_tag}_validated.csv"
         final_path = runs_dir / f"{run_tag}_final.csv"
+        new_leads_path = runs_dir / f"{run_tag}_new_leads.csv"
+        tier_1_path = runs_dir / f"{run_tag}_tier_1_safest.csv"
+        tier_2_path = runs_dir / f"{run_tag}_tier_2_usable_with_caution.csv"
+        tier_3_path = runs_dir / f"{run_tag}_tier_3_weak_but_usable.csv"
         verified_path = runs_dir / f"{run_tag}_verified.csv"
         run_queries_file = runs_dir / f"{run_tag}_queries.txt"
         harvest_stats_path = runs_dir / f"{run_tag}_harvest_stats.json"
@@ -3931,6 +4265,10 @@ def main() -> int:
             filtered_candidates_path,
             validated_path,
             final_path,
+            new_leads_path,
+            tier_1_path,
+            tier_2_path,
+            tier_3_path,
             verified_path,
             run_queries_file,
             harvest_stats_path,
@@ -4635,6 +4973,37 @@ def main() -> int:
             agent_hunt_source_quality_feedback = build_agent_hunt_source_quality_feedback(candidate_outcome_records)
             scouted_rows = list(agent_hunt_stats.get("scouted_rows", []) or [])
             strict_rows = list(agent_hunt_stats.get("strict_rows", []) or [])
+            existing_export_rows = build_projected_lead_export_rows(
+                [row for row in existing_master_rows if row_is_agent_hunt_qualified(row)],
+                source_url_getter=best_scout_source_url,
+            )
+            current_export_rows = build_projected_lead_export_rows(
+                scouted_rows,
+                source_url_getter=best_scout_source_url,
+            )
+            new_export_rows = build_new_lead_export_rows(current_export_rows, existing_export_rows)
+            scouted_rows_by_tier = dict(agent_hunt_stats.get("scouted_rows_by_tier", {}) or {})
+            write_projected_lead_export_rows(
+                tier_1_path,
+                build_projected_lead_export_rows(
+                    list(scouted_rows_by_tier.get(AGENT_HUNT_TIER_1, []) or []),
+                    source_url_getter=best_scout_source_url,
+                ),
+            )
+            write_projected_lead_export_rows(
+                tier_2_path,
+                build_projected_lead_export_rows(
+                    list(scouted_rows_by_tier.get(AGENT_HUNT_TIER_2, []) or []),
+                    source_url_getter=best_scout_source_url,
+                ),
+            )
+            write_projected_lead_export_rows(
+                tier_3_path,
+                build_projected_lead_export_rows(
+                    list(scouted_rows_by_tier.get(AGENT_HUNT_TIER_3, []) or []),
+                    source_url_getter=best_scout_source_url,
+                ),
+            )
             if not args.no_scouted_output:
                 scouted_output_count = write_scouted_rows(Path(args.scouted_output), scouted_rows)
                 print(f"[INFO] wrote {scouted_output_count} rows -> {args.scouted_output}")
@@ -4645,8 +5014,33 @@ def main() -> int:
             verified_rows = [
                 row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
             ]
+            existing_export_rows = build_projected_lead_export_rows(
+                [
+                    row
+                    for row in existing_master_rows
+                    if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
+                ],
+                source_url_getter=best_verified_source_url,
+            )
+            current_export_rows = build_projected_lead_export_rows(
+                verified_rows,
+                source_url_getter=best_verified_source_url,
+            )
+            new_export_rows = build_new_lead_export_rows(current_export_rows, existing_export_rows)
             verified_output_count = write_verified_rows(Path(args.verified_output), verified_rows)
             print(f"[INFO] wrote {verified_output_count} rows -> {args.verified_output}")
+        else:
+            existing_export_rows = build_projected_lead_export_rows(
+                existing_master_rows,
+                source_url_getter=best_verified_source_url,
+            )
+            current_export_rows = build_projected_lead_export_rows(
+                master_rows,
+                source_url_getter=best_verified_source_url,
+            )
+            new_export_rows = build_new_lead_export_rows(current_export_rows, existing_export_rows)
+        new_leads_count = write_projected_lead_export_rows(new_leads_path, new_export_rows)
+        print(f"[INFO] wrote {new_leads_count} rows -> {new_leads_path}")
         if not args.no_contact_queue_output:
             contact_queue_count = write_contact_queue_rows(
                 contact_queue_path,
@@ -4691,6 +5085,7 @@ def main() -> int:
                     "queue_total": len(queue_rows),
                     "verified_output_rows": verified_output_count,
                     "scouted_output_rows": scouted_output_count,
+                    "new_leads_rows": new_leads_count,
                     "near_miss_location_total": len(near_miss_location_rows),
                     "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
                     "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
@@ -4719,6 +5114,11 @@ def main() -> int:
                 "top_reject_reasons": dict(agent_hunt_stats.get("top_reject_reasons", {}) or {}),
                 "scout_gate_reject_reasons": dict(agent_hunt_stats.get("scout_gate_reject_reasons", {}) or {}),
                 "routing_counts": dict(agent_hunt_stats.get("routing_counts", {}) or {}),
+                "outreach_tier_counts": dict(agent_hunt_stats.get("outreach_tier_counts", {}) or {}),
+                "outreach_decision_counts": dict(agent_hunt_stats.get("outreach_decision_counts", {}) or {}),
+                "top_tier_1_reasons": dict(agent_hunt_stats.get("top_tier_1_reasons", {}) or {}),
+                "top_tier_2_reasons": dict(agent_hunt_stats.get("top_tier_2_reasons", {}) or {}),
+                "top_tier_3_reasons": dict(agent_hunt_stats.get("top_tier_3_reasons", {}) or {}),
                 "top_caution_reasons": dict(agent_hunt_stats.get("top_caution_reasons", {}) or {}),
                 "top_rejected_reasons": dict(agent_hunt_stats.get("top_rejected_reasons", {}) or {}),
                 "top_reasons_caution_fail_promotion_to_qualified": dict(
@@ -4811,6 +5211,10 @@ def main() -> int:
                     "validated_csv": validated_export_path,
                     "rejected_csv": rejected_export_path,
                     "final_csv": final_path,
+                    "new_leads_csv": new_leads_path,
+                    "tier_1_csv": tier_1_path,
+                    "tier_2_csv": tier_2_path,
+                    "tier_3_csv": tier_3_path,
                     "run_stats_json": run_stats_path,
                     "validate_stats_json": validate_stats_path,
                 },

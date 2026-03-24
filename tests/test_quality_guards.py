@@ -1070,6 +1070,7 @@ def test_agent_hunt_marks_plausible_contactable_no_email_row_as_scoutworthy_not_
         "qualified": False,
         "status": "scoutworthy_not_outreach_ready",
         "reason": "scoutworthy_missing_visible_email",
+        "decision": "RECHECK",
     }
     assert not row_is_agent_hunt_qualified(row)
 
@@ -1088,7 +1089,55 @@ def test_agent_hunt_marks_strong_row_as_qualified() -> None:
 
     assessment = assess_agent_hunt_row(row)
 
-    assert assessment == {"qualified": True, "status": "qualified", "reason": ""}
+    assert assessment == {
+        "qualified": True,
+        "status": "qualified",
+        "reason": "",
+        "decision": "KEEP",
+        "outreach_tier": "tier_1_safest",
+        "tier_reason": "tier_1_same_domain_clear_match",
+        "email_match": "partial",
+    }
+
+
+def test_agent_hunt_accepts_public_email_row_without_contact_path_as_weaker_tier() -> None:
+    row = {
+        "AuthorName": "Rune S. Nielsen",
+        "AuthorWebsite": "",
+        "ContactPageURL": "",
+        "AuthorEmail": "rune@runesnielsen.com",
+        "AuthorEmailSourceURL": "https://runesnielsen.com",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://runesnielsen.com",
+        "Location": "",
+    }
+
+    assessment = assess_agent_hunt_row(row)
+
+    assert assessment["qualified"] is True
+    assert assessment["status"] == "qualified"
+    assert assessment["outreach_tier"] in {"tier_2_usable_with_caution", "tier_3_weak_but_usable"}
+    assert assessment["decision"] == "RECHECK"
+
+
+def test_agent_hunt_rejects_rep_or_agency_only_off_domain_email() -> None:
+    row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "rights@bigagency.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "labeled_off_domain",
+        "SourceURL": "https://janedoeauthor.com/about",
+        "Location": "",
+    }
+
+    assessment = assess_agent_hunt_row(row)
+
+    assert assessment["qualified"] is False
+    assert assessment["status"] == "rejected"
+    assert assessment["reason"] == "rep_or_agency_only_email"
+    assert assessment["decision"] == "REPLACE"
 
 
 def test_agent_hunt_listing_blocked_record_is_classified_distinctly_from_hard_dead_end() -> None:
@@ -1399,6 +1448,14 @@ def test_build_agent_hunt_stats_reports_scout_progress_and_domains() -> None:
         "scoutworthy_not_outreach_ready": 0,
         "rejected": 1,
     }
+    assert result["outreach_tier_counts"] == {
+        "tier_1_safest": 1,
+        "tier_2_usable_with_caution": 0,
+        "tier_3_weak_but_usable": 0,
+    }
+    assert result["outreach_decision_counts"]["KEEP"] == 1
+    assert result["top_tier_1_reasons"] == {"tier_1_same_domain_clear_match": 1}
+    assert result["scouted_rows_by_tier"]["tier_1_safest"][0]["AuthorName"] == "Jane Doe"
     assert result["top_reject_reasons"]["page_fetch_failed_404"] == 2
     assert result["top_reject_reasons"]["non_us_location"] == 1
     assert result["top_rejected_reasons"] == {"non_us_location": 1}
@@ -1507,6 +1564,12 @@ def test_build_agent_hunt_stats_reports_scoutworthy_and_author_convergence() -> 
         "scoutworthy_not_outreach_ready": 1,
         "rejected": 1,
     }
+    assert result["outreach_tier_counts"] == {
+        "tier_1_safest": 3,
+        "tier_2_usable_with_caution": 0,
+        "tier_3_weak_but_usable": 0,
+    }
+    assert result["scouted_rows_by_tier"]["tier_1_safest"][0]["AuthorName"] == "Jane Doe"
     assert result["top_caution_reasons"] == {"scoutworthy_missing_visible_email": 1}
     assert result["top_reasons_caution_fail_promotion_to_qualified"] == {"scoutworthy_missing_visible_email": 1}
     assert result["scoutworthy_not_outreach_ready_count"] == 1
@@ -1603,6 +1666,7 @@ def test_build_agent_hunt_stats_reports_listing_friction_and_retains_blocked_row
         "scoutworthy_not_outreach_ready": 1,
         "rejected": 1,
     }
+    assert result["outreach_tier_counts"]["tier_1_safest"] == 1
     assert result["top_reject_reasons"] == {"listing_not_found": 1}
     assert result["top_rejected_reasons"] == {"listing_not_found": 1}
     assert result["top_caution_reasons"] == {
@@ -1690,6 +1754,7 @@ def test_build_agent_hunt_stats_reports_listing_friction_email_recovery_stats() 
     assert result["scouted_rows"][0]["AuthorName"] == "Mary Roe"
     assert result["scouted_rows"][0]["SourceURL"] == "https://www.epicindie.net/authordirectory"
     assert result["scouted_rows"][0]["AuthorEmail"] == "mary@maryroeauthor.com"
+    assert result["outreach_tier_counts"]["tier_1_safest"] == 1
     assert result["listing_friction_email_recovery_attempted_count"] == 2
     assert result["listing_friction_email_recovery_success_count"] == 1
     assert result["listing_friction_email_recovery_fail_count"] == 1

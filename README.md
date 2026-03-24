@@ -39,7 +39,12 @@ Automate finding 20-40 qualified indie/self-pub author prospects, with an option
   - `--max-total-runtime 900`
   - `--max-seconds-per-domain 25`
   - `--max-fetches-per-domain 16`
-- `--validation-profile agent_hunt` keeps the staged validator behavior, reuses the Phase 3 replacement loop, and writes a separate scout export without changing `strict_full` rules or strict CSV schemas.
+- `--validation-profile agent_hunt` keeps the staged validator behavior, reuses the Phase 3 replacement loop, and now scores exportable scout leads for cold outreach in three internal tiers:
+  - `Tier 1` = safest `KEEP`
+  - `Tier 2` = usable with caution `RECHECK`
+  - `Tier 3` = weak but still potentially usable `RECHECK`
+  - clearly bad leads still route to `REPLACE`
+  This change does not loosen `strict_full` rules or strict CSV schemas.
 
 ## Output Columns
 Validated/final CSV columns:
@@ -148,6 +153,16 @@ python run_lead_finder_loop.py \
 This keeps the staged validator behavior, writes a separate 3-column no-header scout export:
 `AuthorName,AuthorEmail,SourceURL`
 
+For `agent_hunt`, the scout export now follows a cold-outreach standard:
+- exported scout leads only need a real public email, a plausible author/email match, and reasonable indie-author relevance
+- imperfect proof is allowed in `agent_hunt` as long as the lead is still usable for outreach
+- `strict_full` remains the gold-standard strict verifier and is unchanged
+
+Per-run `agent_hunt` artifacts now also include same-schema tier splits in `runs/`:
+- `run_XXX_tier_1_safest.csv`
+- `run_XXX_tier_2_usable_with_caution.csv`
+- `run_XXX_tier_3_weak_but_usable.csv`
+
 `fully_verified_leads.csv` remains strict-only and is not loosened by `agent_hunt`.
 
 ## Current Operating Note
@@ -190,7 +205,37 @@ python run_lead_finder.py --require-email
 ```
 
 ## Local Dashboard
-Streamlit v1 dashboard files live under:
+The main editable local dashboard lives under:
+
+```text
+ops_dashboard/
+  app.py
+  data_access.py
+  static/
+    index.html
+    styles.css
+    app.js
+run_ops_dashboard.py
+```
+
+This dashboard is the local operator UI you can actually redesign with normal frontend files. The backend stays thin and reads the existing pipeline outputs from disk. No pipeline schemas or validation rules change.
+
+Launch it with:
+```bash
+python run_ops_dashboard.py
+```
+
+Then open:
+```text
+http://127.0.0.1:8000
+```
+
+Editable UI files:
+- `ops_dashboard/static/index.html`
+- `ops_dashboard/static/styles.css`
+- `ops_dashboard/static/app.js`
+
+If you want the older Streamlit dashboard, those files still live under:
 
 ```text
 dashboard/
@@ -207,7 +252,7 @@ dashboard/
     candidate_detail.py
 ```
 
-The dashboard is a thin local operator UI over the existing pipeline outputs. It reads CSV/JSON/JSONL artifacts from disk and does not change pipeline schemas or validation behavior.
+The Streamlit dashboard is still a thin local operator UI over the existing pipeline outputs. It reads CSV/JSON/JSONL artifacts from disk and does not change pipeline schemas or validation behavior.
 
 Launch it with:
 ```bash

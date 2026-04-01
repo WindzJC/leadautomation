@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple
 from urllib.parse import urljoin, urlparse
 
 from lead_utils import canonical_listing_key, normalize_person_name, registrable_domain
+from local_env import load_local_env
 from persistent_dedupe import PersistentDedupeStore
 from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs, json_output, repo_path, state_output
 from prospect_dedupe import OUTPUT_COLUMNS, dedupe
@@ -51,6 +52,17 @@ STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
 AGENT_HUNT_PROFILE = "agent_hunt"
 EMAIL_ONLY_PROFILE = "email_only"
+EMAIL_ONLY_LIGHTWEIGHT_RUNTIME = {
+    "listing_strict": False,
+    "max_fetches_per_domain": 6,
+    "max_seconds_per_domain": 8.0,
+    "max_total_runtime": 90.0,
+    "max_pages_for_title": 1,
+    "max_pages_for_contact": 2,
+    "max_total_fetches_per_domain_per_run": 6,
+    "location_recovery_mode": "off",
+    "location_recovery_pages": 0,
+}
 STRICT_VERIFIED_PROFILES = {
     "fully_verified",
     ASTRA_OUTBOUND_PROFILE,
@@ -387,6 +399,17 @@ def is_agent_hunt_profile(value: str) -> bool:
 
 def is_email_only_profile(value: str) -> bool:
     return normalize_validation_profile(value) == EMAIL_ONLY_PROFILE
+
+
+def cli_flag_present(args: argparse.Namespace, *flags: str) -> bool:
+    cli_flags = set(getattr(args, "_cli_flags", ()) or ())
+    return any(flag in cli_flags for flag in flags)
+
+
+def apply_profile_setting(args: argparse.Namespace, attribute: str, value: Any, *flags: str) -> None:
+    if cli_flag_present(args, *flags):
+        return
+    setattr(args, attribute, value)
 
 
 def candidate_identity_key(
@@ -965,6 +988,57 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
         if int(getattr(args, "goal_final", 0) or 0) == 0 and int(getattr(args, "goal_total", 100) or 100) == 100:
             args.goal_final = 20
         return
+    if profile == EMAIL_ONLY_PROFILE:
+        apply_profile_setting(args, "listing_strict", EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["listing_strict"], "--listing-strict")
+        apply_profile_setting(
+            args,
+            "max_fetches_per_domain",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_fetches_per_domain"],
+            "--max-fetches-per-domain",
+        )
+        apply_profile_setting(
+            args,
+            "max_seconds_per_domain",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_seconds_per_domain"],
+            "--max-seconds-per-domain",
+        )
+        apply_profile_setting(
+            args,
+            "max_total_runtime",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_total_runtime"],
+            "--max-total-runtime",
+        )
+        apply_profile_setting(
+            args,
+            "max_pages_for_title",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_pages_for_title"],
+            "--max-pages-for-title",
+        )
+        apply_profile_setting(
+            args,
+            "max_pages_for_contact",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_pages_for_contact"],
+            "--max-pages-for-contact",
+        )
+        apply_profile_setting(
+            args,
+            "max_total_fetches_per_domain_per_run",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_total_fetches_per_domain_per_run"],
+            "--max-total-fetches-per-domain-per-run",
+        )
+        apply_profile_setting(
+            args,
+            "location_recovery_mode",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["location_recovery_mode"],
+            "--location-recovery-mode",
+        )
+        apply_profile_setting(
+            args,
+            "location_recovery_pages",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["location_recovery_pages"],
+            "--location-recovery-pages",
+        )
+        return
     if profile == STRICT_INTERACTIVE_PROFILE:
         if int(getattr(args, "max_runs", 20) or 20) == 20:
             args.max_runs = 20
@@ -1008,6 +1082,7 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
 
 
 def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+    load_local_env()
     argv_list = list(argv) if argv is not None else sys.argv[1:]
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help=argparse.SUPPRESS)
@@ -1365,11 +1440,28 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     )
     args = parser.parse_args(argv_list)
     args._runtime_config = runtime_config
+    args._cli_flags = {token for token in argv_list if token.startswith("--")}
     if bool(config_arg_default(runtime_config, "listing_strict", False)) and "--listing-strict" not in argv_list:
         args.listing_strict = True
     if "--merge-policy" not in argv_list:
         args.merge_policy = str(config_arg_default(runtime_config, "merge_policy", args.merge_policy) or args.merge_policy)
     return args
+
+
+def build_effective_validator_runtime_stats(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        "listing_strict": bool(getattr(args, "listing_strict", False)),
+        "max_fetches_per_domain": int(getattr(args, "max_fetches_per_domain", 0) or 0),
+        "max_seconds_per_domain": float(getattr(args, "max_seconds_per_domain", 0.0) or 0.0),
+        "max_total_runtime": float(getattr(args, "max_total_runtime", 0.0) or 0.0),
+        "max_pages_for_title": int(getattr(args, "max_pages_for_title", 0) or 0),
+        "max_pages_for_contact": int(getattr(args, "max_pages_for_contact", 0) or 0),
+        "max_total_fetches_per_domain_per_run": int(
+            getattr(args, "max_total_fetches_per_domain_per_run", 0) or 0
+        ),
+        "location_recovery_mode": str(getattr(args, "location_recovery_mode", "off") or "off"),
+        "location_recovery_pages": int(getattr(args, "location_recovery_pages", 0) or 0),
+    }
 
 
 def read_rows(path: Path) -> List[Dict[str, str]]:
@@ -2363,6 +2455,82 @@ def summarize_row_domains(rows: List[Dict[str, str]], *, source_selector: Callab
 
 def summarize_counter(counter: Counter[str], *, key_name: str, limit: int = 10) -> List[Dict[str, object]]:
     return [{key_name: key, "count": count} for key, count in counter.most_common(limit)]
+
+
+def summarize_hit_rate(
+    totals: Counter[str],
+    hits: Counter[str],
+    *,
+    label: str,
+    limit: int = 10,
+) -> List[Dict[str, object]]:
+    rows: List[Dict[str, object]] = []
+    for key, processed in totals.most_common(limit):
+        processed_count = int(processed or 0)
+        hit_count = int(hits.get(key, 0) or 0)
+        rows.append(
+            {
+                label: key,
+                "processed": processed_count,
+                "visible_email_hits": hit_count,
+                "visible_email_hit_rate": round((hit_count / processed_count), 4) if processed_count > 0 else 0.0,
+            }
+        )
+    return rows
+
+
+def build_email_only_source_yield_stats(candidate_outcome_records: List[Dict[str, object]]) -> Dict[str, object]:
+    source_domain_totals: Counter[str] = Counter()
+    source_domain_visible_email_hits: Counter[str] = Counter()
+    source_domain_kept_rows: Counter[str] = Counter()
+    source_type_totals: Counter[str] = Counter()
+    source_type_visible_email_hits: Counter[str] = Counter()
+    source_type_kept_rows: Counter[str] = Counter()
+    source_query_totals: Counter[str] = Counter()
+    source_query_visible_email_hits: Counter[str] = Counter()
+    source_query_kept_rows: Counter[str] = Counter()
+
+    for record in candidate_outcome_records:
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url) or "unknown"
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url) or "unknown"
+        source_query = str(record.get("source_query", "") or "").strip() or "<unknown>"
+        visible_email_hit = bool(str(record.get("email", "") or "").strip())
+        kept = bool(record.get("kept", False))
+
+        source_domain_totals[source_domain] += 1
+        source_type_totals[source_type] += 1
+        source_query_totals[source_query] += 1
+        if visible_email_hit:
+            source_domain_visible_email_hits[source_domain] += 1
+            source_type_visible_email_hits[source_type] += 1
+            source_query_visible_email_hits[source_query] += 1
+        if kept:
+            source_domain_kept_rows[source_domain] += 1
+            source_type_kept_rows[source_type] += 1
+            source_query_kept_rows[source_query] += 1
+
+    return {
+        "processed_candidates": len(candidate_outcome_records),
+        "kept_rows_by_source_domains": summarize_counter(source_domain_kept_rows, key_name="domain"),
+        "kept_rows_by_source_types": summarize_counter(source_type_kept_rows, key_name="source"),
+        "kept_rows_by_source_queries": summarize_counter(source_query_kept_rows, key_name="query"),
+        "visible_email_hit_rate_by_source_domains": summarize_hit_rate(
+            source_domain_totals,
+            source_domain_visible_email_hits,
+            label="domain",
+        ),
+        "visible_email_hit_rate_by_source_types": summarize_hit_rate(
+            source_type_totals,
+            source_type_visible_email_hits,
+            label="source",
+        ),
+        "visible_email_hit_rate_by_source_queries": summarize_hit_rate(
+            source_query_totals,
+            source_query_visible_email_hits,
+            label="query",
+        ),
+    }
 
 
 def build_candidate_outcome_lookup(candidate_outcome_records: List[Dict[str, object]]) -> Dict[Tuple[str, str], Dict[str, str]]:
@@ -4772,11 +4940,12 @@ def main() -> int:
         if pipeline_exit_code != 0:
             print(f"[WARN] batch {run_idx} failed with exit code {pipeline_exit_code}")
             validator_stats_failed = load_json(validate_stats_path)
+            candidate_outcome_records_failed = list(validator_stats_failed.get("candidate_outcome_records", []) or [])
             if not validated_export_path.exists():
                 write_rows(validated_export_path, read_rows(validated_path))
             if not rejected_rows:
                 rejected_rows = build_rejected_rows(
-                    list(validator_stats_failed.get("candidate_outcome_records", []) or []),
+                    candidate_outcome_records_failed,
                     run_tag,
                 )
                 duplicate_count = sum(
@@ -4805,6 +4974,10 @@ def main() -> int:
                 "counts": {
                     "harvested_candidates": row_count(candidates_path),
                     "candidates": row_count(filtered_candidates_path),
+                    "validator_candidates_processed": int(validator_stats_failed.get("total_candidates", 0) or 0),
+                    "validator_batch_runtime_exceeded": bool(
+                        validator_stats_failed.get("batch_runtime_exceeded", False)
+                    ),
                     "suppressed_pre_validate_total": suppression_stats.get("suppressed_pre_validate_total", 0),
                     "duplicate_count": duplicate_count,
                     "near_miss_location_rows": row_count(run_near_miss_location_path),
@@ -4819,13 +4992,16 @@ def main() -> int:
                 "candidates": analyze_candidates(filtered_candidates_path),
                 "harvest": harvest_stats,
                 "pre_validate_suppression": suppression_stats,
-                "validator": load_json(validate_stats_path),
+                "validator": validator_stats_failed,
+                "effective_validator_runtime": build_effective_validator_runtime_stats(args),
                 "loop_control": {
                     "stale_runs": stale_runs,
                     **reliability_counters,
                     "stop_reason": stop_reason,
                 },
             }
+            if is_email_only_profile(validation_profile):
+                run_stats["email_only_source_yield"] = build_email_only_source_yield_stats(candidate_outcome_records_failed)
             if harvest_stats:
                 run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
             write_run_stats(run_stats_path, run_stats)
@@ -5108,6 +5284,7 @@ def main() -> int:
             f"merged {len(master_batch_rows)} to master, queued {len(queue_only_batch_rows)}, "
             f"added {added} new, total {after}/{goal_target}"
         )
+        validator_stats = load_json(validate_stats_path)
         run_stats = {
             "run_tag": run_tag,
             "batch_index": run_idx,
@@ -5117,11 +5294,13 @@ def main() -> int:
             "pipeline_stderr_log": str(pipeline_stderr_path),
             "merge_policy": args.merge_policy,
             "validation_profile": validation_profile,
-                "counts": {
-                    "harvested_candidates": row_count(candidates_path),
-                    "candidates": row_count(filtered_candidates_path),
-                    "validated": row_count(validated_path),
-                    "final": row_count(final_path),
+            "counts": {
+                "harvested_candidates": row_count(candidates_path),
+                "candidates": row_count(filtered_candidates_path),
+                "validated": row_count(validated_path),
+                "final": row_count(final_path),
+                "validator_candidates_processed": int(validator_stats.get("total_candidates", 0) or 0),
+                "validator_batch_runtime_exceeded": bool(validator_stats.get("batch_runtime_exceeded", False)),
                 "verified": row_count(verified_path),
                 "pre_verify_rows": len(pre_verify_rows),
                 "kept_rows_after_gate": len(batch_rows),
@@ -5134,29 +5313,32 @@ def main() -> int:
                 "added_to_queue": added_to_queue,
                 "master_total": len(master_rows),
                 "goal_qualified_total": after,
-                    "queue_total": len(queue_rows),
-                    "verified_output_rows": verified_output_count,
-                    "scouted_output_rows": scouted_output_count,
-                    "new_leads_rows": new_leads_count,
-                    "near_miss_location_total": len(near_miss_location_rows),
-                    "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
-                    "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
-                    "candidates_replaced": int(validation_orchestration_stats.get("candidates_replaced", 0) or 0),
-                    "dead_end_count": int(validation_orchestration_stats.get("dead_end_count", 0) or 0),
-                    "exhausted_before_target": bool(validation_orchestration_stats.get("exhausted_before_target", False)),
-                },
+                "queue_total": len(queue_rows),
+                "verified_output_rows": verified_output_count,
+                "scouted_output_rows": scouted_output_count,
+                "new_leads_rows": new_leads_count,
+                "near_miss_location_total": len(near_miss_location_rows),
+                "verified_target": int(validation_orchestration_stats.get("verified_target", 0) or 0),
+                "verified_progress": int(validation_orchestration_stats.get("verified_progress", 0) or 0),
+                "candidates_replaced": int(validation_orchestration_stats.get("candidates_replaced", 0) or 0),
+                "dead_end_count": int(validation_orchestration_stats.get("dead_end_count", 0) or 0),
+                "exhausted_before_target": bool(validation_orchestration_stats.get("exhausted_before_target", False)),
+            },
             "near_miss_location_output": str(run_near_miss_location_path),
             "harvested_candidates": analyze_candidates(candidates_path),
             "candidates": analyze_candidates(filtered_candidates_path),
             "harvest": harvest_stats,
             "pre_validate_suppression": suppression_stats,
-            "validator": load_json(validate_stats_path),
+            "validator": validator_stats,
+            "effective_validator_runtime": build_effective_validator_runtime_stats(args),
             "loop_control": {
                 "stale_runs": stale_runs,
                 **reliability_counters,
                 "stop_reason": stop_reason,
             },
         }
+        if is_email_only_profile(validation_profile):
+            run_stats["email_only_source_yield"] = build_email_only_source_yield_stats(candidate_outcome_records)
         if agent_hunt_stats:
             run_stats["agent_hunt"] = {
                 "scouted_target": int(agent_hunt_stats.get("scouted_target", 0) or 0),

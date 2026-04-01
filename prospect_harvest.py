@@ -26,6 +26,7 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from local_env import load_local_env
 from lead_utils import (
     domain_matches_blocklist,
     is_allowed_retailer_url,
@@ -459,9 +460,14 @@ IAN_MAX_PROFILES_PER_PAGE = 6
 IAN_MAX_TOTAL_PROFILES = 18
 IAN_MAX_CONSECUTIVE_PROFILE_FAILURES = 3
 IAN_MAX_PROFILE_TIMEOUTS = 2
+DIRECTORY_TARGET_SHARE = 0.5
+DIRECTORY_TARGET_FLOOR = 4
+EPIC_DIRECTORY_TARGET_SHARE = 0.3
+EPIC_DIRECTORY_MAX_CAP = 24
 
 
 def parse_args() -> argparse.Namespace:
+    load_local_env()
     parser = argparse.ArgumentParser(description="Harvest candidate author/book URLs from web search.")
     parser.add_argument("--target", type=int, default=80, help="Target candidate count (default: 80).")
     parser.add_argument(
@@ -1232,6 +1238,91 @@ def search_brave_web(
     return links
 
 
+def search_web_fallback_results(
+    query: str,
+    per_query: int,
+    session: requests.Session,
+    timeout: float,
+    brave_api_key: str,
+    *,
+    duckduckgo_blocked: bool,
+) -> tuple[List[str], bool]:
+    results: List[str] = []
+    seen = set()
+    success_threshold = max(3, per_query // 2)
+
+    def extend(urls: List[str]) -> None:
+        for url in urls:
+            if url in seen:
+                continue
+            seen.add(url)
+            results.append(url)
+            if len(results) >= per_query:
+                break
+
+    if brave_api_key:
+        try:
+            extend(
+                search_brave_web(
+                    query=query,
+                    per_query=per_query,
+                    session=session,
+                    api_key=brave_api_key,
+                    timeout=max(1.0, timeout),
+                )
+            )
+        except requests.RequestException as exc:
+            print(f"[WARN] Brave Search query failed: {query!r}: {describe_request_exception(exc)}")
+
+    if len(results) < success_threshold and not duckduckgo_blocked:
+        try:
+            extend(
+                search_duckduckgo(
+                    query,
+                    per_query=per_query,
+                    session=session,
+                    timeout=max(1.0, timeout),
+                )
+            )
+        except requests.RequestException as exc:
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code == 403:
+                duckduckgo_blocked = True
+                print("[INFO] DuckDuckGo HTML returned 403; skipping it for remaining queries in this run")
+            else:
+                print(f"[WARN] query failed: {query!r}: {describe_request_exception(exc)}")
+
+    if len(results) < success_threshold:
+        try:
+            html_results = search_bing_html(
+                query,
+                per_query=per_query,
+                session=session,
+                timeout=max(1.0, timeout),
+            )
+        except requests.RequestException as exc:
+            print(f"[WARN] HTML fallback query failed: {query!r}: {describe_request_exception(exc)}")
+            html_results = []
+        if html_results:
+            extend(html_results)
+
+    if len(results) < success_threshold:
+        try:
+            rss_results = search_bing_rss(
+                query,
+                per_query=per_query,
+                session=session,
+                timeout=max(1.0, timeout),
+            )
+        except requests.RequestException as exc:
+            print(f"[WARN] fallback query failed: {query!r}: {describe_request_exception(exc)}")
+            rss_results = []
+        if rss_results:
+            extend(rss_results)
+
+    return results[: max(1, per_query)], duckduckgo_blocked
+
+
 def search_openlibrary_subject(
     subject: str,
     limit: int,
@@ -1244,8 +1335,12 @@ def search_openlibrary_subject(
         "limit": max(1, limit),
         "language": "eng",
     }
-    resp = session.get("https://openlibrary.org/search.json", params=params, timeout=timeout)
-    resp.raise_for_status()
+    try:
+        resp = session.get("https://openlibrary.org/search.json", params=params, timeout=timeout)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"[WARN] Open Library subject lookup failed for {subject!r}: {exc}")
+        return []
     try:
         data = resp.json()
     except ValueError as exc:
@@ -1266,6 +1361,19 @@ def search_openlibrary_subject(
             }
         )
     return out
+
+
+def compute_directory_goal(target: int, effective_target: int) -> int:
+    return min(max(1, effective_target), max(DIRECTORY_TARGET_FLOOR, int(round(max(1, target) * DIRECTORY_TARGET_SHARE))))
+
+
+def source_type_cap(source_type: str, effective_target: int) -> int:
+    if source_type != "epic_directory":
+        return 0
+    return min(
+        EPIC_DIRECTORY_MAX_CAP,
+        max(DIRECTORY_TARGET_FLOOR, int(round(max(1, effective_target) * EPIC_DIRECTORY_TARGET_SHARE))),
+    )
 
 
 def is_preferred_candidate_url(url: str) -> bool:
@@ -1949,6 +2057,9 @@ def harvest(
         }
         normalized_row["CandidateURL"] = url
         normalized_row["SourceType"] = infer_source_type(row)
+        source_cap = source_type_cap(normalized_row["SourceType"], effective_target)
+        if source_cap > 0 and source_counts.get(normalized_row["SourceType"], 0) >= source_cap:
+            return False
         if not normalized_row["DiscoveredAtUTC"]:
             normalized_row["DiscoveredAtUTC"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
         seen.add(url)
@@ -1968,10 +2079,11 @@ def harvest(
                 added += 1
         return added
 
-    directory_goal = max(1, int(round(max(1, target) * 0.8)))
+    directory_goal = compute_directory_goal(target, effective_target)
     deterministic_goal = max(directory_goal, min_candidates)
     time_budget_seconds = max(10.0, harvest_time_budget)
     use_google = google_status["status"] == "ok"
+    duckduckgo_blocked = False
 
     def time_budget_remaining() -> bool:
         return (time.monotonic() - started_at) < time_budget_seconds
@@ -2013,6 +2125,26 @@ def harvest(
                     for url in results
                 )
             )
+            if len(results) < per_query and len(out) < effective_target and time_budget_remaining():
+                fallback_results, duckduckgo_blocked = search_web_fallback_results(
+                    query=query,
+                    per_query=max(1, per_query - len(results)),
+                    session=session,
+                    timeout=max(1.0, search_timeout),
+                    brave_api_key=brave_api_key,
+                    duckduckgo_blocked=duckduckgo_blocked,
+                )
+                add_rows(
+                    (
+                        make_candidate_row(
+                            url,
+                            source_type="web_search",
+                            source_query=query,
+                            timestamp=timestamp,
+                        )
+                        for url in fallback_results
+                    )
+                )
             time.sleep(max(0.0, pause_seconds))
     else:
         ian_outbound_per_profile = max(1, min(2, goodreads_outbound_per_url or 2))
@@ -2045,9 +2177,13 @@ def harvest(
         add_rows(
             interleave_candidate_groups(
                 *rotate_candidate_groups([epic_rows, ian_rows, iabx_rows], rotation_offset)
-            )
+            ),
+            limit=directory_goal,
         )
-        if ian_rows and len(out) < deterministic_goal and time_budget_remaining():
+        # Reserve room for broader discovery when fallback search is available.
+        if ian_rows and len(out) < deterministic_goal and time_budget_remaining() and (
+            disable_web_fallback or not queries
+        ):
             shortfall = max(0, deterministic_goal - len(out))
             expanded_ian_page_budget = min(10, max(initial_ian_page_budget + 1, 1 + shortfall // 12))
             if expanded_ian_page_budget > initial_ian_page_budget:
@@ -2101,74 +2237,20 @@ def harvest(
                 limit=goodreads_quota,
             )
 
-    duckduckgo_blocked = False
     allow_web_fallback = not disable_web_fallback and len(out) < effective_target
-    if not use_google:
-        allow_web_fallback = allow_web_fallback and len(out) >= directory_goal
 
     if allow_web_fallback:
         for query in queries:
             if len(out) >= effective_target or not time_budget_remaining():
                 break
-            results: List[str] = []
-
-            if brave_api_key and not use_google:
-                try:
-                    results = search_brave_web(
-                        query=query,
-                        per_query=per_query,
-                        session=session,
-                        api_key=brave_api_key,
-                        timeout=max(1.0, search_timeout),
-                    )
-                except requests.RequestException as exc:
-                    print(f"[WARN] Brave Search query failed: {query!r}: {describe_request_exception(exc)}")
-                    results = []
-
-            if not results and not duckduckgo_blocked:
-                try:
-                    results = search_duckduckgo(
-                        query,
-                        per_query=per_query,
-                        session=session,
-                        timeout=max(1.0, search_timeout),
-                    )
-                except requests.RequestException as exc:
-                    status_code = getattr(getattr(exc, "response", None), "status_code", None)
-                    if status_code == 403:
-                        duckduckgo_blocked = True
-                        print("[INFO] DuckDuckGo HTML returned 403; skipping it for remaining queries in this run")
-                    else:
-                        print(f"[WARN] query failed: {query!r}: {describe_request_exception(exc)}")
-                    results = []
-
-            if len(results) < max(3, per_query // 2):
-                try:
-                    html_results = search_bing_html(
-                        query,
-                        per_query=per_query,
-                        session=session,
-                        timeout=max(1.0, search_timeout),
-                    )
-                except requests.RequestException as exc:
-                    print(f"[WARN] HTML fallback query failed: {query!r}: {describe_request_exception(exc)}")
-                    html_results = []
-                if html_results:
-                    results = html_results
-
-            if len(results) < max(3, per_query // 2):
-                try:
-                    fallback = search_bing_rss(
-                        query,
-                        per_query=per_query,
-                        session=session,
-                        timeout=max(1.0, search_timeout),
-                    )
-                except requests.RequestException as exc:
-                    print(f"[WARN] fallback query failed: {query!r}: {describe_request_exception(exc)}")
-                    fallback = []
-                if fallback:
-                    results = fallback
+            results, duckduckgo_blocked = search_web_fallback_results(
+                query=query,
+                per_query=per_query,
+                session=session,
+                timeout=max(1.0, search_timeout),
+                brave_api_key="" if use_google else brave_api_key,
+                duckduckgo_blocked=duckduckgo_blocked,
+            )
 
             timestamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
             add_rows(

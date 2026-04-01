@@ -26,6 +26,7 @@ from prospect_harvest import (
     search_brave_web,
     search_bing_rss,
     search_google_cse,
+    search_openlibrary_subject,
 )
 from prospect_validate import (
     has_enterprise_signal,
@@ -455,6 +456,19 @@ def test_openlibrary_candidates_rotate_subjects_and_emit_external_book_links() -
     ]
 
 
+def test_search_openlibrary_subject_returns_empty_on_http_error() -> None:
+    session = FakeSession([FakeResponse(status_code=500)])
+
+    rows = search_openlibrary_subject(
+        subject="thriller",
+        limit=2,
+        session=session,  # type: ignore[arg-type]
+        timeout=5.0,
+    )
+
+    assert rows == []
+
+
 def test_harvest_skips_duckduckgo_after_403_once_directories_fill_gate() -> None:
     ddg_error = requests.HTTPError("403 blocked")
     ddg_error.response = type("Resp", (), {"status_code": 403})()
@@ -538,6 +552,58 @@ def test_harvest_skips_duckduckgo_after_403_once_directories_fill_gate() -> None
     assert stats["per_source"]["web_search"] == 1
 
 
+def test_harvest_google_thin_query_is_supplemented_with_web_search_results() -> None:
+    with (
+        patch(
+            "prospect_harvest.google_cse_healthcheck",
+            return_value={"status": "ok", "http_status": 200, "error_reason": "", "error_message": ""},
+        ),
+        patch("prospect_harvest.search_google_cse", return_value=["https://google-result.example/contact"]),
+        patch(
+            "prospect_harvest.search_duckduckgo",
+            return_value=[
+                "https://fallback-one.example/contact",
+                "https://fallback-two.example/contact",
+            ],
+        ),
+        patch("prospect_harvest.search_bing_html", return_value=[]),
+        patch("prospect_harvest.search_bing_rss", return_value=[]),
+        patch("prospect_harvest.time.sleep", return_value=None),
+    ):
+        rows, stats = harvest(
+            queries=["q1"],
+            per_query=3,
+            target=3,
+            min_candidates=3,
+            pause_seconds=0.0,
+            max_per_domain=0,
+            goodreads_pages=1,
+            max_goodreads_candidates=0,
+            goodreads_outbound_per_url=0,
+            include_goodreads_outbound=False,
+            goodreads_rotation_offset=0,
+            max_openlibrary_candidates=0,
+            openlibrary_per_subject=1,
+            include_openlibrary=False,
+            brave_api_key="",
+            google_api_key="key",
+            google_cx="cx",
+            search_timeout=5.0,
+            goodreads_timeout=5.0,
+            http_retries=0,
+            harvest_time_budget=30.0,
+            disable_web_fallback=False,
+        )
+
+    assert [row["CandidateURL"] for row in rows] == [
+        "https://google-result.example/contact",
+        "https://fallback-one.example/contact",
+        "https://fallback-two.example/contact",
+    ]
+    assert stats["per_source"]["google_cse"] == 1
+    assert stats["per_source"]["web_search"] == 2
+
+
 def test_harvest_uses_directories_before_web_fallbacks() -> None:
     epic_rows = [
         {
@@ -599,11 +665,67 @@ def test_harvest_uses_directories_before_web_fallbacks() -> None:
             disable_web_fallback=False,
         )
 
-    assert len(rows) == 20
-    assert stats["per_source"]["epic_directory"] == 10
-    assert stats["per_source"]["ian_directory"] == 6
+    assert len(rows) == 14
+    assert stats["counts"]["directory_goal_before_web_fallback"] == 10
+    assert stats["per_source"]["epic_directory"] == 5
+    assert stats["per_source"]["ian_directory"] == 5
     assert stats["per_source"]["web_search"] == 4
     assert all(not row["CandidateURL"].startswith("https://www.amazon.com/b") for row in rows)
+
+
+def test_harvest_caps_epic_directory_share_before_web_search_expands_mix() -> None:
+    epic_rows = [
+        {
+            "CandidateURL": f"https://epic{idx}.example/contact",
+            "SourceType": "epic_directory",
+            "SourceQuery": "epic:author-directory",
+            "DiscoveredAtUTC": "2026-03-06T00:00:00Z",
+        }
+        for idx in range(1, 41)
+    ]
+
+    with (
+        patch("prospect_harvest.extract_epic_directory_candidates", return_value=epic_rows),
+        patch("prospect_harvest.extract_iabx_directory_candidates", return_value=[]),
+        patch("prospect_harvest.extract_ian_directory_candidates", return_value=[]),
+        patch("prospect_harvest.harvest_openlibrary_candidates", return_value=[]),
+        patch("prospect_harvest.harvest_goodreads_candidates", return_value=[]),
+        patch(
+            "prospect_harvest.search_duckduckgo",
+            return_value=[f"https://search{idx}.example/contact" for idx in range(1, 21)],
+        ),
+        patch("prospect_harvest.search_bing_html", return_value=[]),
+        patch("prospect_harvest.search_bing_rss", return_value=[]),
+        patch("prospect_harvest.time.sleep", return_value=None),
+    ):
+        rows, stats = harvest(
+            queries=["q1"],
+            per_query=20,
+            target=20,
+            min_candidates=20,
+            pause_seconds=0.0,
+            max_per_domain=0,
+            goodreads_pages=1,
+            max_goodreads_candidates=0,
+            goodreads_outbound_per_url=0,
+            include_goodreads_outbound=False,
+            goodreads_rotation_offset=0,
+            max_openlibrary_candidates=0,
+            openlibrary_per_subject=1,
+            include_openlibrary=False,
+            brave_api_key="",
+            google_api_key="",
+            google_cx="",
+            search_timeout=5.0,
+            goodreads_timeout=5.0,
+            http_retries=0,
+            harvest_time_budget=30.0,
+            disable_web_fallback=False,
+        )
+
+    assert len(rows) == 20
+    assert stats["per_source"]["epic_directory"] == 6
+    assert stats["per_source"]["web_search"] == 14
 
 
 def test_harvest_skips_expanded_ian_retry_when_initial_pass_is_empty() -> None:

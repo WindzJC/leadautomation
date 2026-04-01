@@ -52,6 +52,7 @@ from run_lead_finder_loop import (
     build_agent_hunt_source_quality_feedback,
     build_agent_hunt_stats,
     build_agent_hunt_listing_feedback,
+    build_email_only_source_yield_stats,
     build_rotating_queries,
     keep_verified_rows,
     orchestrate_candidate_replacements,
@@ -1424,6 +1425,46 @@ def test_agent_hunt_profile_defaults_apply_goal_preset() -> None:
     assert args.goal_final == 20
 
 
+def test_email_only_profile_defaults_apply_lightweight_runtime_preset() -> None:
+    args = Namespace(
+        validation_profile="email_only",
+        goal_total=100,
+        goal_final=0,
+        max_runs=20,
+        max_stale_runs=5,
+        batch_min=10,
+        batch_max=20,
+        target=40,
+        min_candidates=20,
+        max_fetches_per_domain=16,
+        max_seconds_per_domain=25.0,
+        max_total_runtime=900.0,
+        max_pages_for_title=4,
+        max_pages_for_contact=6,
+        max_total_fetches_per_domain_per_run=14,
+        location_recovery_mode="same_domain",
+        location_recovery_pages=6,
+        require_location_proof=False,
+        us_only=False,
+        listing_strict=True,
+        merge_policy="balanced",
+    )
+
+    apply_validation_profile_defaults(args)
+
+    assert args.validation_profile == "email_only"
+    assert args.listing_strict is False
+    assert args.max_fetches_per_domain == 6
+    assert args.max_seconds_per_domain == 8.0
+    assert args.max_total_runtime == 90.0
+    assert args.max_pages_for_title == 1
+    assert args.max_pages_for_contact == 2
+    assert args.max_total_fetches_per_domain_per_run == 6
+    assert args.location_recovery_mode == "off"
+    assert args.location_recovery_pages == 0
+    assert args.merge_policy == "balanced"
+
+
 def test_write_scouted_rows_outputs_three_columns_without_header(tmp_path) -> None:
     output_path = tmp_path / "scouted.csv"
     rows = [
@@ -2124,6 +2165,60 @@ def test_build_rotating_queries_expands_safely_after_stale_runs() -> None:
     assert fresh_queries != stale_queries
 
 
+def test_build_email_only_source_yield_stats_reports_kept_rows_and_email_hit_rates() -> None:
+    result = build_email_only_source_yield_stats(
+        [
+            {
+                "source_url": "https://www.epicindie.net/authordirectory",
+                "source_type": "epic_directory",
+                "source_query": "epic:author-directory",
+                "email": "jane@example.com",
+                "kept": True,
+            },
+            {
+                "source_url": "https://www.epicindie.net/authordirectory",
+                "source_type": "epic_directory",
+                "source_query": "epic:author-directory",
+                "email": "",
+                "kept": False,
+            },
+            {
+                "source_url": "https://www.google.com/search?q=author",
+                "source_type": "google_cse",
+                "source_query": "\"indie author\" \"official website\"",
+                "email": "author@example.com",
+                "kept": True,
+            },
+        ]
+    )
+
+    assert result["processed_candidates"] == 3
+    assert result["kept_rows_by_source_domains"] == [
+        {"domain": "epicindie.net", "count": 1},
+        {"domain": "google.com", "count": 1},
+    ]
+    assert result["kept_rows_by_source_types"] == [
+        {"source": "epic_directory", "count": 1},
+        {"source": "google_cse", "count": 1},
+    ]
+    assert result["kept_rows_by_source_queries"] == [
+        {"query": "epic:author-directory", "count": 1},
+        {"query": "\"indie author\" \"official website\"", "count": 1},
+    ]
+    assert result["visible_email_hit_rate_by_source_domains"][0] == {
+        "domain": "epicindie.net",
+        "processed": 2,
+        "visible_email_hits": 1,
+        "visible_email_hit_rate": 0.5,
+    }
+    assert result["visible_email_hit_rate_by_source_types"][1] == {
+        "source": "google_cse",
+        "processed": 1,
+        "visible_email_hits": 1,
+        "visible_email_hit_rate": 1.0,
+    }
+
+
 def test_rotate_candidate_groups_rotates_directory_priority() -> None:
     groups = [
         [{"CandidateURL": "https://epic.example"}],
@@ -2264,6 +2359,63 @@ def test_validator_and_single_run_runtime_profile_defaults_match() -> None:
     assert single_run_args.max_fetches_per_domain == 10
     assert single_run_args.max_seconds_per_domain == 12.0
     assert single_run_args.max_total_runtime == 120.0
+
+
+def test_email_only_validator_and_single_run_runtime_profile_defaults_match() -> None:
+    validator_args = Namespace(
+        validation_profile="email_only",
+        max_fetches_per_domain=16,
+        max_seconds_per_domain=25.0,
+        max_total_runtime=900.0,
+        max_pages_for_title=4,
+        max_pages_for_contact=6,
+        max_total_fetches_per_domain_per_run=14,
+        location_recovery_mode="same_domain",
+        location_recovery_pages=6,
+        listing_strict=True,
+    )
+    single_run_args = Namespace(
+        validation_profile="email_only",
+        max_fetches_per_domain=16,
+        max_seconds_per_domain=25.0,
+        max_total_runtime=900.0,
+        max_pages_for_title=4,
+        max_pages_for_contact=6,
+        max_total_fetches_per_domain_per_run=14,
+        location_recovery_mode="same_domain",
+        location_recovery_pages=6,
+        listing_strict=True,
+        target=40,
+        min_candidates=80,
+        require_location_proof=False,
+        us_only=False,
+        min_final=20,
+        max_final=40,
+    )
+
+    apply_validator_profile_defaults(validator_args)
+    apply_single_run_profile_defaults(single_run_args)
+
+    assert validator_args.validation_profile == "email_only"
+    assert validator_args.listing_strict is False
+    assert validator_args.max_fetches_per_domain == 6
+    assert validator_args.max_seconds_per_domain == 8.0
+    assert validator_args.max_total_runtime == 90.0
+    assert validator_args.max_pages_for_title == 1
+    assert validator_args.max_pages_for_contact == 2
+    assert validator_args.max_total_fetches_per_domain_per_run == 6
+    assert validator_args.location_recovery_mode == "off"
+    assert validator_args.location_recovery_pages == 0
+
+    assert single_run_args.listing_strict is False
+    assert single_run_args.max_fetches_per_domain == 6
+    assert single_run_args.max_seconds_per_domain == 8.0
+    assert single_run_args.max_total_runtime == 90.0
+    assert single_run_args.max_pages_for_title == 1
+    assert single_run_args.max_pages_for_contact == 2
+    assert single_run_args.max_total_fetches_per_domain_per_run == 6
+    assert single_run_args.location_recovery_mode == "off"
+    assert single_run_args.location_recovery_pages == 0
 
 
 def test_split_rows_by_merge_policy_keeps_staged_rows_in_queue() -> None:

@@ -80,6 +80,64 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## Local Secrets
+Create a local `.env.local` file in the repo root on each machine:
+
+```bash
+GOOGLE_API_KEY=your_google_api_key
+GOOGLE_CSE_CX=your_google_cse_engine_id
+```
+
+Notes:
+- `.env.local` is machine-local and gitignored.
+- The runners and dashboard load `.env.local` automatically at startup.
+- Secrets are not written into CSV exports, run manifests, or dashboard logs.
+
+## Doctor
+Run the simple status check before switching machines or starting a session:
+
+Mac / WSL:
+```bash
+.venv/bin/python leadfinder_doctor.py
+```
+
+Windows PowerShell:
+```powershell
+.\.venv\Scripts\python.exe .\leadfinder_doctor.py
+```
+
+This shows:
+- current branch
+- latest commit
+- repo clean/dirty
+- whether the venv exists
+- whether `GOOGLE_API_KEY` and `GOOGLE_CSE_CX` are present
+
+## Cross-Machine Workflow
+Code syncs through Git. Outputs and secrets stay local to each machine.
+
+Mac -> Windows / WSL:
+1. Edit on Mac.
+2. Run tests if needed.
+3. Commit and push on Mac.
+4. Pull the branch on Windows or WSL.
+5. Keep that machine's own `.env.local`.
+6. Run there.
+
+Windows / WSL -> Mac:
+1. Edit on Windows or WSL.
+2. Run tests if needed.
+3. Commit and push on Windows or WSL.
+4. Pull the branch on Mac.
+5. Keep that machine's own `.env.local`.
+6. Run there.
+
+Operating rules:
+- Git syncs code, docs, tests, and tracked config only.
+- Generated CSV, JSON, log, and debug artifacts stay local and should not be committed.
+- `.env.local` stays local per machine and should not be committed.
+- Use the doctor script before switching machines if you want a quick branch/env/venv check.
+
 ## Run Tests
 ```bash
 .venv/bin/python -m pip install pytest
@@ -239,13 +297,31 @@ run_ops_dashboard.py
 This dashboard is the local operator UI you can actually redesign with normal frontend files. The backend stays thin and reads the existing pipeline outputs from disk. No pipeline schemas or validation rules change.
 
 Launch it with:
+
+Mac:
 ```bash
-python run_ops_dashboard.py
+bash ./start_ops_dashboard_mac.sh
+```
+
+Windows PowerShell:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_ops_dashboard_windows.ps1
+```
+
+WSL:
+```bash
+bash ./start_ops_dashboard_wsl.sh
 ```
 
 Then open:
 ```text
 http://127.0.0.1:8000
+```
+
+The same `.env.local` startup behavior also applies to the CLI runners, so you can pull on either machine and run:
+```bash
+python run_lead_finder.py
+python run_lead_finder_loop.py --validation-profile strict_full
 ```
 
 Editable UI files:

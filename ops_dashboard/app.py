@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from local_env import load_local_env
+
 try:
     from fastapi import Body, FastAPI, HTTPException
     from fastapi.responses import FileResponse
@@ -28,6 +30,7 @@ from ops_dashboard.data_access import (
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
+load_local_env()
 VALIDATION_PROFILES = [
     "agent_hunt",
     "email_only",

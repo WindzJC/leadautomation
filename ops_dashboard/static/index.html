@@ -31,83 +31,168 @@
           <div>
             <p class="panel-label">Run Control</p>
             <h2>Launch Lead Finder</h2>
-            <p class="panel-meta panel-submeta">Cold-outreach `agent_hunt` presets: keep real public-email leads with plausible author matches, avoid over-filtering, and keep `strict_full` separate.</p>
-            <div class="preset-toolbar">
-              <button id="preset-safe-day" type="button" class="button-secondary">Safe Day Run</button>
-              <button id="preset-aggressive-day" type="button" class="button-secondary">Aggressive Day Run</button>
-            </div>
+            <p class="panel-meta panel-submeta">Use the dashboard as the operator console: choose a mode, shape the batch, then keep all run artifacts in one place.</p>
           </div>
           <span id="run-control-status" class="panel-meta">Idle</span>
         </div>
+        <div class="run-intel-grid">
+          <article class="run-intel-card">
+            <p class="panel-label">Selected Mode</p>
+            <h3 id="run-mode-title">Agent Hunt</h3>
+            <p id="run-mode-summary" class="run-intel-copy">Volume-first scouting with public-email quality scoring.</p>
+            <div id="run-mode-pills" class="pill-row"></div>
+          </article>
+          <article class="run-intel-card">
+            <p class="panel-label">Session Shape</p>
+            <h3 id="run-session-title">200 row scouting session</h3>
+            <div class="snapshot-grid">
+              <div class="snapshot-card">
+                <span class="snapshot-label">Goal</span>
+                <strong id="run-snapshot-goal">200</strong>
+              </div>
+              <div class="snapshot-card">
+                <span class="snapshot-label">Harvest</span>
+                <strong id="run-snapshot-target">80</strong>
+              </div>
+              <div class="snapshot-card">
+                <span class="snapshot-label">Validator Cap</span>
+                <strong id="run-snapshot-max-candidates">50</strong>
+              </div>
+              <div class="snapshot-card">
+                <span class="snapshot-label">Batch</span>
+                <strong id="run-snapshot-batch">20-20</strong>
+              </div>
+              <div class="snapshot-card">
+                <span class="snapshot-label">Runs</span>
+                <strong id="run-snapshot-runs">12 / 4 stale</strong>
+              </div>
+            </div>
+            <p id="run-folder-preview" class="run-intel-copy">Outputs will be written to a dashboard run folder.</p>
+          </article>
+        </div>
         <form id="run-control-form" class="run-form">
-          <label>
-            <span>Validation Profile</span>
-            <div id="run-validation-profile-label" class="static-field">Agent Hunt</div>
-            <input id="run-validation-profile" name="validation_profile" type="hidden" value="agent_hunt" />
-            <small class="field-help">Daily default for volume-first lead harvesting. Real public email plus a plausible author match is enough.</small>
-          </label>
-          <label>
-            <span>Goal Final</span>
-            <input id="run-goal-final" name="goal_final" type="number" min="1" />
-            <small class="field-help">Session target for scouted rows. Higher volume is acceptable in `agent_hunt`.</small>
-          </label>
-          <label>
-            <span>Max Runs</span>
-            <input id="run-max-runs" name="max_runs" type="number" min="1" />
-          </label>
-          <label>
-            <span>Max Stale Runs</span>
-            <input id="run-max-stale-runs" name="max_stale_runs" type="number" min="1" />
-          </label>
-          <label>
-            <span>Harvest Target</span>
-            <input id="run-target" name="target" type="number" min="1" />
-          </label>
-          <label>
-            <span>Min Candidates</span>
-            <input id="run-min-candidates" name="min_candidates" type="number" min="1" />
-          </label>
-          <label>
-            <span>Max Candidates</span>
-            <input id="run-max-candidates" name="max_candidates" type="number" min="1" />
-            <small class="field-help">Per-slice validator cap. Keep this close to the harvest target if you want more volume.</small>
-          </label>
-          <label>
-            <span>Batch Min</span>
-            <input id="run-batch-min" name="batch_min" type="number" min="1" />
-          </label>
-          <label>
-            <span>Batch Max</span>
-            <input id="run-batch-max" name="batch_max" type="number" min="1" />
-          </label>
-          <label>
-            <span>Queries File</span>
-            <input id="run-queries-file" name="queries_file" type="text" placeholder="Optional file path" />
-          </label>
-          <label>
-            <span>Output Folder</span>
-            <input id="run-folder-name" name="run_folder_name" type="text" />
-            <small class="field-help">Dashboard runs write into <code>&lt;folder&gt;/outputs/csv</code>, <code>logs</code>, and <code>runs</code>.</small>
-          </label>
-          <label class="checkbox-label">
-            <span>Listing Strict</span>
-            <input id="run-listing-strict" name="listing_strict" type="checkbox" />
-          </label>
+          <section class="form-section">
+            <div class="form-section-header">
+              <div>
+                <p class="panel-label">Mode</p>
+                <h3>Profile And Guardrails</h3>
+                <p class="section-copy">Pick the operating mode first, then decide how strict you want listing proof to be.</p>
+              </div>
+              <div class="preset-toolbar">
+                <button id="preset-safe-day" type="button" class="button-secondary">Safe Day Run</button>
+                <button id="preset-aggressive-day" type="button" class="button-secondary">Aggressive Day Run</button>
+              </div>
+            </div>
+            <div class="form-grid form-grid-two">
+              <label>
+                <span>Validation Profile</span>
+                <div id="run-validation-profile-label" class="static-field">Agent Hunt</div>
+                <input id="run-validation-profile" name="validation_profile" type="hidden" value="agent_hunt" />
+                <small class="field-help">Daily default for broader lead harvesting. Real public email plus a plausible author match is enough.</small>
+              </label>
+              <label>
+                <span>Profile Override</span>
+                <select id="run-validation-profile-override"></select>
+                <small class="field-help">Use this only when you intentionally want a stricter or lighter mode than the dashboard default.</small>
+              </label>
+              <label class="checkbox-tile">
+                <span>Listing Strict</span>
+                <div class="checkbox-row">
+                  <input id="run-listing-strict" name="listing_strict" type="checkbox" />
+                  <small class="field-help">Keep this off for scouting and `email_only`. Turn it on only for strict verified work.</small>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="form-section-header">
+              <div>
+                <p class="panel-label">Targets</p>
+                <h3>What You Want Back</h3>
+                <p class="section-copy">Set the total row goal and the size of each batch you are willing to keep.</p>
+              </div>
+            </div>
+            <div class="form-grid form-grid-four">
+              <label>
+                <span>Goal Final</span>
+                <input id="run-goal-final" name="goal_final" type="number" min="1" />
+                <small class="field-help">Target final rows for the whole session.</small>
+              </label>
+              <label>
+                <span>Harvest Target</span>
+                <input id="run-target" name="target" type="number" min="1" />
+                <small class="field-help">How many candidate pages to collect per run.</small>
+              </label>
+              <label>
+                <span>Batch Min</span>
+                <input id="run-batch-min" name="batch_min" type="number" min="1" />
+              </label>
+              <label>
+                <span>Batch Max</span>
+                <input id="run-batch-max" name="batch_max" type="number" min="1" />
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="form-section-header">
+              <div>
+                <p class="panel-label">Bounds</p>
+                <h3>Run Limits And Throughput</h3>
+                <p class="section-copy">Control how long the session is allowed to chase replacements and how many rows each validator slice can inspect.</p>
+              </div>
+            </div>
+            <div class="form-grid form-grid-four">
+              <label>
+                <span>Max Runs</span>
+                <input id="run-max-runs" name="max_runs" type="number" min="1" />
+              </label>
+              <label>
+                <span>Max Stale Runs</span>
+                <input id="run-max-stale-runs" name="max_stale_runs" type="number" min="1" />
+              </label>
+              <label>
+                <span>Min Candidates</span>
+                <input id="run-min-candidates" name="min_candidates" type="number" min="1" />
+              </label>
+              <label>
+                <span>Max Candidates</span>
+                <input id="run-max-candidates" name="max_candidates" type="number" min="1" />
+                <small class="field-help">Per-slice validator cap. Keep this close to the harvest target if you want more volume.</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="form-section-header">
+              <div>
+                <p class="panel-label">Inputs</p>
+                <h3>Files And Output Folder</h3>
+                <p class="section-copy">Optional query overrides go here. Every dashboard run keeps its own artifact folder.</p>
+              </div>
+            </div>
+            <div class="form-grid form-grid-two">
+              <label>
+                <span>Queries File</span>
+                <input id="run-queries-file" name="queries_file" type="text" placeholder="Optional file path" />
+              </label>
+              <label>
+                <span>Output Folder</span>
+                <input id="run-folder-name" name="run_folder_name" type="text" />
+                <small class="field-help">Dashboard runs write into <code>&lt;folder&gt;/outputs/csv</code>, <code>logs</code>, and <code>runs</code>.</small>
+              </label>
+            </div>
+          </section>
+
           <div class="run-form-actions">
-            <button id="run-start-button" type="submit" class="button-primary">Start Run</button>
-            <button id="run-stop-button" type="button" class="button-secondary">Stop Run</button>
+            <p class="action-note">The dashboard launches the same loop runner as the CLI, but keeps the run folder, logs, and artifact links together for review.</p>
+            <div class="action-buttons">
+              <button id="run-start-button" type="submit" class="button-primary">Start Run</button>
+              <button id="run-stop-button" type="button" class="button-secondary">Stop Run</button>
+            </div>
           </div>
         </form>
-        <details class="run-settings-advanced">
-          <summary>Advanced run settings</summary>
-          <div class="advanced-run-settings-grid">
-            <label>
-              <span>Profile Override</span>
-              <select id="run-validation-profile-override"></select>
-              <small class="field-help">Only change this if you intentionally want a strict verified mode.</small>
-            </label>
-          </div>
-        </details>
       </section>
 
       <section class="panel lead-panel">

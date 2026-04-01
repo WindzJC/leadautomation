@@ -13,6 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from local_env import load_local_env
 from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs, repo_path
 from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, config_arg_default, load_runtime_config
 
@@ -23,6 +24,17 @@ STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
 AGENT_HUNT_PROFILE = "agent_hunt"
 EMAIL_ONLY_PROFILE = "email_only"
+EMAIL_ONLY_LIGHTWEIGHT_RUNTIME = {
+    "listing_strict": False,
+    "max_fetches_per_domain": 6,
+    "max_seconds_per_domain": 8.0,
+    "max_total_runtime": 90.0,
+    "max_pages_for_title": 1,
+    "max_pages_for_contact": 2,
+    "max_total_fetches_per_domain_per_run": 6,
+    "location_recovery_mode": "off",
+    "location_recovery_pages": 0,
+}
 
 
 def stage_script_path(name: str) -> str:
@@ -33,9 +45,71 @@ def normalize_validation_profile(value: str) -> str:
     return str(value or "default").strip().lower()
 
 
+def cli_flag_present(args: argparse.Namespace, *flags: str) -> bool:
+    cli_flags = set(getattr(args, "_cli_flags", ()) or ())
+    return any(flag in cli_flags for flag in flags)
+
+
+def apply_profile_setting(args: argparse.Namespace, attribute: str, value: object, *flags: str) -> None:
+    if cli_flag_present(args, *flags):
+        return
+    setattr(args, attribute, value)
+
+
 def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
     profile = normalize_validation_profile(getattr(args, "validation_profile", "default"))
     args.validation_profile = profile
+    if profile == EMAIL_ONLY_PROFILE:
+        apply_profile_setting(args, "listing_strict", EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["listing_strict"], "--listing-strict")
+        apply_profile_setting(
+            args,
+            "max_fetches_per_domain",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_fetches_per_domain"],
+            "--max-fetches-per-domain",
+        )
+        apply_profile_setting(
+            args,
+            "max_seconds_per_domain",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_seconds_per_domain"],
+            "--max-seconds-per-domain",
+        )
+        apply_profile_setting(
+            args,
+            "max_total_runtime",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_total_runtime"],
+            "--max-total-runtime",
+        )
+        apply_profile_setting(
+            args,
+            "max_pages_for_title",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_pages_for_title"],
+            "--max-pages-for-title",
+        )
+        apply_profile_setting(
+            args,
+            "max_pages_for_contact",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_pages_for_contact"],
+            "--max-pages-for-contact",
+        )
+        apply_profile_setting(
+            args,
+            "max_total_fetches_per_domain_per_run",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["max_total_fetches_per_domain_per_run"],
+            "--max-total-fetches-per-domain-per-run",
+        )
+        apply_profile_setting(
+            args,
+            "location_recovery_mode",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["location_recovery_mode"],
+            "--location-recovery-mode",
+        )
+        apply_profile_setting(
+            args,
+            "location_recovery_pages",
+            EMAIL_ONLY_LIGHTWEIGHT_RUNTIME["location_recovery_pages"],
+            "--location-recovery-pages",
+        )
+        return
     if profile == STRICT_INTERACTIVE_PROFILE:
         if int(getattr(args, "max_fetches_per_domain", 0) or 0) == 0:
             args.max_fetches_per_domain = 10
@@ -70,6 +144,7 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    load_local_env()
     argv_list = list(argv) if argv is not None else sys.argv[1:]
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help=argparse.SUPPRESS)
@@ -317,6 +392,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     args = parser.parse_args(argv_list)
     args._runtime_config = runtime_config
+    args._cli_flags = {token for token in argv_list if token.startswith("--")}
     if bool(config_arg_default(runtime_config, "listing_strict", False)) and "--listing-strict" not in argv_list:
         args.listing_strict = True
     apply_validation_profile_defaults(args)

@@ -1,10 +1,13 @@
 .venv/
 __pycache__/
 *.pyc
+.env.local
 .dashboard_state/
 state/
 outputs/
 runs/
+browser_run_*/
+eval_runs/
 *.log
 *.pid
 *.exitcode
@@ -23,6 +26,8 @@ email_only.csv
 fully_verified_leads.csv
 scouted_leads.csv
 leads_full.csv
+test_email_only_author_email_source.csv
+test_email_only_leads_full.csv
 near_miss_location.csv
 promoted.csv
 queue_enrichment_candidates.csv

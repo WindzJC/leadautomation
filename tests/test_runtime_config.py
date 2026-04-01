@@ -3,8 +3,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import local_env
 import run_lead_finder
 from run_lead_finder import parse_args as parse_single_run_args
+from run_lead_finder_loop import apply_validation_profile_defaults as apply_loop_profile_defaults
 from run_lead_finder_loop import parse_args as parse_loop_args
 from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, load_runtime_config
 
@@ -109,6 +111,84 @@ def test_single_run_args_use_runtime_config_defaults(tmp_path: Path) -> None:
     assert args.min_final == 15
     assert args.max_final == 19
     assert args.listing_strict is True
+    assert (args.min_year, args.max_year) == (2023, 2026)
+
+
+def test_loop_args_load_google_keys_from_local_env(monkeypatch, tmp_path: Path) -> None:
+    env_path = tmp_path / ".env.local"
+    _write(
+        env_path,
+        "\n".join(
+            [
+                "GOOGLE_API_KEY=google-key-from-local-file",
+                "GOOGLE_CSE_CX=engine-id-from-local-file",
+            ]
+        ),
+    )
+    monkeypatch.setattr(local_env, "LOCAL_ENV_PATH", env_path)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CSE_CX", raising=False)
+
+    args = parse_loop_args([])
+
+    assert args.google_api_key == "google-key-from-local-file"
+    assert args.google_cx == "engine-id-from-local-file"
+
+
+def test_loop_email_only_profile_overrides_runtime_config_strict_defaults(tmp_path: Path) -> None:
+    config_path = tmp_path / "default.yaml"
+    _write(
+        config_path,
+        "\n".join(
+            [
+                "validation_profile: email_only",
+                "listing_strict: true",
+                "allowed_years: 3",
+            ]
+        ),
+    )
+
+    args = parse_loop_args(["--config", str(config_path)])
+    apply_loop_profile_defaults(args)
+
+    assert args.validation_profile == "email_only"
+    assert args.listing_strict is False
+    assert args.max_fetches_per_domain == 6
+    assert args.max_seconds_per_domain == 8.0
+    assert args.max_total_runtime == 90.0
+    assert args.max_pages_for_title == 1
+    assert args.max_pages_for_contact == 2
+    assert args.max_total_fetches_per_domain_per_run == 6
+    assert args.location_recovery_mode == "off"
+    assert args.location_recovery_pages == 0
+    assert (args.min_year, args.max_year) == (2023, 2026)
+
+
+def test_single_run_email_only_profile_overrides_runtime_config_strict_defaults(tmp_path: Path) -> None:
+    config_path = tmp_path / "default.yaml"
+    _write(
+        config_path,
+        "\n".join(
+            [
+                "validation_profile: email_only",
+                "listing_strict: true",
+                "allowed_years: 3",
+            ]
+        ),
+    )
+
+    args = parse_single_run_args(["--config", str(config_path)])
+
+    assert args.validation_profile == "email_only"
+    assert args.listing_strict is False
+    assert args.max_fetches_per_domain == 6
+    assert args.max_seconds_per_domain == 8.0
+    assert args.max_total_runtime == 90.0
+    assert args.max_pages_for_title == 1
+    assert args.max_pages_for_contact == 2
+    assert args.max_total_fetches_per_domain_per_run == 6
+    assert args.location_recovery_mode == "off"
+    assert args.location_recovery_pages == 0
     assert (args.min_year, args.max_year) == (2023, 2026)
 
 

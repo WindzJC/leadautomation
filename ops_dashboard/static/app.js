@@ -56,6 +56,44 @@ const RUN_PRESETS = {
   },
 };
 
+const PROFILE_COPY = {
+  agent_hunt: {
+    title: "Agent Hunt",
+    summary: "Volume-first scouting with public-email quality scoring. Best when you want broader outreach coverage without calling the lead strictly verified.",
+    pills: ["Public email preferred", "Plausible author match", "Daily scout default"],
+  },
+  email_only: {
+    title: "Email Only",
+    summary: "Collect plausible author names with visible public emails and a preserved SourceURL. Higher yield than strict verification, but still rejects obvious junk.",
+    pills: ["Name + email + source", "Lighter proof gates", "Contact collection mode"],
+  },
+  strict_full: {
+    title: "Strict Full",
+    summary: "Hard verified outbound mode. Keeps only rows that satisfy the full proof stack for quality-controlled outreach.",
+    pills: ["Strict listing proof", "Strict recency", "Outbound-ready only"],
+  },
+  strict_interactive: {
+    title: "Strict Interactive",
+    summary: "Same hard acceptance rules as strict verification, but with a tighter runtime posture for interactive sessions.",
+    pills: ["Smaller runtime budget", "Strict proof stack", "Interactive debugging"],
+  },
+  fully_verified: {
+    title: "Fully Verified",
+    summary: "Strict verified acceptance without the extra product presets layered on top.",
+    pills: ["Full proof gates", "Verified export path", "Strict quality floor"],
+  },
+  verified_no_us: {
+    title: "Verified No US",
+    summary: "Keeps the strict proof gates but removes the U.S.-location requirement when geography is not the constraint.",
+    pills: ["Strict proof gates", "No US requirement", "Verified export path"],
+  },
+  astra_outbound: {
+    title: "Astra Outbound",
+    summary: "Strict outbound preset for Astra-style runs. Higher-volume strict mode with listing and U.S. requirements preserved.",
+    pills: ["Astra preset", "US required", "Strict listing gate"],
+  },
+};
+
 function readRunConfigDraft() {
   try {
     const raw = window.localStorage.getItem(RUN_CONFIG_STORAGE_KEY);
@@ -144,6 +182,52 @@ function prettifyLabel(value) {
   return String(value || "")
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function profileCopyFor(value) {
+  return PROFILE_COPY[value] || {
+    title: prettifyLabel(value),
+    summary: "Run mode summary is not defined for this profile yet.",
+    pills: ["Operator mode"],
+  };
+}
+
+function renderRunModeCard(config) {
+  const profile = config.validation_profile || "agent_hunt";
+  const copy = profileCopyFor(profile);
+  document.getElementById("run-mode-title").textContent = copy.title;
+  document.getElementById("run-mode-summary").textContent = copy.summary;
+  document.getElementById("run-mode-pills").innerHTML = (copy.pills || [])
+    .map((pill) => `<span class="pill">${pill}</span>`)
+    .join("");
+}
+
+function renderRunSnapshot(config) {
+  const goalFinal = Number(config.goal_final || 0);
+  const target = Number(config.target || 0);
+  const maxCandidates = Number(config.max_candidates || 0);
+  const batchMin = Number(config.batch_min || 0);
+  const batchMax = Number(config.batch_max || 0);
+  const maxRuns = Number(config.max_runs || 0);
+  const maxStaleRuns = Number(config.max_stale_runs || 0);
+  const folderName = String(config.run_folder_name || "").trim();
+
+  document.getElementById("run-session-title").textContent = goalFinal
+    ? `${formatNumber(goalFinal)} row session target`
+    : "Session target not set";
+  document.getElementById("run-snapshot-goal").textContent = formatNumber(goalFinal);
+  document.getElementById("run-snapshot-target").textContent = formatNumber(target);
+  document.getElementById("run-snapshot-max-candidates").textContent = formatNumber(maxCandidates);
+  document.getElementById("run-snapshot-batch").textContent = `${formatNumber(batchMin)}-${formatNumber(batchMax)}`;
+  document.getElementById("run-snapshot-runs").textContent = `${formatNumber(maxRuns)} / ${formatNumber(maxStaleRuns)} stale`;
+  document.getElementById("run-folder-preview").textContent = folderName
+    ? `Artifacts will land in ${folderName}/outputs/csv, logs, and runs.`
+    : "Artifacts will use the suggested dashboard run folder.";
+}
+
+function renderRunPlanner(config) {
+  renderRunModeCard(config);
+  renderRunSnapshot(config);
 }
 
 function renderOverview(overview) {
@@ -320,7 +404,7 @@ function renderLeadOutput(payload) {
   state.leadRows = rows;
   document.getElementById("lead-output-count").textContent = `${rows.length} rows`;
   document.getElementById("lead-output-source").textContent = rows.length
-    ? `Showing ${prettifyLabel(source)} lead output`
+    ? `Showing ${prettifyLabel(source)} lead output. SourceURL is preserved in the run CSVs for auditability.`
     : "No accepted leads available for this run.";
   renderTableBody(
     "lead-output-table-body",
@@ -401,6 +485,7 @@ function applyRunConfig(configPayload) {
       element.value = config[field];
     }
   });
+  renderRunPlanner(config);
   writeRunConfigDraft(getRunFormPayload());
   renderRunControlStatus(configPayload.active_run || {});
 }
@@ -610,13 +695,15 @@ async function handleRunStop() {
 }
 
 function scheduleRunConfigSave() {
-  writeRunConfigDraft(getRunFormPayload());
+  const payload = getRunFormPayload();
+  renderRunPlanner(payload);
+  writeRunConfigDraft(payload);
   if (runConfigSaveTimer !== null) {
     window.clearTimeout(runConfigSaveTimer);
   }
   runConfigSaveTimer = window.setTimeout(async () => {
     runConfigSaveTimer = null;
-    await postJson("/api/run-config", getRunFormPayload(), { ok: false });
+    await postJson("/api/run-config", payload, { ok: false });
   }, 250);
 }
 

@@ -1,7 +1,7 @@
 # Hybrid Author Prospect Finder (Directory Discovery -> Crawl -> Validate)
 
 ## Goal
-Automate finding 20-40 qualified indie/self-pub author prospects, with an optional `fully_verified` mode for outbound-ready rows only.
+Automate finding 20-40 qualified indie/self-pub author prospects, with optional `fully_verified` and `email_only` modes for stricter outbound-ready or lighter public-email collection workflows.
 
 ## Method (Hybrid)
 1. Stage 1: Harvest deterministic author-directory candidates first (collect ~80).
@@ -39,6 +39,12 @@ Automate finding 20-40 qualified indie/self-pub author prospects, with an option
   - `--max-total-runtime 900`
   - `--max-seconds-per-domain 25`
   - `--max-fetches-per-domain 16`
+- `--validation-profile email_only` keeps validator-side junk filtering, requires:
+  - plausible human author name
+  - visible public email text or clear text obfuscation
+  - `SourceURL`
+  - basic dedupe
+  but does not require listing proof, recency proof, indie proof, or U.S. location.
 - `--validation-profile agent_hunt` keeps the staged validator behavior, reuses the Phase 3 replacement loop, and now scores exportable scout leads for cold outreach in three internal tiers:
   - `Tier 1` = safest `KEEP`
   - `Tier 2` = usable with caution `RECHECK`
@@ -150,7 +156,19 @@ python run_lead_finder_loop.py \
   --master-output leads_full.csv
 ```
 
-This keeps the staged validator behavior, writes a separate 3-column no-header scout export:
+Lightweight public-email collection preset:
+```bash
+python run_lead_finder_loop.py \
+  --validation-profile email_only \
+  --goal-final 100 \
+  --minimal-output author_email_source.csv \
+  --master-output leads_full.csv
+```
+
+This keeps the rich internal audit rows in `leads_full.csv` and writes a 3-column export focused on:
+`AuthorName,AuthorEmail,SourceURL`
+
+For `agent_hunt`, this keeps the staged validator behavior and writes a separate 3-column no-header scout export:
 `AuthorName,AuthorEmail,SourceURL`
 
 For `agent_hunt`, the scout export now follows a cold-outreach standard:

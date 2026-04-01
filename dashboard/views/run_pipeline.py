@@ -21,6 +21,7 @@ from dashboard.utils import path_to_uri
 
 VALIDATION_PROFILES = [
     "agent_hunt",
+    "email_only",
     "strict_full",
     "strict_interactive",
     "fully_verified",

@@ -58,6 +58,7 @@ from run_lead_finder_loop import (
     order_candidates_for_strict_validation,
     recover_agent_hunt_listing_friction_email_record,
     row_is_agent_hunt_qualified,
+    row_is_email_only_qualified,
     row_qualifies_for_master,
     score_candidate_intake,
     split_rows_by_merge_policy,
@@ -65,6 +66,7 @@ from run_lead_finder_loop import (
     suppress_pre_validate_candidates,
     summarize_candidate_intake_scores,
     throttle_agent_hunt_epic_directory_candidates,
+    write_minimal_rows,
     write_scouted_rows,
     write_verified_rows,
 )
@@ -1015,6 +1017,41 @@ def test_agent_hunt_accepts_scoutable_row_that_fails_strict_full() -> None:
     assert row_is_agent_hunt_qualified(row)
     assert row_qualifies_for_master(row, policy="strict", validation_profile="agent_hunt")
     assert not row_qualifies_for_master(row, policy="strict", validation_profile="strict_full")
+
+
+def test_email_only_accepts_lightweight_row_that_fails_strict_full_and_preserves_source_url(tmp_path) -> None:
+    row = {
+        "AuthorName": "Jane Doe",
+        "AuthorWebsite": "https://janedoeauthor.com",
+        "ContactPageURL": "https://janedoeauthor.com/contact",
+        "AuthorEmail": "jane@janedoeauthor.com",
+        "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
+        "EmailQuality": "same_domain",
+        "SourceURL": "https://directory.example/jane-doe",
+        "BookTitle": "",
+        "BookTitleStatus": "missing_or_weak",
+        "BookTitleMethod": "fallback",
+        "BookTitleConfidence": "weak",
+        "Location": "",
+        "IndieProofStrength": "",
+        "ListingStatus": "missing",
+        "RecencyStatus": "missing",
+    }
+
+    assert row_is_email_only_qualified(row)
+    assert row_qualifies_for_master(row, policy="strict", validation_profile="email_only")
+    assert not row_qualifies_for_master(row, policy="strict", validation_profile="strict_full")
+
+    output_path = tmp_path / "author_email_source.csv"
+    written = write_minimal_rows(output_path, [row], with_header=True, validation_profile="email_only")
+
+    assert written == 1
+    with output_path.open("r", encoding="utf-8", newline="") as fh:
+        rows = list(csv.reader(fh))
+    assert rows == [
+        ["AuthorName", "AuthorEmail", "SourceURL"],
+        ["Jane Doe", "jane@janedoeauthor.com", "https://directory.example/jane-doe"],
+    ]
 
 
 def test_agent_hunt_rejects_obvious_dead_end_non_us_row() -> None:
@@ -4052,6 +4089,220 @@ def test_validate_candidates_fully_verified_accepts_visible_email_and_onsite_pro
     assert rows[0]["ListingStatus"] == "verified"
     assert rows[0]["RecencyStatus"] == "verified"
     assert rows[0]["IndieProofStrength"] in {"onsite", "both"}
+
+
+def test_validate_candidates_email_only_accepts_visible_email_without_strict_proofs(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["CandidateURL", "SourceQuery", "SourceURL", "SourceTitle", "SourceSnippet", "SourceType"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://janedoeauthor.com/",
+                "SourceQuery": "search",
+                "SourceURL": "https://directory.example/jane-doe",
+                "SourceTitle": "Jane Doe",
+                "SourceSnippet": "Fantasy author contact details.",
+                "SourceType": "web_search",
+            }
+        )
+
+    pages = {
+        "https://janedoeauthor.com/": """
+            <html><body>
+              <h1>Jane Doe</h1>
+              <p>Jane Doe writes fantasy novels.</p>
+              <a href="/contact">Contact</a>
+            </body></html>
+        """,
+        "https://janedoeauthor.com/contact": """
+            <html><body>
+              <p>Reach Jane Doe at jane [at] janedoeauthor [dot] com.</p>
+            </body></html>
+        """,
+    }
+
+    email_only_args = make_validator_args(tmp_path, candidates_path, validation_profile="email_only")
+    email_only_args.max_pages_for_title = 1
+    email_only_args.max_pages_for_contact = 2
+
+    strict_full_args = make_validator_args(tmp_path, candidates_path, validation_profile="strict_full")
+    strict_full_args.max_pages_for_title = 1
+    strict_full_args.max_pages_for_contact = 2
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory(pages)),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        email_only_rows, email_only_reject_counts, email_only_total = validate_candidates(email_only_args)
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory(pages)),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        strict_rows, strict_reject_counts, strict_total = validate_candidates(strict_full_args)
+
+    assert email_only_total == 1
+    assert email_only_reject_counts == {}
+    assert len(email_only_rows) == 1
+    assert strict_total == 1
+    assert strict_rows == []
+    assert sum(strict_reject_counts.values()) == 1
+
+    row = email_only_rows[0]
+    assert row["AuthorName"] == "Jane Doe"
+    assert row["AuthorEmail"] == "jane@janedoeauthor.com"
+    assert row["SourceURL"] == "https://directory.example/jane-doe"
+    assert row["IndieProofStrength"] == ""
+    assert row["ListingStatus"] == "missing"
+    assert row["RecencyStatus"] == "missing"
+
+
+def test_validate_candidates_email_only_rejects_business_brand_row(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["CandidateURL", "SourceQuery", "SourceTitle", "SourceSnippet", "SourceURL"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://novelnotions.net/",
+                "SourceQuery": "search",
+                "SourceTitle": "Novel Notions",
+                "SourceSnippet": "Novel Notions book reviews and interviews.",
+                "SourceURL": "https://search.example/novel-notions",
+            }
+        )
+
+    pages = {
+        "https://novelnotions.net/": """
+            <html><body>
+              <h1>Novel Notions</h1>
+              <p>Novel Notions is a book review blog covering independently published fantasy books.</p>
+              <a href="/contact">Contact</a>
+            </body></html>
+        """,
+        "https://novelnotions.net/contact": """
+            <html><body>
+              <p>Email Novel Notions at hello [at] novelnotions [dot] net.</p>
+            </body></html>
+        """,
+    }
+
+    args = make_validator_args(tmp_path, candidates_path, validation_profile="email_only")
+    args.max_pages_for_title = 1
+    args.max_pages_for_contact = 2
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory(pages)),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        rows, reject_counts, total = validate_candidates(args)
+
+    assert total == 1
+    assert rows == []
+    assert reject_counts["bad_author_name"] == 1
+
+
+def test_validate_candidates_email_only_rejects_bad_author_name(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["CandidateURL", "SourceQuery", "SourceTitle", "SourceSnippet", "SourceURL"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://bookshub.example/",
+                "SourceQuery": "search",
+                "SourceTitle": "Books",
+                "SourceSnippet": "Books contact page.",
+                "SourceURL": "https://search.example/books",
+            }
+        )
+
+    pages = {
+        "https://bookshub.example/": """
+            <html><body>
+              <h1>Books</h1>
+              <p>Email books [at] bookshub [dot] example for more information.</p>
+            </body></html>
+        """,
+    }
+
+    args = make_validator_args(tmp_path, candidates_path, validation_profile="email_only")
+    args.max_pages_for_title = 1
+    args.max_pages_for_contact = 1
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory(pages)),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        rows, reject_counts, total = validate_candidates(args)
+
+    assert total == 1
+    assert rows == []
+    assert reject_counts["bad_author_name"] == 1
+
+
+def test_validate_candidates_email_only_rejects_mailto_only_email(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["CandidateURL", "SourceQuery", "SourceURL", "SourceTitle", "SourceSnippet", "SourceType"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://janedoeauthor.com/",
+                "SourceQuery": "search",
+                "SourceURL": "https://directory.example/jane-doe",
+                "SourceTitle": "Jane Doe",
+                "SourceSnippet": "Fantasy author contact details.",
+                "SourceType": "web_search",
+            }
+        )
+
+    pages = {
+        "https://janedoeauthor.com/": """
+            <html><body>
+              <h1>Jane Doe</h1>
+              <p>Jane Doe writes fantasy novels.</p>
+              <a href="/contact">Contact</a>
+            </body></html>
+        """,
+        "https://janedoeauthor.com/contact": """
+            <html><body>
+              <a href="mailto:jane@janedoeauthor.com">Email Jane</a>
+            </body></html>
+        """,
+    }
+
+    args = make_validator_args(tmp_path, candidates_path, validation_profile="email_only")
+    args.max_pages_for_title = 1
+    args.max_pages_for_contact = 2
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory(pages)),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        rows, reject_counts, total = validate_candidates(args)
+
+    assert total == 1
+    assert rows == []
+    assert reject_counts["no_visible_author_email"] == 1
 
 
 def test_validate_candidates_verified_no_us_accepts_missing_location_with_other_proof(tmp_path) -> None:

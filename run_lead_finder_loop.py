@@ -50,6 +50,7 @@ VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
 AGENT_HUNT_PROFILE = "agent_hunt"
+EMAIL_ONLY_PROFILE = "email_only"
 STRICT_VERIFIED_PROFILES = {
     "fully_verified",
     ASTRA_OUTBOUND_PROFILE,
@@ -382,6 +383,10 @@ def profile_requires_us_location(value: str) -> bool:
 
 def is_agent_hunt_profile(value: str) -> bool:
     return normalize_validation_profile(value) == AGENT_HUNT_PROFILE
+
+
+def is_email_only_profile(value: str) -> bool:
+    return normalize_validation_profile(value) == EMAIL_ONLY_PROFILE
 
 
 def candidate_identity_key(
@@ -1338,6 +1343,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         choices=(
             "default",
             "fully_verified",
+            EMAIL_ONLY_PROFILE,
             AGENT_HUNT_PROFILE,
             ASTRA_OUTBOUND_PROFILE,
             VERIFIED_NO_US_PROFILE,
@@ -1345,7 +1351,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             STRICT_FULL_PROFILE,
         ),
         default=str(config_arg_default(runtime_config, "validation_profile", "default") or "default"),
-        help="Validation profile: default keeps staged rows; fully_verified only keeps outbound-ready rows; agent_hunt writes scout-qualified rows with a separate 3-column export; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict outbound gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+        help="Validation profile: default keeps staged rows; fully_verified only keeps outbound-ready rows; email_only keeps plausible author names with visible public emails plus SourceURL without requiring strict listing/indie/recency/location proof; agent_hunt writes scout-qualified rows with a separate 3-column export; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict outbound gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
     parser.add_argument(
         "--dedupe-db",
@@ -1465,8 +1471,17 @@ def write_projected_lead_export_rows(path: Path, rows: List[Dict[str, str]], *, 
     return len(rows)
 
 
-def write_minimal_rows(path: Path, rows: List[Dict[str, str]], with_header: bool) -> int:
-    projected_rows = build_projected_lead_export_rows(rows, source_url_getter=best_verified_source_url)
+def write_minimal_rows(
+    path: Path,
+    rows: List[Dict[str, str]],
+    with_header: bool,
+    *,
+    validation_profile: str = "default",
+) -> int:
+    projected_rows = build_projected_lead_export_rows(
+        rows,
+        source_url_getter=lead_export_source_url_getter(validation_profile),
+    )
     return write_projected_lead_export_rows(path, projected_rows, with_header=with_header)
 
 
@@ -1484,6 +1499,16 @@ def best_scout_source_url(row: Dict[str, str]) -> str:
         if value:
             return value
     return ""
+
+
+def best_email_only_source_url(row: Dict[str, str]) -> str:
+    return (row.get("SourceURL", "") or "").strip()
+
+
+def lead_export_source_url_getter(validation_profile: str) -> Callable[[Dict[str, str]], str]:
+    if is_email_only_profile(validation_profile):
+        return best_email_only_source_url
+    return best_verified_source_url
 
 
 def write_verified_rows(path: Path, rows: List[Dict[str, str]]) -> int:
@@ -2254,7 +2279,24 @@ def row_is_fully_verified(row: Dict[str, str], require_us_location: bool = True)
     return bool(best_verified_source_url(row))
 
 
+def row_is_email_only_qualified(row: Dict[str, str]) -> bool:
+    author_name = (row.get("AuthorName", "") or "").strip()
+    if not row_has_clean_author_name(row):
+        return False
+    if looks_like_generic_scout_author_name(author_name):
+        return False
+    if not is_plausible_author_name(author_name):
+        return False
+    if not (row.get("SourceURL", "") or "").strip():
+        return False
+    if not (row.get("AuthorEmail", "") or "").strip():
+        return False
+    return bool((row.get("AuthorEmailSourceURL", "") or "").strip())
+
+
 def count_goal_rows(rows: List[Dict[str, str]], validation_profile: str, policy: str) -> int:
+    if is_email_only_profile(validation_profile):
+        return sum(1 for row in rows if row_is_email_only_qualified(row))
     if is_agent_hunt_profile(validation_profile):
         return sum(1 for row in rows if row_is_agent_hunt_qualified(row))
     if is_fully_verified_profile(validation_profile):
@@ -2264,6 +2306,8 @@ def count_goal_rows(rows: List[Dict[str, str]], validation_profile: str, policy:
 
 
 def row_qualifies_for_master(row: Dict[str, str], policy: str, validation_profile: str = "default") -> bool:
+    if is_email_only_profile(validation_profile):
+        return row_is_email_only_qualified(row)
     if is_agent_hunt_profile(validation_profile):
         return row_is_agent_hunt_qualified(row)
     if is_fully_verified_profile(validation_profile):
@@ -4624,7 +4668,9 @@ def main() -> int:
                 }
 
             try:
-                if is_agent_hunt_profile(validation_profile):
+                if is_email_only_profile(validation_profile):
+                    progress_qualifier = row_is_email_only_qualified
+                elif is_agent_hunt_profile(validation_profile):
                     progress_qualifier = row_is_agent_hunt_qualified
                 elif is_fully_verified_profile(validation_profile):
                     progress_qualifier = (
@@ -4967,6 +5013,7 @@ def main() -> int:
                 Path(args.minimal_output),
                 master_rows,
                 with_header=args.minimal_with_header,
+                validation_profile=validation_profile,
             )
             print(f"[INFO] wrote {minimal_count} rows -> {args.minimal_output}")
         if is_agent_hunt_profile(validation_profile):
@@ -5034,13 +5081,14 @@ def main() -> int:
             verified_output_count = write_verified_rows(Path(args.verified_output), verified_rows)
             print(f"[INFO] wrote {verified_output_count} rows -> {args.verified_output}")
         else:
+            export_source_url_getter = lead_export_source_url_getter(validation_profile)
             existing_export_rows = build_projected_lead_export_rows(
                 existing_master_rows,
-                source_url_getter=best_verified_source_url,
+                source_url_getter=export_source_url_getter,
             )
             current_export_rows = build_projected_lead_export_rows(
                 master_rows,
-                source_url_getter=best_verified_source_url,
+                source_url_getter=export_source_url_getter,
             )
             new_export_rows = build_new_lead_export_rows(current_export_rows, existing_export_rows)
         new_leads_count = write_projected_lead_export_rows(new_leads_path, new_export_rows)
@@ -5299,6 +5347,7 @@ def main() -> int:
             Path(args.minimal_output),
             master_rows,
             with_header=args.minimal_with_header,
+            validation_profile=validation_profile,
         )
         print(f"[OK] wrote {minimal_count} rows -> {args.minimal_output}")
     if is_agent_hunt_profile(validation_profile):

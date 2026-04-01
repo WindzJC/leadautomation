@@ -92,6 +92,7 @@ VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
 AGENT_HUNT_PROFILE = "agent_hunt"
+EMAIL_ONLY_PROFILE = "email_only"
 STRICT_VERIFIED_PROFILES = {
     "fully_verified",
     ASTRA_OUTBOUND_PROFILE,
@@ -1274,6 +1275,7 @@ def parse_args() -> argparse.Namespace:
         choices=(
             "default",
             "fully_verified",
+            EMAIL_ONLY_PROFILE,
             AGENT_HUNT_PROFILE,
             ASTRA_OUTBOUND_PROFILE,
             VERIFIED_NO_US_PROFILE,
@@ -1281,7 +1283,7 @@ def parse_args() -> argparse.Namespace:
             STRICT_FULL_PROFILE,
         ),
         default="default",
-        help="Validation profile: default keeps staged rows; fully_verified requires all outbound-ready proof gates; agent_hunt uses staged validation and is intended for scout-mode orchestration in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+        help="Validation profile: default keeps staged rows; fully_verified requires all outbound-ready proof gates; email_only keeps plausible author names with visible public emails plus SourceURL without requiring strict listing/indie/recency/location proof; agent_hunt uses staged validation and is intended for scout-mode orchestration in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
     args = parser.parse_args()
     apply_validation_profile_defaults(args)
@@ -3296,6 +3298,22 @@ def row_meets_fully_verified_profile(
         return False, "no_recency_proof"
     if listing_title and not title_keys_match(book_title, listing_title):
         return False, "listing_title_mismatch"
+    return True, ""
+
+
+def row_meets_email_only_profile(
+    *,
+    author_name: str,
+    author_email: str,
+    author_email_record: Dict[str, str],
+    source_url: str,
+) -> Tuple[bool, str]:
+    if not is_plausible_author_name(author_name):
+        return False, "bad_author_name"
+    if not author_email or not email_record_is_visible_text(author_email_record):
+        return False, "no_visible_author_email"
+    if not (source_url or "").strip():
+        return False, "missing_source_url"
     return True, ""
 
 
@@ -5358,11 +5376,12 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
     now = dt.datetime.now(dt.timezone.utc)
     validation_profile = str(getattr(args, "validation_profile", "default") or "default").strip().lower()
     strict_verified_mode = validation_profile in STRICT_VERIFIED_PROFILES
+    email_only_mode = validation_profile == EMAIL_ONLY_PROFILE
     require_us_location = validation_profile in US_STRICT_VERIFIED_PROFILES
     if not strict_verified_mode and not str(getattr(args, "near_miss_location_output", "") or "").strip():
         near_miss_location_path = None
     effective_listing_strict = bool(getattr(args, "listing_strict", False) or strict_verified_mode)
-    effective_require_email = bool(getattr(args, "require_email", False) or strict_verified_mode)
+    effective_require_email = bool(getattr(args, "require_email", False) or strict_verified_mode or email_only_mode)
     effective_require_location = bool(getattr(args, "require_location_proof", False) or require_us_location)
     effective_us_only = bool(getattr(args, "us_only", False) or require_us_location)
     session = build_session()
@@ -5852,7 +5871,7 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             add_stage_seconds(candidate_domain, "verify", verify_started_at)
             finalize_candidate_budget(reason=candidate_reject_reason, kept=False, domain=candidate_domain)
             continue
-        if validation_profile == "default":
+        if validation_profile in {"default", EMAIL_ONLY_PROFILE}:
             author_identity_evidence = " ".join(
                 part
                 for part in (
@@ -5979,7 +5998,7 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                 email_records,
                 author_website,
                 author_name=author_name,
-                require_visible_text=strict_verified_mode,
+                require_visible_text=(strict_verified_mode or email_only_mode),
             )
 
         preliminary_email_record = collect_best_email_record()
@@ -6743,7 +6762,7 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             indie_proof_url = onsite_indie_url
             indie_proof_snippet = onsite_indie_snippet
             indie_proof_strength = "onsite"
-        else:
+        elif not email_only_mode:
             reject_counts["no_indie_proof"] += 1
             candidate_reject_reason = "no_indie_proof"
             mark_strict_location_skip("strict_non_location_failure")
@@ -6834,8 +6853,9 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             candidate_url=candidate_url,
         )
         if effective_require_email and not author_email:
-            reject_counts["no_visible_author_email" if strict_verified_mode else "no_author_email"] += 1
-            candidate_reject_reason = "no_visible_author_email" if strict_verified_mode else "no_author_email"
+            missing_email_reason = "no_visible_author_email" if (strict_verified_mode or email_only_mode) else "no_author_email"
+            reject_counts[missing_email_reason] += 1
+            candidate_reject_reason = missing_email_reason
             location_recovery_skipped_reason = location_recovery_skipped_reason or (
                 "missing_strict_email" if strict_verified_mode else location_recovery_skipped_reason
             )
@@ -7071,6 +7091,38 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                     )
                 reject_counts[fully_verified_reason] += 1
                 candidate_reject_reason = fully_verified_reason
+                record_location_debug(
+                    candidate_url=candidate_url,
+                    candidate_domain=candidate_domain,
+                    location_assessment=location_assessment,
+                    location_attempts=location_attempts,
+                    location_decision=location_decision,
+                    recovery_candidate_urls=recovery_candidate_urls,
+                    location_recovery_attempted=location_recovery_attempted,
+                    location_recovery_skipped_reason=location_recovery_skipped_reason,
+                )
+                add_stage_seconds(candidate_domain, "verify", verify_started_at)
+                finalize_candidate_budget(
+                    reason=candidate_reject_reason,
+                    kept=False,
+                    domain=candidate_domain,
+                    location_recovery_attempted=location_recovery_attempted,
+                    listing_recovery_attempted=listing_recovery_attempted,
+                    location_recovery_skipped_reason=location_recovery_skipped_reason,
+                    listing_recovery_skipped_reason=listing_recovery_skipped_reason,
+                )
+                continue
+
+        if email_only_mode:
+            email_only_ok, email_only_reason = row_meets_email_only_profile(
+                author_name=author_name,
+                author_email=author_email,
+                author_email_record=best_email,
+                source_url=candidate_source_url,
+            )
+            if not email_only_ok:
+                reject_counts[email_only_reason] += 1
+                candidate_reject_reason = email_only_reason
                 record_location_debug(
                     candidate_url=candidate_url,
                     candidate_domain=candidate_domain,

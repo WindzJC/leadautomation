@@ -30,6 +30,7 @@ APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
 VALIDATION_PROFILES = [
     "agent_hunt",
+    "email_only",
     "strict_full",
     "strict_interactive",
     "fully_verified",

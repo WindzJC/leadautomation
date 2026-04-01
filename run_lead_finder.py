@@ -22,6 +22,7 @@ VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
 AGENT_HUNT_PROFILE = "agent_hunt"
+EMAIL_ONLY_PROFILE = "email_only"
 
 
 def stage_script_path(name: str) -> str:
@@ -263,6 +264,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=(
             "default",
             "fully_verified",
+            EMAIL_ONLY_PROFILE,
             AGENT_HUNT_PROFILE,
             ASTRA_OUTBOUND_PROFILE,
             VERIFIED_NO_US_PROFILE,
@@ -270,7 +272,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             STRICT_FULL_PROFILE,
         ),
         default=str(config_arg_default(runtime_config, "validation_profile", "default") or "default"),
-        help="Validation profile: default keeps staged rows; fully_verified hard-gates outbound-ready rows; agent_hunt keeps staged validation but is intended for scout-mode ranking/export in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
+        help="Validation profile: default keeps staged rows; fully_verified hard-gates outbound-ready rows; email_only keeps plausible author names with visible public emails plus SourceURL without requiring strict listing/indie/recency/location proof; agent_hunt keeps staged validation but is intended for scout-mode ranking/export in the batch loop; astra_outbound applies the Astra strict outbound preset; verified_no_us keeps the strict proof gates but does not require U.S. location; strict_interactive and strict_full keep fully_verified acceptance rules with smaller or larger runtime budgets.",
     )
     parser.add_argument(
         "--min-final",

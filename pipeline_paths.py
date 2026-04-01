@@ -5,12 +5,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent
 OUTPUT_ROOT = Path("outputs")
 OUTPUT_CSV_DIR = OUTPUT_ROOT / "csv"
 OUTPUT_JSON_DIR = OUTPUT_ROOT / "json"
 OUTPUT_LOGS_DIR = OUTPUT_ROOT / "logs"
 STATE_DIR = Path("state")
 LEGACY_STATE_DIR = Path(".dashboard_state")
+
+
+def repo_path(*parts: str) -> Path:
+    return REPO_ROOT.joinpath(*parts)
 
 
 def ensure_parent(path: Path) -> None:

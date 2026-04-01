@@ -23,7 +23,7 @@ from urllib.parse import urljoin, urlparse
 
 from lead_utils import canonical_listing_key, normalize_person_name, registrable_domain
 from persistent_dedupe import PersistentDedupeStore
-from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs, json_output, state_output
+from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs, json_output, repo_path, state_output
 from prospect_dedupe import OUTPUT_COLUMNS, dedupe
 from prospect_validate import (
     NEAR_MISS_LOCATION_COLUMNS,
@@ -362,6 +362,10 @@ AUTHOR_US_LOCATION_PATTERNS = [
     ),
     re.compile(rf"\b(?:{US_STATE_NAME_PATTERN}),\s*USA\b", re.IGNORECASE),
 ]
+
+
+def stage_script_path(name: str) -> str:
+    return str(repo_path(name))
 
 
 def normalize_validation_profile(value: str) -> str:
@@ -4290,7 +4294,7 @@ def main() -> int:
 
         harvest_cmd = [
             py,
-            "prospect_harvest.py",
+            stage_script_path("prospect_harvest.py"),
             "--target",
             str(max(1, args.target)),
             "--min-candidates",
@@ -4360,7 +4364,7 @@ def main() -> int:
         ]
         dedupe_cmd = [
             py,
-            "prospect_dedupe.py",
+            stage_script_path("prospect_dedupe.py"),
             "--min-final",
             str(max(0, args.batch_min)),
             "--max-final",
@@ -4578,7 +4582,7 @@ def main() -> int:
                 write_candidate_rows(slice_candidates_path, slice_rows)
                 slice_validate_cmd = [
                     py,
-                    "prospect_validate.py",
+                    stage_script_path("prospect_validate.py"),
                     "--input",
                     str(slice_candidates_path),
                     "--output",

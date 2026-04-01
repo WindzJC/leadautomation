@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
+import run_lead_finder
 from run_lead_finder import parse_args as parse_single_run_args
 from run_lead_finder_loop import parse_args as parse_loop_args
-from runtime_config import allowed_year_bounds, load_runtime_config
+from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, load_runtime_config
 
 
 def _write(path: Path, content: str) -> None:
@@ -31,6 +33,11 @@ def test_load_runtime_config_and_allowed_year_bounds(tmp_path: Path) -> None:
     assert config["goal_final"] == 25
     assert config["listing_strict"] is True
     assert allowed_year_bounds(config, now_year=2026) == (2024, 2026)
+
+
+def test_default_config_path_is_repo_relative() -> None:
+    assert DEFAULT_CONFIG_PATH.is_absolute()
+    assert DEFAULT_CONFIG_PATH.is_file()
 
 
 def test_loop_args_use_runtime_config_defaults_and_allow_cli_override(tmp_path: Path) -> None:
@@ -103,3 +110,35 @@ def test_single_run_args_use_runtime_config_defaults(tmp_path: Path) -> None:
     assert args.max_final == 19
     assert args.listing_strict is True
     assert (args.min_year, args.max_year) == (2023, 2026)
+
+
+def test_single_run_main_uses_repo_relative_stage_scripts(tmp_path: Path, monkeypatch) -> None:
+    commands: list[list[str]] = []
+    candidates_path = tmp_path / "candidates.csv"
+    validated_path = tmp_path / "validated.csv"
+    final_path = tmp_path / "final.csv"
+    final_path.write_text("", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_lead_finder.py",
+            "--candidates",
+            str(candidates_path),
+            "--validated",
+            str(validated_path),
+            "--final",
+            str(final_path),
+        ],
+    )
+    monkeypatch.setattr(run_lead_finder, "run_command", lambda cmd: commands.append(cmd))
+
+    assert run_lead_finder.main() == 0
+    assert [Path(cmd[1]).name for cmd in commands] == [
+        "prospect_harvest.py",
+        "prospect_validate.py",
+        "prospect_dedupe.py",
+    ]
+    assert all(Path(cmd[1]).is_absolute() for cmd in commands)

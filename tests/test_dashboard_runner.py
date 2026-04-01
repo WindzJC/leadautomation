@@ -174,6 +174,18 @@ def test_sync_run_form_state_keeps_existing_draft_values() -> None:
     assert session_state[FORM_SESSION_KEYS["run_folder_name"]] == "browser_run_test"
 
 
+def test_sync_run_form_state_prefers_saved_run_folder_name() -> None:
+    session_state = {}
+
+    sync_run_form_state(
+        session_state,
+        status_config={"validation_profile": "strict_full", "run_folder_name": "browser_run_saved"},
+        run_folder_name="browser_run_fallback",
+    )
+
+    assert session_state[FORM_SESSION_KEYS["run_folder_name"]] == "browser_run_saved"
+
+
 def test_apply_profile_preset_to_session_updates_run_fields() -> None:
     session_state = {}
 

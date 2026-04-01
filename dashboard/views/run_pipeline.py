@@ -83,7 +83,7 @@ def sync_run_form_state(
     run_folder_name: str,
 ) -> None:
     defaults = merged_form_defaults(status_config)
-    defaults["run_folder_name"] = run_folder_name
+    defaults["run_folder_name"] = str(defaults.get("run_folder_name") or run_folder_name)
     for config_key, session_key in FORM_SESSION_KEYS.items():
         session_state.setdefault(session_key, defaults.get(config_key, ""))
 

@@ -4,6 +4,7 @@ const state = {
   leadRows: [],
 };
 let runConfigSaveTimer = null;
+const RUN_CONFIG_STORAGE_KEY = "lead-finder.run-config";
 
 const overviewCards = [
   ["Total Runs", "total_runs"],
@@ -54,6 +55,27 @@ const RUN_PRESETS = {
     listing_strict: false,
   },
 };
+
+function readRunConfigDraft() {
+  try {
+    const raw = window.localStorage.getItem(RUN_CONFIG_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const payload = JSON.parse(raw);
+    return payload && typeof payload === "object" ? payload : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function writeRunConfigDraft(payload) {
+  try {
+    window.localStorage.setItem(RUN_CONFIG_STORAGE_KEY, JSON.stringify(payload || {}));
+  } catch (_error) {
+    // Ignore local persistence failures and keep the server-backed draft path.
+  }
+}
 
 function setError(message) {
   const banner = document.getElementById("error-banner");
@@ -351,7 +373,10 @@ async function copyLeadRows() {
 
 function applyRunConfig(configPayload) {
   const profiles = configPayload.validation_profiles || [];
-  const config = configPayload.config || {};
+  const config = {
+    ...(configPayload.config || {}),
+    ...readRunConfigDraft(),
+  };
   const hiddenInput = document.getElementById("run-validation-profile");
   const overrideSelect = document.getElementById("run-validation-profile-override");
   const profileLabel = document.getElementById("run-validation-profile-label");
@@ -376,6 +401,7 @@ function applyRunConfig(configPayload) {
       element.value = config[field];
     }
   });
+  writeRunConfigDraft(getRunFormPayload());
   renderRunControlStatus(configPayload.active_run || {});
 }
 
@@ -584,6 +610,7 @@ async function handleRunStop() {
 }
 
 function scheduleRunConfigSave() {
+  writeRunConfigDraft(getRunFormPayload());
   if (runConfigSaveTimer !== null) {
     window.clearTimeout(runConfigSaveTimer);
   }
@@ -607,8 +634,10 @@ function bindRunControls() {
     scheduleRunConfigSave();
   });
   form.querySelectorAll("input, select").forEach((element) => {
-    const eventName = element.type === "text" || element.type === "number" ? "change" : "change";
-    element.addEventListener(eventName, scheduleRunConfigSave);
+    element.addEventListener("change", scheduleRunConfigSave);
+    if (element.type === "text" || element.type === "number") {
+      element.addEventListener("input", scheduleRunConfigSave);
+    }
   });
 }
 

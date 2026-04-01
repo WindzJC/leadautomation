@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs
+from pipeline_paths import csv_output, ensure_parent, ensure_runtime_dirs, repo_path
 from runtime_config import DEFAULT_CONFIG_PATH, allowed_year_bounds, config_arg_default, load_runtime_config
 
 SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
@@ -22,6 +22,10 @@ VERIFIED_NO_US_PROFILE = "verified_no_us"
 STRICT_INTERACTIVE_PROFILE = "strict_interactive"
 STRICT_FULL_PROFILE = "strict_full"
 AGENT_HUNT_PROFILE = "agent_hunt"
+
+
+def stage_script_path(name: str) -> str:
+    return str(repo_path(name))
 
 
 def normalize_validation_profile(value: str) -> str:
@@ -355,7 +359,7 @@ def main() -> int:
 
     harvest_cmd = [
         py,
-        "prospect_harvest.py",
+        stage_script_path("prospect_harvest.py"),
         "--target",
         str(max(1, args.target)),
         "--min-candidates",
@@ -398,7 +402,7 @@ def main() -> int:
 
     validate_cmd = [
         py,
-        "prospect_validate.py",
+        stage_script_path("prospect_validate.py"),
         "--input",
         args.candidates,
         "--output",
@@ -461,7 +465,7 @@ def main() -> int:
 
     dedupe_cmd = [
         py,
-        "prospect_dedupe.py",
+        stage_script_path("prospect_dedupe.py"),
         "--input",
         args.validated,
         "--output",

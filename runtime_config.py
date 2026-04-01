@@ -8,7 +8,9 @@ import datetime as dt
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
-DEFAULT_CONFIG_PATH = Path("config/default.yaml")
+from pipeline_paths import repo_path
+
+DEFAULT_CONFIG_PATH = repo_path("config", "default.yaml")
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "validation_profile": "strict_full",

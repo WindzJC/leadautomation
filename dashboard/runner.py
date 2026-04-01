@@ -18,14 +18,14 @@ LEGACY_STATE_PATH = LEGACY_STATE_DIR / "runner_state.json"
 LEGACY_RUN_FORM_STATE_PATH = LEGACY_STATE_DIR / "run_form_state.json"
 
 DEFAULT_RUN_CONFIG = {
-    "validation_profile": "strict_full",
-    "listing_strict": True,
-    "goal_final": 20,
-    "max_runs": 1,
-    "max_stale_runs": 1,
+    "validation_profile": "agent_hunt",
+    "listing_strict": False,
+    "goal_final": 200,
+    "max_runs": 12,
+    "max_stale_runs": 4,
     "target": 80,
-    "min_candidates": 80,
-    "max_candidates": 80,
+    "min_candidates": 50,
+    "max_candidates": 50,
     "batch_min": 20,
     "batch_max": 20,
     "queries_file": "",

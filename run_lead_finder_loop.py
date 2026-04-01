@@ -1405,7 +1405,9 @@ def build_projected_lead_export_rows(
         source_url = source_url_getter(row).strip()
         if not (author and email and source_url):
             continue
-        key = (author.lower(), email, source_url.lower())
+        key = (normalize_person_name(author), email)
+        if not all(key):
+            continue
         if key in unique:
             continue
         unique.add(key)
@@ -1425,19 +1427,18 @@ def build_new_lead_export_rows(
 ) -> List[Dict[str, str]]:
     existing_keys = {
         (
-            (row.get("AuthorName", "") or "").strip().lower(),
+            normalize_person_name((row.get("AuthorName", "") or "").strip()),
             (row.get("AuthorEmail", "") or "").strip().lower(),
-            (row.get("SourceURL", "") or "").strip().lower(),
         )
         for row in existing_rows
+        if (row.get("AuthorName", "") or "").strip() and (row.get("AuthorEmail", "") or "").strip()
     }
     return [
         row
         for row in current_rows
         if (
-            (row.get("AuthorName", "") or "").strip().lower(),
+            normalize_person_name((row.get("AuthorName", "") or "").strip()),
             (row.get("AuthorEmail", "") or "").strip().lower(),
-            (row.get("SourceURL", "") or "").strip().lower(),
         )
         not in existing_keys
     ]
@@ -1819,16 +1820,15 @@ def partition_agent_hunt_rows_by_outreach_tier(rows: List[Dict[str, str]]) -> Di
     return partitions
 
 
-def scout_export_row_key(row: Dict[str, str]) -> Tuple[str, str, str]:
+def scout_export_row_key(row: Dict[str, str]) -> Tuple[str, str]:
     return (
         normalize_person_name((row.get("AuthorName", "") or "").strip()),
         (row.get("AuthorEmail", "") or "").strip().lower(),
-        best_scout_source_url(row).strip().lower(),
     )
 
 
 def dedupe_scout_rows(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    unique: set[Tuple[str, str, str]] = set()
+    unique: set[Tuple[str, str]] = set()
     deduped: List[Dict[str, str]] = []
     for row in order_agent_hunt_rows_by_priority(rows):
         key = scout_export_row_key(row)

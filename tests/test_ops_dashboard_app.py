@@ -26,6 +26,29 @@ def test_run_config_endpoint_returns_defaults_and_profiles(monkeypatch) -> None:
     assert "strict_full" in payload["validation_profiles"]
 
 
+def test_run_config_endpoint_uses_agent_hunt_day_defaults_without_saved_state(monkeypatch) -> None:
+    monkeypatch.setattr("ops_dashboard.app.runner.get_run_status", lambda: {"active": False, "status_label": "idle"})
+    monkeypatch.setattr("ops_dashboard.app.runner.load_run_form_state", lambda: {})
+    monkeypatch.setattr("ops_dashboard.app.runner.suggested_run_folder_name", lambda: "browser_run_default")
+
+    client = TestClient(app)
+    response = client.get("/api/run-config")
+
+    assert response.status_code == 200
+    payload = response.json()["config"]
+    assert payload["validation_profile"] == "agent_hunt"
+    assert payload["listing_strict"] is False
+    assert payload["goal_final"] == 200
+    assert payload["max_runs"] == 12
+    assert payload["max_stale_runs"] == 4
+    assert payload["target"] == 80
+    assert payload["min_candidates"] == 50
+    assert payload["max_candidates"] == 50
+    assert payload["batch_min"] == 20
+    assert payload["batch_max"] == 20
+    assert payload["run_folder_name"] == "browser_run_default"
+
+
 def test_run_config_post_persists_draft(monkeypatch) -> None:
     saved: dict[str, object] = {}
 

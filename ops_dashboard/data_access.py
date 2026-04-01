@@ -17,6 +17,7 @@ from dashboard.data_loader import (
     run_file_map,
 )
 from dashboard.runner import get_run_status
+from lead_utils import normalize_person_name
 from pipeline_paths import LEGACY_STATE_DIR, STATE_DIR, resolve_with_legacy
 
 LIVE_STATUS_FILENAME = "live_status.json"
@@ -289,7 +290,30 @@ def _project_minimal_lead_rows(rows: list[dict[str, Any]]) -> list[dict[str, str
                 "SourceURL": source_url,
             }
         )
-    return projected
+    return _dedupe_minimal_lead_rows(projected)
+
+
+def _dedupe_minimal_lead_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    unique: set[tuple[str, str]] = set()
+    deduped: list[dict[str, str]] = []
+    for row in rows:
+        author_name = str(row.get("AuthorName", "") or "").strip()
+        author_email = str(row.get("AuthorEmail", "") or "").strip().lower()
+        source_url = str(row.get("SourceURL", "") or "").strip()
+        key = (normalize_person_name(author_name), author_email)
+        if not all(key) or not source_url:
+            continue
+        if key in unique:
+            continue
+        unique.add(key)
+        deduped.append(
+            {
+                "AuthorName": author_name,
+                "AuthorEmail": author_email,
+                "SourceURL": source_url,
+            }
+        )
+    return deduped
 
 
 def load_lead_output(api_run_id: str, base_dir: Path | None = None) -> dict[str, Any]:
@@ -298,18 +322,18 @@ def load_lead_output(api_run_id: str, base_dir: Path | None = None) -> dict[str,
     bundle = detail["bundle"]
     new_leads_path = bundle.get("paths", {}).get("new_leads")
     if isinstance(new_leads_path, Path) and new_leads_path.is_file():
-        return {"source": "new_leads", "rows": read_lead_export(new_leads_path)}
+        return {"source": "new_leads", "rows": _dedupe_minimal_lead_rows(read_lead_export(new_leads_path))}
     output_paths = context_output_paths(context)
 
-    verified_rows = read_lead_export(output_paths["fully_verified_leads"])
+    verified_rows = _dedupe_minimal_lead_rows(read_lead_export(output_paths["fully_verified_leads"]))
     if verified_rows:
         return {"source": "fully_verified_leads", "rows": verified_rows}
 
-    scouted_rows = read_lead_export(output_paths["scouted_leads"])
+    scouted_rows = _dedupe_minimal_lead_rows(read_lead_export(output_paths["scouted_leads"]))
     if scouted_rows:
         return {"source": "scouted_leads", "rows": scouted_rows}
 
-    lead_export_rows = read_lead_export(output_paths["lead_export"])
+    lead_export_rows = _dedupe_minimal_lead_rows(read_lead_export(output_paths["lead_export"]))
     if lead_export_rows:
         return {"source": output_paths["lead_export"].stem, "rows": lead_export_rows}
 

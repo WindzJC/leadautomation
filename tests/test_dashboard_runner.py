@@ -149,9 +149,12 @@ def test_merged_form_defaults_applies_agent_hunt_preset() -> None:
 
     assert defaults["validation_profile"] == "agent_hunt"
     assert defaults["listing_strict"] is False
-    assert defaults["target"] == 60
-    assert defaults["min_candidates"] == 40
-    assert defaults["max_candidates"] == 40
+    assert defaults["goal_final"] == 200
+    assert defaults["max_runs"] == 12
+    assert defaults["max_stale_runs"] == 4
+    assert defaults["target"] == 80
+    assert defaults["min_candidates"] == 50
+    assert defaults["max_candidates"] == 50
 
 
 def test_sync_run_form_state_keeps_existing_draft_values() -> None:
@@ -178,8 +181,12 @@ def test_apply_profile_preset_to_session_updates_run_fields() -> None:
 
     assert session_state[FORM_SESSION_KEYS["validation_profile"]] == "agent_hunt"
     assert session_state[FORM_SESSION_KEYS["listing_strict"]] is False
-    assert session_state[FORM_SESSION_KEYS["target"]] == 60
-    assert session_state[FORM_SESSION_KEYS["min_candidates"]] == 40
+    assert session_state[FORM_SESSION_KEYS["goal_final"]] == 200
+    assert session_state[FORM_SESSION_KEYS["max_runs"]] == 12
+    assert session_state[FORM_SESSION_KEYS["max_stale_runs"]] == 4
+    assert session_state[FORM_SESSION_KEYS["target"]] == 80
+    assert session_state[FORM_SESSION_KEYS["min_candidates"]] == 50
+    assert session_state[FORM_SESSION_KEYS["max_candidates"]] == 50
 
 
 def test_apply_profile_preset_to_session_preserves_current_profile_widget_value() -> None:
@@ -194,9 +201,12 @@ def test_apply_profile_preset_to_session_preserves_current_profile_widget_value(
     apply_profile_preset_to_session(session_state, "agent_hunt")
 
     assert session_state[FORM_SESSION_KEYS["validation_profile"]] == "agent_hunt"
-    assert session_state[FORM_SESSION_KEYS["target"]] == 60
-    assert session_state[FORM_SESSION_KEYS["min_candidates"]] == 40
-    assert session_state[FORM_SESSION_KEYS["max_candidates"]] == 40
+    assert session_state[FORM_SESSION_KEYS["goal_final"]] == 200
+    assert session_state[FORM_SESSION_KEYS["max_runs"]] == 12
+    assert session_state[FORM_SESSION_KEYS["max_stale_runs"]] == 4
+    assert session_state[FORM_SESSION_KEYS["target"]] == 80
+    assert session_state[FORM_SESSION_KEYS["min_candidates"]] == 50
+    assert session_state[FORM_SESSION_KEYS["max_candidates"]] == 50
     assert session_state[FORM_SESSION_KEYS["listing_strict"]] is False
 
 

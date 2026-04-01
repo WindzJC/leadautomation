@@ -211,6 +211,34 @@ def test_load_lead_output_prefers_export_files_and_filters_blank_email_rows(tmp_
     ]
 
 
+def test_load_lead_output_dedupes_duplicate_author_email_rows_from_export_file(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "outputs" / "runs"
+    csv_dir = tmp_path / "outputs" / "csv"
+    runs_dir.mkdir(parents=True)
+    _write(
+        runs_dir / "run_001_stats.json",
+        json.dumps({"generated_at_utc": "2026-03-14T10:00:00Z", "pipeline_exit_code": 0}),
+    )
+    _write(tmp_path / "outputs" / "json" / "run_manifest_run_001.json", json.dumps({"run_id": "run_001"}))
+    _write(
+        csv_dir / "scouted_leads.csv",
+        "Scout Writer,scout@example.com,https://scout.example/about\n"
+        "Scout Writer,scout@example.com,https://scout.example/contact\n",
+    )
+
+    api_run_id = compose_api_run_id("project-root", "001")
+    lead_output = load_lead_output(api_run_id, base_dir=tmp_path)
+
+    assert lead_output["source"] == "scouted_leads"
+    assert lead_output["rows"] == [
+        {
+            "AuthorName": "Scout Writer",
+            "AuthorEmail": "scout@example.com",
+            "SourceURL": "https://scout.example/about",
+        }
+    ]
+
+
 def test_load_lead_output_prefers_new_leads_artifact_for_selected_run(tmp_path: Path) -> None:
     runs_dir = tmp_path / "outputs" / "runs"
     runs_dir.mkdir(parents=True)

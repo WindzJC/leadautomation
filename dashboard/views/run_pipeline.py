@@ -47,12 +47,12 @@ PROFILE_PRESETS = {
     "agent_hunt": {
         "validation_profile": "agent_hunt",
         "listing_strict": False,
-        "goal_final": 20,
-        "max_runs": 1,
-        "max_stale_runs": 1,
-        "target": 60,
-        "min_candidates": 40,
-        "max_candidates": 40,
+        "goal_final": 200,
+        "max_runs": 12,
+        "max_stale_runs": 4,
+        "target": 80,
+        "min_candidates": 50,
+        "max_candidates": 50,
         "batch_min": 20,
         "batch_max": 20,
     },
@@ -145,9 +145,9 @@ def render_run_pipeline() -> None:
         "Start or monitor a pipeline run",
         "Use this page to launch the existing CLI loop in the background and watch its progress without leaving the browser.",
         bullets=[
-            "Use conservative settings first. This page does not change validation rules.",
+            "Use the `agent_hunt` day-session defaults for volume-first cold outreach. This page does not change `strict_full`.",
             "Each browser-started run writes into its own top-level folder.",
-            "After a run starts, switch to Overview, Verified Leads, or Scouted Leads to inspect the new folder.",
+            "Scouted leads are allowed to be imperfect; only clearly bad leads should be rejected in `agent_hunt`.",
         ],
     )
 
@@ -183,7 +183,7 @@ def render_run_pipeline() -> None:
                 VALIDATION_PROFILES,
                 key=FORM_SESSION_KEYS["validation_profile"],
             )
-            st.caption("Change the profile to change the mode. Use the preset button only if you want the recommended values for that profile.")
+            st.caption("`agent_hunt` is the daily cold-outreach default. Switch profiles only when you intentionally want strict verified behavior.")
             if st.button("Use recommended values for selected profile", use_container_width=True):
                 apply_profile_preset_to_session(st.session_state, str(validation_profile))
                 st.rerun()

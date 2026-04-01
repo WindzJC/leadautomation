@@ -31,7 +31,7 @@
           <div>
             <p class="panel-label">Run Control</p>
             <h2>Launch Lead Finder</h2>
-            <p class="panel-meta panel-submeta">Quick day-session presets for `agent_hunt`. They keep your current output folder and remain editable.</p>
+            <p class="panel-meta panel-submeta">Cold-outreach `agent_hunt` presets: keep real public-email leads with plausible author matches, avoid over-filtering, and keep `strict_full` separate.</p>
             <div class="preset-toolbar">
               <button id="preset-safe-day" type="button" class="button-secondary">Safe Day Run</button>
               <button id="preset-aggressive-day" type="button" class="button-secondary">Aggressive Day Run</button>
@@ -44,11 +44,12 @@
             <span>Validation Profile</span>
             <div id="run-validation-profile-label" class="static-field">Agent Hunt</div>
             <input id="run-validation-profile" name="validation_profile" type="hidden" value="agent_hunt" />
-            <small class="field-help">Best default for daily lead harvesting.</small>
+            <small class="field-help">Daily default for volume-first lead harvesting. Real public email plus a plausible author match is enough.</small>
           </label>
           <label>
             <span>Goal Final</span>
             <input id="run-goal-final" name="goal_final" type="number" min="1" />
+            <small class="field-help">Session target for scouted rows. Higher volume is acceptable in `agent_hunt`.</small>
           </label>
           <label>
             <span>Max Runs</span>
@@ -69,6 +70,7 @@
           <label>
             <span>Max Candidates</span>
             <input id="run-max-candidates" name="max_candidates" type="number" min="1" />
+            <small class="field-help">Per-slice validator cap. Keep this close to the harvest target if you want more volume.</small>
           </label>
           <label>
             <span>Batch Min</span>
@@ -85,6 +87,7 @@
           <label>
             <span>Output Folder</span>
             <input id="run-folder-name" name="run_folder_name" type="text" />
+            <small class="field-help">Dashboard runs write into <code>&lt;folder&gt;/outputs/csv</code>, <code>logs</code>, and <code>runs</code>.</small>
           </label>
           <label class="checkbox-label">
             <span>Listing Strict</span>

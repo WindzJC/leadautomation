@@ -6,6 +6,7 @@ from pathlib import Path
 from prospect_dedupe import dedupe
 from run_lead_finder_loop import (
     build_new_lead_export_rows,
+    build_projected_lead_export_rows,
     build_rotating_queries,
     write_contact_queue_rows,
     write_minimal_rows,
@@ -124,6 +125,32 @@ def test_build_new_lead_export_rows_only_keeps_rows_not_already_in_export() -> N
 
     assert build_new_lead_export_rows(current_rows, existing_rows) == [
         {"AuthorName": "New Author", "AuthorEmail": "new@example.com", "SourceURL": "https://new.example/contact"},
+    ]
+
+
+def test_build_new_lead_export_rows_treats_same_author_email_with_new_source_as_existing() -> None:
+    existing_rows = [
+        {"AuthorName": "Jane Doe", "AuthorEmail": "jane@example.com", "SourceURL": "https://janedoe.example/about"},
+    ]
+    current_rows = [
+        {"AuthorName": "Jane Doe", "AuthorEmail": "jane@example.com", "SourceURL": "https://janedoe.example/contact"},
+    ]
+
+    assert build_new_lead_export_rows(current_rows, existing_rows) == []
+
+
+def test_build_projected_lead_export_rows_dedupes_same_author_email_across_source_urls() -> None:
+    rows = [
+        {"AuthorName": "Jane Doe", "AuthorEmail": "JANE@EXAMPLE.COM", "SourceURL": "https://janedoe.example/about"},
+        {"AuthorName": "Jane Doe", "AuthorEmail": "jane@example.com", "SourceURL": "https://janedoe.example/contact"},
+    ]
+
+    assert build_projected_lead_export_rows(rows, source_url_getter=lambda row: row.get("SourceURL", "") or "") == [
+        {
+            "AuthorName": "Jane Doe",
+            "AuthorEmail": "jane@example.com",
+            "SourceURL": "https://janedoe.example/about",
+        }
     ]
 
 

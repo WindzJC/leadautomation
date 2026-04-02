@@ -3,12 +3,10 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $RepoRoot
 
-$ActivateScript = Join-Path $RepoRoot ".venv\Scripts\Activate.ps1"
-if (-not (Test-Path $ActivateScript)) {
-    throw "Missing virtual environment at .venv\Scripts\Activate.ps1"
+$PythonExe = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+if (-not (Test-Path $PythonExe)) {
+    throw "Missing virtual environment at .venv\Scripts\python.exe"
 }
-
-. $ActivateScript
 
 $EnvPath = Join-Path $RepoRoot ".env.local"
 if (Test-Path $EnvPath) {
@@ -38,4 +36,4 @@ if (Test-Path $EnvPath) {
     }
 }
 
-python .\run_ops_dashboard.py
+& $PythonExe .\run_ops_dashboard.py

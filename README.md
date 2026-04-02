@@ -93,6 +93,34 @@ Notes:
 - The runners and dashboard load `.env.local` automatically at startup.
 - Secrets are not written into CSV exports, run manifests, or dashboard logs.
 
+## Google CSE Readiness
+For real Google-backed `email_only` harvesting, the required state is:
+- `Custom Search JSON API` is enabled in the Google Cloud project that owns your API key.
+- `GOOGLE_API_KEY` is created from that same enabled project.
+- `GOOGLE_CSE_CX` stays the same unless you intentionally switch to a different search engine.
+
+Before launching the dashboard on Windows, do a small live API check:
+
+```powershell
+@'
+from local_env import load_local_env
+load_local_env()
+import os, urllib.parse, urllib.request
+params = urllib.parse.urlencode({
+    "key": os.environ["GOOGLE_API_KEY"],
+    "cx": os.environ["GOOGLE_CSE_CX"],
+    "q": "site:example.com author email",
+})
+url = "https://www.googleapis.com/customsearch/v1?" + params
+with urllib.request.urlopen(url, timeout=20) as resp:
+    print(resp.status)
+'@ | .\.venv\Scripts\python.exe -
+```
+
+Expected result:
+- `200` means the key/CX pair is live and the dashboard can attempt Google-backed harvesting.
+- `PERMISSION_DENIED` or `This project does not have the access to Custom Search JSON API.` means the API key belongs to the wrong project or the API is not enabled there yet.
+
 ## Doctor
 Run the simple status check before switching machines or starting a session:
 

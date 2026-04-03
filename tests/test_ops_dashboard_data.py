@@ -16,6 +16,7 @@ from ops_dashboard.data_access import (
     load_rejected_rows,
     load_run_manifest,
     load_validated_rows,
+    render_copy_friendly_lead_output,
 )
 
 
@@ -132,7 +133,24 @@ def test_run_detail_loaders_handle_missing_artifacts_gracefully(tmp_path: Path) 
     assert manifest["run_id"] == "run_001"
     assert validated_rows == []
     assert rejected_rows == []
-    assert lead_output == {"source": "final", "rows": []}
+    assert lead_output["source"] == "final"
+    assert lead_output["rows"] == []
+    assert lead_output["copy_text"] == "```\n\n```"
+
+
+def test_run_detail_loaders_treat_plain_run_id_as_missing_instead_of_error(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "outputs" / "runs"
+    json_dir = tmp_path / "outputs" / "json"
+    runs_dir.mkdir(parents=True)
+
+    _write(
+        runs_dir / "run_001_stats.json",
+        json.dumps({"generated_at_utc": "2026-03-14T10:00:00Z", "pipeline_exit_code": 0}),
+    )
+    _write(tmp_path / "outputs" / "json" / "run_manifest_run_001.json", json.dumps({"run_id": "run_001"}))
+
+    with pytest.raises(KeyError):
+        load_run_manifest("run_001", base_dir=tmp_path)
 
 
 def test_lead_output_and_artifact_catalog_prefer_final_rows(tmp_path: Path) -> None:
@@ -172,6 +190,7 @@ def test_lead_output_and_artifact_catalog_prefer_final_rows(tmp_path: Path) -> N
             "SourceURL": "https://source.example",
         }
     ]
+    assert lead_output["copy_text"] == "```\nJane Doe,jane@example.com\n```\n\nJane Doe — https://source.example"
     assert artifact_catalog["final"]["available"] is True
     assert artifact_catalog["validated"]["available"] is True
     assert artifact_catalog["log"]["available"] is True
@@ -209,6 +228,7 @@ def test_load_lead_output_prefers_export_files_and_filters_blank_email_rows(tmp_
             "SourceURL": "https://scout.example",
         }
     ]
+    assert lead_output["copy_text"] == "```\nScout Writer,scout@example.com\n```\n\nScout Writer — https://scout.example"
 
 
 def test_load_lead_output_dedupes_duplicate_author_email_rows_from_export_file(tmp_path: Path) -> None:
@@ -267,6 +287,25 @@ def test_load_lead_output_prefers_new_leads_artifact_for_selected_run(tmp_path: 
             "SourceURL": "https://new.example/contact",
         }
     ]
+
+
+def test_render_copy_friendly_lead_output_quotes_commas_without_header() -> None:
+    rendered = render_copy_friendly_lead_output(
+        [
+            {
+                "AuthorName": "Doe, Jane",
+                "AuthorEmail": "jane@example.com",
+                "SourceURL": "https://source.example/contact",
+            }
+        ]
+    )
+
+    assert rendered == (
+        "```\n"
+        "\"Doe, Jane\",jane@example.com\n"
+        "```\n\n"
+        "Doe, Jane — https://source.example/contact"
+    )
 
 
 def test_unknown_run_in_existing_context_raises_key_error(tmp_path: Path) -> None:

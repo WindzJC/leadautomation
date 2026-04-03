@@ -249,6 +249,16 @@ class CandidateBudgetMetrics:
     source_type: str = ""
     source_query: str = ""
     source_url: str = ""
+    source_title: str = ""
+    source_snippet: str = ""
+    query_original: str = ""
+    query_effective: str = ""
+    widen_level: int = 0
+    widen_reason: str = ""
+    stale_run_counter: int = 0
+    source_family: str = ""
+    source_score: float = 0.0
+    cross_run_score: float = 0.0
     author_name: str = ""
     book_title: str = ""
     fetch_count: int = 0
@@ -262,14 +272,24 @@ class CandidateBudgetMetrics:
     location_recovery_skipped_reason: str = ""
     listing_recovery_skipped_reason: str = ""
     current_state: str = "harvested"
+    validation_state: str = "harvested"
     next_action: str = ""
     next_action_reason: str = ""
     last_attempted_action: str = ""
     email: str = ""
+    email_source_url: str = ""
     email_snippet: str = ""
+    location_source_url: str = ""
+    location_value: str = ""
     us_snippet: str = ""
+    indie_proof_url: str = ""
+    indie_proof_value: str = ""
     indie_snippet: str = ""
+    retailer_listing_url: str = ""
+    retailer_listing_status: str = ""
     listing_snippet: str = ""
+    recency_source_url: str = ""
+    recency_value: str = ""
     book_url: str = ""
 
 
@@ -1822,6 +1842,13 @@ def candidate_outcome_confidence(metrics: CandidateBudgetMetrics) -> str:
     return "weak"
 
 
+def infer_source_family(source_type: str, source_url: str = "") -> str:
+    normalized = (source_type or "").strip().lower()
+    if normalized:
+        return normalized
+    return registrable_domain(source_url) or "unknown"
+
+
 def serialize_candidate_outcome(metrics: CandidateBudgetMetrics) -> Dict[str, object]:
     stable_reason = map_stable_fail_reason(metrics.reject_reason)
     fail_reasons = [] if metrics.kept else [stable_reason or "insufficient_snippet"]
@@ -1831,8 +1858,29 @@ def serialize_candidate_outcome(metrics: CandidateBudgetMetrics) -> Dict[str, ob
         "source_type": metrics.source_type,
         "source_query": metrics.source_query,
         "source_url": metrics.source_url,
+        "source_title": metrics.source_title,
+        "source_snippet": metrics.source_snippet,
+        "query_original": metrics.query_original,
+        "query_effective": metrics.query_effective,
+        "widen_level": metrics.widen_level,
+        "widen_reason": metrics.widen_reason,
+        "stale_run_counter": metrics.stale_run_counter,
         "author_name": metrics.author_name,
         "book_title": metrics.book_title,
+        "email_source_url": metrics.email_source_url,
+        "email_value": (metrics.email or "").strip().lower(),
+        "location_source_url": metrics.location_source_url,
+        "location_value": metrics.location_value or metrics.us_snippet,
+        "indie_proof_url": metrics.indie_proof_url,
+        "indie_proof_value": metrics.indie_proof_value or metrics.indie_snippet,
+        "retailer_listing_url": metrics.retailer_listing_url or metrics.book_url,
+        "retailer_listing_status": metrics.retailer_listing_status,
+        "recency_source_url": metrics.recency_source_url,
+        "recency_value": metrics.recency_value,
+        "source_family": metrics.source_family or infer_source_family(metrics.source_type, metrics.source_url),
+        "source_score": round(float(metrics.source_score or 0.0), 2),
+        "cross_run_score": round(float(metrics.cross_run_score or 0.0), 2),
+        "validation_state": metrics.validation_state or metrics.current_state,
         "passed": metrics.kept,
         "primary_fail_reason": fail_reasons[0] if fail_reasons else "",
         "fail_reasons": fail_reasons,
@@ -5426,6 +5474,11 @@ def read_candidates(path: str, max_candidates: int) -> List[Dict[str, str]]:
                     {
                         "CandidateURL": url,
                         "SourceQuery": (row.get("SourceQuery", "") or "").strip(),
+                        "QueryOriginal": (row.get("QueryOriginal", "") or "").strip(),
+                        "QueryEffective": (row.get("QueryEffective", "") or "").strip(),
+                        "WidenLevel": (row.get("WidenLevel", "") or "").strip(),
+                        "WidenReason": (row.get("WidenReason", "") or "").strip(),
+                        "StaleRunCounter": (row.get("StaleRunCounter", "") or "").strip(),
                         "SourceType": (row.get("SourceType", "") or "").strip(),
                         "SourceURL": normalize_url(row.get("SourceURL", "")) if (row.get("SourceURL", "") or "").strip() else "",
                         "SourceTitle": (row.get("SourceTitle", "") or "").strip(),
@@ -5659,18 +5712,47 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                 effective_listing_strict=effective_listing_strict,
             )
             current_candidate_metrics.current_state = current_candidate_ledger.current_state
+            current_candidate_metrics.validation_state = current_candidate_ledger.current_state
             current_candidate_metrics.next_action = planned_action.get("action", "")
             current_candidate_metrics.next_action_reason = planned_action.get("reason", "")
             current_candidate_metrics.last_attempted_action = current_candidate_ledger.last_attempted_action
+            current_candidate_metrics.email_source_url = (
+                current_candidate_ledger.best_email_source_url or current_candidate_metrics.email_source_url
+            )
+            current_candidate_metrics.location_source_url = (
+                current_candidate_ledger.best_location_source_url or current_candidate_metrics.location_source_url
+            )
+            current_candidate_metrics.indie_proof_url = (
+                current_candidate_ledger.best_indie_source_url or current_candidate_metrics.indie_proof_url
+            )
+            current_candidate_metrics.retailer_listing_url = (
+                current_candidate_ledger.best_listing_source_url
+                or current_candidate_metrics.retailer_listing_url
+                or current_candidate_book_url
+                or current_candidate_metrics.book_url
+            )
+            current_candidate_metrics.recency_source_url = (
+                current_candidate_ledger.best_recency_source_url or current_candidate_metrics.recency_source_url
+            )
             current_candidate_metrics.email_snippet = (
                 current_candidate_email_snippet
                 or current_candidate_ledger.best_email_snippet
                 or current_candidate_metrics.email_snippet
             )
+            current_candidate_metrics.location_value = (
+                current_candidate_metrics.location_value
+                or current_candidate_ledger.best_location_snippet
+                or current_candidate_metrics.us_snippet
+            )
             current_candidate_metrics.us_snippet = (
                 current_candidate_us_snippet
                 or current_candidate_ledger.best_location_snippet
                 or current_candidate_metrics.us_snippet
+            )
+            current_candidate_metrics.indie_proof_value = (
+                current_candidate_metrics.indie_proof_value
+                or current_candidate_ledger.best_indie_snippet
+                or current_candidate_metrics.indie_snippet
             )
             current_candidate_metrics.indie_snippet = (
                 current_candidate_indie_snippet
@@ -5681,6 +5763,10 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                 current_candidate_listing_snippet
                 or current_candidate_ledger.best_listing_snippet
                 or current_candidate_metrics.listing_snippet
+            )
+            current_candidate_metrics.recency_value = (
+                current_candidate_metrics.recency_value
+                or current_candidate_ledger.best_recency_snippet
             )
             candidate_ledger_records.append(serialize_candidate_proof_ledger(current_candidate_ledger))
         current_candidate_metrics.email = (current_candidate_email or current_candidate_metrics.email).strip().lower()
@@ -5760,6 +5846,11 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             break
         candidate_url = candidate.get("CandidateURL", "")
         candidate_source_query = candidate.get("SourceQuery", "")
+        candidate_query_original = candidate.get("QueryOriginal", "")
+        candidate_query_effective = candidate.get("QueryEffective", "")
+        candidate_widen_level = candidate.get("WidenLevel", "")
+        candidate_widen_reason = candidate.get("WidenReason", "")
+        candidate_stale_run_counter = candidate.get("StaleRunCounter", "")
         candidate_source_url = candidate.get("SourceURL", "")
         candidate_source_title = candidate.get("SourceTitle", "")
         candidate_source_snippet = candidate.get("SourceSnippet", "")
@@ -5786,6 +5877,14 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             source_type=(candidate.get("SourceType", "") or "").strip(),
             source_query=(candidate_source_query or "").strip(),
             source_url=normalize_url(candidate_source_url) or candidate_source_url,
+            source_title=(candidate_source_title or "").strip(),
+            source_snippet=(candidate_source_snippet or "").strip(),
+            query_original=(candidate_query_original or "").strip(),
+            query_effective=(candidate_query_effective or candidate_source_query or "").strip(),
+            widen_level=int(candidate_widen_level or 0) if str(candidate_widen_level or "").strip() else 0,
+            widen_reason=(candidate_widen_reason or "").strip(),
+            stale_run_counter=int(candidate_stale_run_counter or 0) if str(candidate_stale_run_counter or "").strip() else 0,
+            source_family=infer_source_family((candidate.get("SourceType", "") or "").strip(), candidate_source_url),
         )
         current_candidate_ledger = CandidateProofLedger(
             candidate_url=normalize_url(candidate_url) or candidate_url,
@@ -7261,6 +7360,16 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             "RecencyStatus": recency_status,
             "RecencyFailReason": recency_fail_reason,
         }
+        if current_candidate_metrics is not None:
+            current_candidate_metrics.email_source_url = author_email_source_url
+            current_candidate_metrics.location_source_url = location_proof_url
+            current_candidate_metrics.location_value = location
+            current_candidate_metrics.indie_proof_url = indie_proof_url
+            current_candidate_metrics.indie_proof_value = indie_proof_snippet
+            current_candidate_metrics.retailer_listing_url = valid_listing_url or row_listing_url
+            current_candidate_metrics.retailer_listing_status = listing_status
+            current_candidate_metrics.recency_source_url = recency_url
+            current_candidate_metrics.recency_value = recency_proof
         results.append(row)
         candidate_kept = True
         if row["ListingURL"]:

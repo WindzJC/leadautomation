@@ -29,6 +29,7 @@ def test_update_reliability_counters_tracks_failures_and_empty_runs() -> None:
 
 def test_determine_loop_stop_reason_respects_priority_order() -> None:
     args = Namespace(
+        validation_profile="strict_full",
         max_stale_runs=2,
         max_consecutive_failures=3,
         max_empty_candidate_runs=2,
@@ -62,3 +63,23 @@ def test_determine_loop_stop_reason_respects_priority_order() -> None:
             "consecutive_zero_validated_runs": 0,
         },
     ) == "empty_candidate_runs"
+
+
+def test_determine_loop_stop_reason_ignores_stale_runs_for_recovery_profiles() -> None:
+    args = Namespace(
+        validation_profile="email_only",
+        max_stale_runs=2,
+        max_consecutive_failures=3,
+        max_empty_candidate_runs=2,
+        max_zero_validated_runs=3,
+    )
+
+    assert determine_loop_stop_reason(
+        args,
+        stale_runs=2,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 0,
+            "consecutive_zero_validated_runs": 0,
+        },
+    ) == ""

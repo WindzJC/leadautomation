@@ -52,8 +52,11 @@ from run_lead_finder_loop import (
     build_agent_hunt_source_quality_feedback,
     build_agent_hunt_stats,
     build_agent_hunt_listing_feedback,
+    build_email_only_source_penalty_feedback,
     build_email_only_source_yield_stats,
+    build_rotating_query_plans,
     build_rotating_queries,
+    summarize_email_only_source_penalty_feedback,
     keep_verified_rows,
     orchestrate_candidate_replacements,
     order_candidates_for_strict_validation,
@@ -1257,6 +1260,8 @@ def test_recover_agent_hunt_listing_friction_email_record_promotes_visible_email
         "author_name": "Mary Roe",
         "candidate_url": "https://maryroeauthor.com/about",
         "source_url": "https://www.epicindie.net/authordirectory",
+        "source_title": "Mary Roe",
+        "source_snippet": "Mary Roe indie fantasy author based in Ohio.",
         "source_type": "epic_directory",
         "source_query": "epic:author-directory",
         "email": "",
@@ -1306,6 +1311,8 @@ def test_recover_agent_hunt_listing_friction_email_record_promotes_visible_email
     assert recovered["agent_hunt_email_recovery_source_url"] == "https://maryroeauthor.com/contact"
     assert assessment["qualified"] is True
     assert assessment["status"] == "qualified_listing_blocked"
+    assert assessment["row"]["SourceTitle"] == "Mary Roe"
+    assert assessment["row"]["SourceSnippet"] == "Mary Roe indie fantasy author based in Ohio."
 
 
 def test_recover_agent_hunt_listing_friction_email_record_without_visible_email_stays_caution() -> None:
@@ -1362,6 +1369,147 @@ def test_recover_agent_hunt_listing_friction_email_record_without_visible_email_
     assert assessment["qualified"] is False
     assert assessment["status"] == "scoutworthy_not_outreach_ready"
     assert assessment["promotion_blocker_reason"] == "listing_friction_email_recovery_failed:no_visible_text_email"
+
+
+def test_validate_candidates_stats_preserve_source_context_in_candidate_outcomes(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["CandidateURL", "SourceQuery", "SourceURL", "SourceTitle", "SourceSnippet"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://janedoeauthor.com/",
+                "SourceQuery": "web:author email",
+                "SourceURL": "https://search.example/result",
+                "SourceTitle": "Jane Doe",
+                "SourceSnippet": "Jane Doe fantasy author. Public email jane@janedoeauthor.com",
+            }
+        )
+
+    args = Namespace(
+        input=str(candidates_path),
+        output=str(tmp_path / "validated.csv"),
+        delay=0.0,
+        timeout=5.0,
+        min_year=2022,
+        max_year=2026,
+        max_candidates=0,
+        require_email=False,
+        require_contact_path=False,
+        ignore_robots=False,
+        robots_retry_seconds=60.0,
+        contact_path_strict=False,
+        require_location_proof=False,
+        us_only=False,
+        max_support_pages=0,
+        max_pages_for_title=1,
+        max_pages_for_contact=1,
+        max_total_fetches_per_domain_per_run=6,
+        listing_strict=False,
+        stats_output="",
+    )
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory({})),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        rows, reject_counts, total = validate_candidates(args)
+
+    assert rows == []
+    assert total == 1
+    assert reject_counts == Counter({"page_fetch_failed_404": 1})
+    outcome_records = list((getattr(args, "_validation_stats", {}) or {}).get("candidate_outcome_records", []))
+    assert len(outcome_records) == 1
+    assert outcome_records[0]["source_title"] == "Jane Doe"
+    assert outcome_records[0]["source_snippet"] == "Jane Doe fantasy author. Public email jane@janedoeauthor.com"
+
+
+def test_validate_candidates_stats_preserve_query_widening_metadata_in_candidate_outcomes(tmp_path) -> None:
+    candidates_path = tmp_path / "candidates.csv"
+    with candidates_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=[
+                "CandidateURL",
+                "SourceQuery",
+                "QueryOriginal",
+                "QueryEffective",
+                "WidenLevel",
+                "WidenReason",
+                "StaleRunCounter",
+                "SourceURL",
+                "SourceTitle",
+                "SourceSnippet",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "CandidateURL": "https://janedoeauthor.com/",
+                "SourceQuery": '"fantasy" "author" "email"',
+                "QueryOriginal": '"fantasy" "indie author" "contact"',
+                "QueryEffective": '"fantasy" "author" "email"',
+                "WidenLevel": "3",
+                "WidenReason": "zero_validated_runs",
+                "StaleRunCounter": "2",
+                "SourceURL": "https://search.example/result",
+                "SourceTitle": "Jane Doe",
+                "SourceSnippet": "Jane Doe fantasy author.",
+            }
+        )
+
+    args = Namespace(
+        input=str(candidates_path),
+        output=str(tmp_path / "validated.csv"),
+        delay=0.0,
+        timeout=5.0,
+        min_year=2022,
+        max_year=2026,
+        max_candidates=0,
+        require_email=False,
+        require_contact_path=False,
+        ignore_robots=False,
+        robots_retry_seconds=60.0,
+        contact_path_strict=False,
+        require_location_proof=False,
+        us_only=False,
+        max_support_pages=0,
+        max_pages_for_title=1,
+        max_pages_for_contact=1,
+        max_total_fetches_per_domain_per_run=6,
+        listing_strict=False,
+        stats_output="",
+    )
+
+    with (
+        patch("prospect_validate.build_session", return_value=object()),
+        patch("prospect_validate.fetch_with_meta", side_effect=fake_fetch_with_meta_factory({})),
+        patch("prospect_validate.time.sleep", return_value=None),
+    ):
+        rows, reject_counts, total = validate_candidates(args)
+
+    assert rows == []
+    assert total == 1
+    assert reject_counts == Counter({"page_fetch_failed_404": 1})
+    outcome_records = list((getattr(args, "_validation_stats", {}) or {}).get("candidate_outcome_records", []))
+    assert len(outcome_records) == 1
+    assert outcome_records[0]["query_original"] == '"fantasy" "indie author" "contact"'
+    assert outcome_records[0]["query_effective"] == '"fantasy" "author" "email"'
+    assert outcome_records[0]["widen_level"] == 3
+    assert outcome_records[0]["widen_reason"] == "zero_validated_runs"
+    assert outcome_records[0]["stale_run_counter"] == 2
+    assert outcome_records[0]["email_source_url"] == ""
+    assert outcome_records[0]["email_value"] == ""
+    assert outcome_records[0]["location_source_url"] == ""
+    assert outcome_records[0]["indie_proof_url"] == ""
+    assert outcome_records[0]["retailer_listing_url"] == ""
+    assert outcome_records[0]["recency_source_url"] == ""
+    assert outcome_records[0]["source_family"] == "search.example"
+    assert outcome_records[0]["validation_state"] == "harvested"
 
 
 def test_recover_agent_hunt_listing_friction_email_record_skips_obvious_junk() -> None:
@@ -2163,6 +2311,169 @@ def test_build_rotating_queries_expands_safely_after_stale_runs() -> None:
 
     assert len(stale_queries) >= len(fresh_queries)
     assert fresh_queries != stale_queries
+
+
+def test_build_rotating_query_plans_widens_email_only_queries_after_low_yield_runs() -> None:
+    fresh_plans = build_rotating_query_plans(
+        1,
+        validation_profile="email_only",
+        stale_runs=0,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 0,
+            "consecutive_zero_validated_runs": 0,
+        },
+    )
+    widened_plans = build_rotating_query_plans(
+        1,
+        validation_profile="email_only",
+        stale_runs=2,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 0,
+            "consecutive_zero_validated_runs": 2,
+        },
+    )
+
+    assert all(int(plan["widen_level"]) == 0 for plan in fresh_plans)
+    widened = [plan for plan in widened_plans if int(plan["widen_level"]) > 0]
+    assert widened
+    assert all(str(plan["query_original"] or "").strip() for plan in widened)
+    assert all(str(plan["query_effective"] or "").strip() for plan in widened)
+    assert all(plan["query_original"] != plan["query_effective"] for plan in widened)
+    assert all(plan["widen_reason"] == "zero_validated_runs" for plan in widened)
+    assert all(int(plan["stale_run_counter"]) == 2 for plan in widened)
+
+
+def test_build_rotating_query_plans_does_not_widen_non_email_only_profiles() -> None:
+    plans = build_rotating_query_plans(
+        1,
+        validation_profile="agent_hunt",
+        stale_runs=3,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 1,
+            "consecutive_zero_validated_runs": 2,
+        },
+    )
+
+    assert plans
+    assert all(int(plan["widen_level"]) == 0 for plan in plans)
+    assert all(plan["query_original"] == plan["query_effective"] for plan in plans)
+
+
+def test_build_email_only_source_penalty_feedback_penalizes_repeated_dead_end_patterns() -> None:
+    query = '"indie author" "official website" "contact"'
+    records = [
+        {
+            "source_url": "https://epicindie.net/authordirectory",
+            "source_type": "epic_directory",
+            "source_query": query,
+            "email": "",
+            "kept": False,
+            "reject_reason": "no_visible_author_email",
+        }
+        for _ in range(4)
+    ]
+
+    result = build_email_only_source_penalty_feedback(records, decay_factor=1.0)
+
+    assert result["query_penalties"] == {query: 6}
+    assert result["source_type_penalties"] == {"epic_directory": 6}
+    assert result["source_domain_penalties"] == {"epicindie.net": 6}
+    assert result["top_failure_reasons"] == {"missing_visible_email": 4}
+    assert result["source_type_scores"]["epic_directory"] < 25.0
+    assert result["source_domain_scores"]["epicindie.net"] < 25.0
+
+
+def test_build_email_only_source_penalty_feedback_decays_after_productive_run() -> None:
+    query = '"indie author" "official website" "contact"'
+    existing_feedback = {
+        "run_count": 2,
+        "query_stats": {
+            query: {
+                "processed": 6.0,
+                "dead_end": 6.0,
+                "visible_email_hits": 0.0,
+                "kept": 0.0,
+            }
+        },
+        "source_type_stats": {
+            "web_search": {
+                "processed": 6.0,
+                "dead_end": 6.0,
+                "visible_email_hits": 0.0,
+                "kept": 0.0,
+            }
+        },
+        "source_domain_stats": {
+            "example.com": {
+                "processed": 6.0,
+                "dead_end": 6.0,
+                "visible_email_hits": 0.0,
+                "kept": 0.0,
+            }
+        },
+    }
+    productive_records = [
+        {
+            "source_url": "https://example.com/about",
+            "source_type": "web_search",
+            "source_query": query,
+            "email": "author@example.com",
+            "kept": True,
+            "reject_reason": "",
+        }
+        for _ in range(3)
+    ]
+
+    result = build_email_only_source_penalty_feedback(
+        productive_records,
+        existing_feedback=existing_feedback,
+        decay_factor=0.5,
+    )
+
+    assert result["query_penalties"] == {}
+    assert result["source_type_penalties"] == {}
+    assert result["source_domain_penalties"] == {}
+    summary = summarize_email_only_source_penalty_feedback(result)
+    assert summary["run_count"] == 3
+    assert summary["tracked_queries"] == 1
+    assert summary["penalized_queries"] == []
+
+
+def test_build_rotating_query_plans_demotes_penalized_email_only_queries() -> None:
+    penalty_feedback = {
+        "query_penalties": {
+            '"indie author" "official website" "contact"': 6,
+        }
+    }
+    plans = build_rotating_query_plans(
+        1,
+        validation_profile="email_only",
+        stale_runs=3,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 2,
+            "consecutive_zero_validated_runs": 2,
+        },
+        email_only_source_penalty_feedback=penalty_feedback,
+    )
+
+    penalized_exact_index = next(
+        idx
+        for idx, plan in enumerate(plans)
+        if plan["query_effective"] == '"indie author" "official website" "contact"'
+    )
+    assert penalized_exact_index > 0
+    assert not any(
+        plan["query_original"] == '"indie author" "official website" "contact"' and int(plan["widen_level"]) >= 2
+        for plan in plans
+    )
+    assert any(
+        plan["query_original"] != plan["query_effective"] and int(plan["widen_level"]) >= 2
+        for plan in plans
+    )
 
 
 def test_build_email_only_source_yield_stats_reports_kept_rows_and_email_hit_rates() -> None:

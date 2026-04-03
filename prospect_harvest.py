@@ -18,7 +18,7 @@ import time
 import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, TypeVar
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 import requests
@@ -447,11 +447,17 @@ CANDIDATE_FIELDNAMES = [
     "CandidateURL",
     "SourceType",
     "SourceQuery",
+    "QueryOriginal",
+    "QueryEffective",
+    "WidenLevel",
+    "WidenReason",
+    "StaleRunCounter",
     "SourceURL",
     "SourceTitle",
     "SourceSnippet",
     "DiscoveredAtUTC",
 ]
+QUERY_PLAN_METADATA_SEPARATOR = "\t"
 
 DIRECTORY_REQUEST_TIMEOUT_CAP = 6.0
 IAN_LISTING_TIMEOUT_CAP = 5.0
@@ -602,17 +608,74 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_queries(queries_file: str) -> List[str]:
-    if not queries_file:
-        return DEFAULT_QUERIES
+def _coerce_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
-    queries: List[str] = []
+
+def make_query_plan(
+    query_effective: str,
+    *,
+    query_original: str = "",
+    widen_level: int = 0,
+    widen_reason: str = "",
+    stale_run_counter: int = 0,
+) -> Dict[str, object]:
+    effective = re.sub(r"\s+", " ", str(query_effective or "").strip())
+    original = re.sub(r"\s+", " ", str(query_original or "").strip()) or effective
+    return {
+        "query_original": original,
+        "query_effective": effective,
+        "widen_level": max(0, _coerce_int(widen_level)),
+        "widen_reason": str(widen_reason or "").strip(),
+        "stale_run_counter": max(0, _coerce_int(stale_run_counter)),
+    }
+
+
+def normalize_query_plan_entry(value: object) -> Dict[str, object]:
+    if isinstance(value, dict):
+        return make_query_plan(
+            str(value.get("query_effective", "") or value.get("query", "") or ""),
+            query_original=str(value.get("query_original", "") or ""),
+            widen_level=_coerce_int(value.get("widen_level", 0)),
+            widen_reason=str(value.get("widen_reason", "") or ""),
+            stale_run_counter=_coerce_int(value.get("stale_run_counter", 0)),
+        )
+    return make_query_plan(str(value or ""))
+
+
+def parse_query_plan_line(line: str) -> Dict[str, object]:
+    parts = [part.strip() for part in str(line or "").split(QUERY_PLAN_METADATA_SEPARATOR)]
+    if len(parts) <= 1:
+        return make_query_plan(parts[0] if parts else "")
+    return make_query_plan(
+        parts[0],
+        query_original=parts[1] if len(parts) > 1 else "",
+        widen_level=_coerce_int(parts[2] if len(parts) > 2 else 0),
+        widen_reason=parts[3] if len(parts) > 3 else "",
+        stale_run_counter=_coerce_int(parts[4] if len(parts) > 4 else 0),
+    )
+
+
+def load_query_plans(queries_file: str) -> List[Dict[str, object]]:
+    if not queries_file:
+        return [make_query_plan(query) for query in DEFAULT_QUERIES]
+
+    query_plans: List[Dict[str, object]] = []
     with open(queries_file, "r", encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if line and not line.startswith("#"):
-                queries.append(line)
-    return queries or DEFAULT_QUERIES
+                plan = parse_query_plan_line(line)
+                if str(plan.get("query_effective", "") or "").strip():
+                    query_plans.append(plan)
+    return query_plans or [make_query_plan(query) for query in DEFAULT_QUERIES]
+
+
+def load_queries(queries_file: str) -> List[str]:
+    return [str(plan.get("query_effective", "") or "") for plan in load_query_plans(queries_file)]
 
 
 def clean_result_url(raw_url: str) -> str:
@@ -675,11 +738,21 @@ def make_candidate_row(
     source_url: str = "",
     source_title: str = "",
     source_snippet: str = "",
+    query_original: str = "",
+    query_effective: str = "",
+    widen_level: int = 0,
+    widen_reason: str = "",
+    stale_run_counter: int = 0,
 ) -> Dict[str, str]:
     return {
         "CandidateURL": url,
         "SourceType": source_type,
         "SourceQuery": source_query,
+        "QueryOriginal": (query_original or source_query).strip(),
+        "QueryEffective": (query_effective or source_query).strip(),
+        "WidenLevel": str(max(0, _coerce_int(widen_level))),
+        "WidenReason": (widen_reason or "").strip(),
+        "StaleRunCounter": str(max(0, _coerce_int(stale_run_counter))),
         "SourceURL": source_url,
         "SourceTitle": truncate_snippet(source_title, limit=180),
         "SourceSnippet": truncate_snippet(source_snippet, limit=320),
@@ -1965,7 +2038,7 @@ def extract_iabx_directory_candidates(
 
 
 def harvest(
-    queries: Iterable[str],
+    queries: Iterable[object],
     per_query: int,
     target: int,
     min_candidates: int,
@@ -2029,6 +2102,8 @@ def harvest(
                 f"{google_status['status']} ({google_status.get('http_status', 0)}) "
                 f"{google_status.get('error_reason', '')} {google_status.get('error_message', '')}".strip()
             )
+    query_plans = [normalize_query_plan_entry(query) for query in queries]
+    query_plans = [plan for plan in query_plans if str(plan.get("query_effective", "") or "").strip()]
 
     def infer_source_type(row: Dict[str, str]) -> str:
         source_type = (row.get("SourceType", "") or "").strip()
@@ -2096,7 +2171,8 @@ def harvest(
         return time.monotonic() + min(slice_seconds, remaining)
 
     if use_google:
-        for query in queries:
+        for query_plan in query_plans:
+            query = str(query_plan.get("query_effective", "") or "").strip()
             if len(out) >= effective_target or not time_budget_remaining():
                 break
             results: List[str] = []
@@ -2121,6 +2197,11 @@ def harvest(
                         source_type="google_cse",
                         source_query=query,
                         timestamp=timestamp,
+                        query_original=str(query_plan.get("query_original", "") or query),
+                        query_effective=query,
+                        widen_level=_coerce_int(query_plan.get("widen_level", 0)),
+                        widen_reason=str(query_plan.get("widen_reason", "") or ""),
+                        stale_run_counter=_coerce_int(query_plan.get("stale_run_counter", 0)),
                     )
                     for url in results
                 )
@@ -2141,6 +2222,11 @@ def harvest(
                             source_type="web_search",
                             source_query=query,
                             timestamp=timestamp,
+                            query_original=str(query_plan.get("query_original", "") or query),
+                            query_effective=query,
+                            widen_level=_coerce_int(query_plan.get("widen_level", 0)),
+                            widen_reason=str(query_plan.get("widen_reason", "") or ""),
+                            stale_run_counter=_coerce_int(query_plan.get("stale_run_counter", 0)),
                         )
                         for url in fallback_results
                     )
@@ -2182,7 +2268,7 @@ def harvest(
         )
         # Reserve room for broader discovery when fallback search is available.
         if ian_rows and len(out) < deterministic_goal and time_budget_remaining() and (
-            disable_web_fallback or not queries
+            disable_web_fallback or not query_plans
         ):
             shortfall = max(0, deterministic_goal - len(out))
             expanded_ian_page_budget = min(10, max(initial_ian_page_budget + 1, 1 + shortfall // 12))
@@ -2240,7 +2326,8 @@ def harvest(
     allow_web_fallback = not disable_web_fallback and len(out) < effective_target
 
     if allow_web_fallback:
-        for query in queries:
+        for query_plan in query_plans:
+            query = str(query_plan.get("query_effective", "") or "").strip()
             if len(out) >= effective_target or not time_budget_remaining():
                 break
             results, duckduckgo_blocked = search_web_fallback_results(
@@ -2260,6 +2347,11 @@ def harvest(
                         source_type="web_search",
                         source_query=query,
                         timestamp=timestamp,
+                        query_original=str(query_plan.get("query_original", "") or query),
+                        query_effective=query,
+                        widen_level=_coerce_int(query_plan.get("widen_level", 0)),
+                        widen_reason=str(query_plan.get("widen_reason", "") or ""),
+                        stale_run_counter=_coerce_int(query_plan.get("stale_run_counter", 0)),
                     )
                     for url in results
                 )
@@ -2293,6 +2385,10 @@ def harvest(
             "deterministic_goal": deterministic_goal,
         },
         "per_source": dict(sorted(source_counts.items(), key=lambda item: item[1], reverse=True)),
+        "widen_level_counts": dict(Counter(str(row.get("WidenLevel", "") or "0") for row in out)),
+        "widen_reason_counts": dict(
+            Counter(str(row.get("WidenReason", "") or "").strip() for row in out if str(row.get("WidenReason", "") or "").strip())
+        ),
         "top_domains": [{"domain": domain, "count": count} for domain, count in domain_counts.most_common(15)],
         "harvest_shortfall_reason": harvest_shortfall_reason,
     }
@@ -2320,7 +2416,7 @@ def write_csv(path: str, rows: List[Dict[str, str]]) -> None:
 
 def main() -> int:
     args = parse_args()
-    queries = load_queries(args.queries_file)
+    queries = load_query_plans(args.queries_file)
     rows, stats = harvest(
         queries=queries,
         per_query=max(1, args.per_query),

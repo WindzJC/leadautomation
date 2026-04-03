@@ -20,6 +20,7 @@ from prospect_harvest import (
     is_promotable_author_outbound,
     is_promotable_author_outbound_link,
     is_preferred_candidate_url,
+    load_query_plans,
     prioritize_directory_candidates,
     resolve_discovered_url,
     rotate_rows,
@@ -114,6 +115,26 @@ def test_harvest_search_results_require_author_context_for_root_domains() -> Non
         snippet="Access and control from anywhere",
         source_query='"indie author" "contact"',
     )
+
+
+def test_load_query_plans_parses_widening_metadata_lines(tmp_path) -> None:
+    queries_path = tmp_path / "queries.txt"
+    queries_path.write_text(
+        '"fantasy" "author" "email"\t"fantasy" "indie author" "contact"\t3\tzero_validated_runs\t2\n',
+        encoding="utf-8",
+    )
+
+    plans = load_query_plans(str(queries_path))
+
+    assert plans == [
+        {
+            "query_original": '"fantasy" "indie author" "contact"',
+            "query_effective": '"fantasy" "author" "email"',
+            "widen_level": 3,
+            "widen_reason": "zero_validated_runs",
+            "stale_run_counter": 2,
+        }
+    ]
 
 
 def test_bing_rss_malformed_xml_returns_empty_results() -> None:

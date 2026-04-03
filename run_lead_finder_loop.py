@@ -41,6 +41,7 @@ from prospect_validate import (
     find_subscribe_link_from_links,
     is_plausible_author_name,
     is_us_location,
+    map_stable_fail_reason,
     normalize_url,
     select_supporting_pages,
 )
@@ -192,11 +193,46 @@ CANDIDATE_COLUMNS = [
     "CandidateURL",
     "SourceType",
     "SourceQuery",
+    "QueryOriginal",
+    "QueryEffective",
+    "WidenLevel",
+    "WidenReason",
+    "StaleRunCounter",
     "SourceURL",
     "SourceTitle",
     "SourceSnippet",
     "DiscoveredAtUTC",
 ]
+QUERY_PLAN_METADATA_SEPARATOR = "\t"
+EMAIL_ONLY_WIDEN_LEVEL_ONE_REMOVALS = (
+    '"contact"',
+    '"newsletter"',
+    '"media kit"',
+    '"official website"',
+    '"new release"',
+)
+EMAIL_ONLY_WIDEN_LEVEL_TWO_REPLACEMENTS = (
+    ('"indie author"', '"independent author"'),
+    ('"independent author"', '"self-published author"'),
+    ('"self-published author"', '"indie author"'),
+    ('"independently published author"', '"indie author"'),
+    ('"official website"', '"author site"'),
+    ('"newsletter"', '"mailing list"'),
+    ('"contact"', '"email"'),
+    ('"new release"', '"latest book"'),
+)
+EMAIL_ONLY_SOURCE_PENALTY_MEMORY_FILENAME = "email_only_source_penalty_memory.json"
+EMAIL_ONLY_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION = 1
+EMAIL_ONLY_SOURCE_PENALTY_DECAY_FACTOR = 0.8
+EMAIL_ONLY_SOURCE_PENALTY_STAT_KEYS = (
+    "processed",
+    "dead_end",
+    "visible_email_hits",
+    "kept",
+    "stale_hits",
+    "duplicate_hits",
+    "missing_field_hits",
+)
 AUTHOR_PATH_RE = re.compile(r"/(?:author|authors|about|bio)/([^/?#]+)", flags=re.IGNORECASE)
 SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
 ROLE_EMAIL_LOCALS = {"admin", "contact", "hello", "help", "hi", "info", "mail", "office", "sales", "support", "team"}
@@ -552,10 +588,12 @@ def score_candidate_intake(
     validation_profile: str,
     agent_hunt_listing_feedback: Dict[str, object] | None = None,
     agent_hunt_source_quality_feedback: Dict[str, object] | None = None,
+    email_only_source_penalty_feedback: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
     require_us_location = profile_requires_us_location(validation_profile)
     strict_verified = is_fully_verified_profile(validation_profile)
     scout_mode = is_agent_hunt_profile(validation_profile)
+    email_only_mode = is_email_only_profile(validation_profile)
     candidate_url = row.get("CandidateURL", "") or ""
     source_type = (row.get("SourceType", "") or "").strip().lower()
     source_query = (row.get("SourceQuery", "") or "").strip().lower()
@@ -662,6 +700,20 @@ def score_candidate_intake(
         total_penalty = min(12, query_penalty + source_type_penalty + source_domain_penalty)
         if total_penalty:
             add_component("prior_source_quality_penalty", -total_penalty)
+    if email_only_mode and email_only_source_penalty_feedback:
+        source_memory = lookup_email_only_source_memory(
+            email_only_source_penalty_feedback,
+            source_query=source_query or "<unknown>",
+            source_type=source_type,
+            source_url=source_url,
+        )
+        total_penalty = int(source_memory.get("total_penalty", 0) or 0)
+        cross_run_score = float(source_memory.get("cross_run_score", 50.0) or 50.0)
+        if total_penalty:
+            add_component("prior_cross_run_source_penalty", -total_penalty)
+        score_delta = int(round((cross_run_score - 50.0) / 10.0))
+        if score_delta:
+            add_component("cross_run_source_score", score_delta)
 
     positive_features = [
         {"feature": name, "contribution": value}
@@ -678,6 +730,7 @@ def score_candidate_intake(
         "source_type": source_type,
         "source_query": source_query,
         "source_url": normalize_url(source_url) or source_url,
+        "source_family": infer_source_family(source_type, source_url),
         "score": int(score),
         "band": candidate_score_band(int(score)),
         "components": dict(sorted(components.items(), key=lambda item: item[0])),
@@ -693,13 +746,18 @@ def order_candidates_for_strict_validation(
     validation_profile: str,
     agent_hunt_listing_feedback: Dict[str, object] | None = None,
     agent_hunt_source_quality_feedback: Dict[str, object] | None = None,
+    email_only_source_penalty_feedback: Dict[str, object] | None = None,
 ) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
     scored_rows: List[Tuple[int, int, Dict[str, str], Dict[str, object]]] = []
     score_map: Dict[str, Dict[str, object]] = {}
     score_map_by_url: Dict[str, Dict[str, object]] = {}
     distribution: Counter[str] = Counter()
     raw_scores: List[int] = []
-    enabled = is_fully_verified_profile(validation_profile) or is_agent_hunt_profile(validation_profile)
+    enabled = (
+        is_fully_verified_profile(validation_profile)
+        or is_agent_hunt_profile(validation_profile)
+        or is_email_only_profile(validation_profile)
+    )
 
     for index, row in enumerate(candidate_rows):
         scored = score_candidate_intake(
@@ -707,6 +765,7 @@ def order_candidates_for_strict_validation(
             validation_profile=validation_profile,
             agent_hunt_listing_feedback=agent_hunt_listing_feedback,
             agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
+            email_only_source_penalty_feedback=email_only_source_penalty_feedback,
         )
         score = int(scored["score"])
         scored_rows.append((score, index, row, scored))
@@ -754,6 +813,9 @@ def order_candidates_for_strict_validation(
             "source_type_penalties": dict((agent_hunt_source_quality_feedback or {}).get("source_type_penalties", {}) or {}),
             "source_domain_penalties": dict((agent_hunt_source_quality_feedback or {}).get("source_domain_penalties", {}) or {}),
         },
+        "email_only_source_memory_applied": summarize_email_only_source_penalty_feedback(email_only_source_penalty_feedback)
+        if is_email_only_profile(validation_profile)
+        else {},
     }
 
 
@@ -1720,6 +1782,13 @@ def infer_source_type_from_source_url(source_url: str) -> str:
     return SCOUT_SOURCE_TYPE_BY_DOMAIN.get(domain, domain)
 
 
+def infer_source_family(source_type: str, source_url: str = "") -> str:
+    normalized = str(source_type or "").strip().lower()
+    if not normalized or normalized == "unknown":
+        normalized = infer_source_type_from_source_url(source_url)
+    return normalized or "unknown"
+
+
 def infer_scout_email_quality(email: str, *, candidate_url: str = "", source_url: str = "") -> str:
     normalized = (email or "").strip().lower()
     if "@" not in normalized:
@@ -1987,6 +2056,8 @@ def classify_agent_hunt_listing_failure(
 def build_scout_row_from_candidate_outcome(record: Dict[str, object]) -> Dict[str, str]:
     candidate_url = str(record.get("candidate_url", "") or "").strip()
     source_url = str(record.get("source_url", "") or "").strip()
+    source_title = str(record.get("source_title", "") or record.get("SourceTitle", "") or "").strip()
+    source_snippet = str(record.get("source_snippet", "") or record.get("SourceSnippet", "") or "").strip()
     email = str(record.get("agent_hunt_email_recovered_email", "") or record.get("email", "") or "").strip().lower()
     email_source_url = str(
         record.get("agent_hunt_email_recovery_source_url", "") or record.get("email_source_url", "") or candidate_url or source_url
@@ -2002,8 +2073,8 @@ def build_scout_row_from_candidate_outcome(record: Dict[str, object]) -> Dict[st
         "AuthorWebsite": candidate_url,
         "ContactPageURL": contact_page_url,
         "SourceURL": source_url or candidate_url,
-        "SourceTitle": "",
-        "SourceSnippet": "",
+        "SourceTitle": source_title,
+        "SourceSnippet": source_snippet,
         "ListingURL": str(record.get("book_url", "") or "").strip(),
         "ListingStatus": "unverified",
         "ListingFailReason": str(record.get("reject_reason", "") or "").strip(),
@@ -2531,6 +2602,423 @@ def build_email_only_source_yield_stats(candidate_outcome_records: List[Dict[str
             label="query",
         ),
     }
+
+
+def _coerce_nonnegative_float(value: object) -> float:
+    try:
+        return max(0.0, float(value or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _normalize_email_only_source_penalty_stats_map(raw_stats: object) -> Dict[str, Dict[str, float]]:
+    stats_map: Dict[str, Dict[str, float]] = {}
+    if not isinstance(raw_stats, dict):
+        return stats_map
+    for raw_key, raw_values in raw_stats.items():
+        key = str(raw_key or "").strip()
+        if not key or not isinstance(raw_values, dict):
+            continue
+        entry = {
+            stat_key: round(_coerce_nonnegative_float(raw_values.get(stat_key, 0.0)), 4)
+            for stat_key in EMAIL_ONLY_SOURCE_PENALTY_STAT_KEYS
+        }
+        if any(value > 0.0 for value in entry.values()):
+            stats_map[key] = entry
+    return stats_map
+
+
+def normalize_email_only_source_penalty_feedback(feedback: Dict[str, object] | None) -> Dict[str, object]:
+    payload = dict(feedback or {})
+    normalized = {
+        "schema_version": EMAIL_ONLY_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION,
+        "decay_factor": round(
+            _coerce_nonnegative_float(payload.get("decay_factor", EMAIL_ONLY_SOURCE_PENALTY_DECAY_FACTOR))
+            or EMAIL_ONLY_SOURCE_PENALTY_DECAY_FACTOR,
+            4,
+        ),
+        "run_count": max(0, int(payload.get("run_count", 0) or 0)),
+        "query_stats": _normalize_email_only_source_penalty_stats_map(payload.get("query_stats", {})),
+        "source_type_stats": _normalize_email_only_source_penalty_stats_map(payload.get("source_type_stats", {})),
+        "source_domain_stats": _normalize_email_only_source_penalty_stats_map(payload.get("source_domain_stats", {})),
+    }
+    normalized["query_penalties"] = _build_email_only_penalty_map(dict(normalized.get("query_stats", {}) or {}))
+    normalized["source_type_penalties"] = _build_email_only_penalty_map(dict(normalized.get("source_type_stats", {}) or {}))
+    normalized["source_domain_penalties"] = _build_email_only_penalty_map(dict(normalized.get("source_domain_stats", {}) or {}))
+    normalized["query_scores"] = {
+        key: compute_email_only_source_score(value) for key, value in dict(normalized.get("query_stats", {}) or {}).items()
+    }
+    normalized["source_type_scores"] = {
+        key: compute_email_only_source_score(value) for key, value in dict(normalized.get("source_type_stats", {}) or {}).items()
+    }
+    normalized["source_domain_scores"] = {
+        key: compute_email_only_source_score(value) for key, value in dict(normalized.get("source_domain_stats", {}) or {}).items()
+    }
+    normalized["top_failure_reasons"] = dict(payload.get("top_failure_reasons", {}) or {})
+    if str(payload.get("updated_at_utc", "") or "").strip():
+        normalized["updated_at_utc"] = str(payload.get("updated_at_utc", "") or "").strip()
+    return normalized
+
+
+def classify_email_only_source_penalty_reason(record: Dict[str, object]) -> str:
+    stable_reason = map_stable_fail_reason(str(record.get("reject_reason", "") or ""))
+    if bool(record.get("kept", False)):
+        return ""
+    if stable_reason == "duplicate_lead":
+        return ""
+    visible_email_hit = bool(str(record.get("email", "") or "").strip())
+    if visible_email_hit and stable_reason not in {
+        "candidate_not_author_site",
+        "excluded_famous_or_enterprise",
+        "insufficient_author_identity",
+        "non_us_author",
+    }:
+        return ""
+    return stable_reason or "missing_visible_email"
+
+
+def record_has_missing_email_only_fields(record: Dict[str, object]) -> bool:
+    author_name = str(record.get("author_name", "") or "").strip()
+    source_url = str(record.get("source_url", "") or "").strip()
+    email_value = str(record.get("email", "") or record.get("email_value", "") or "").strip()
+    return not (author_name and source_url and email_value)
+
+
+def compute_email_only_source_score(stats: Dict[str, float] | None) -> float:
+    values = dict(stats or {})
+    processed = _coerce_nonnegative_float(values.get("processed", 0.0))
+    if processed <= 0.0:
+        return 50.0
+    kept = _coerce_nonnegative_float(values.get("kept", 0.0))
+    visible_email_hits = _coerce_nonnegative_float(values.get("visible_email_hits", 0.0))
+    stale_hits = _coerce_nonnegative_float(values.get("stale_hits", 0.0))
+    duplicate_hits = _coerce_nonnegative_float(values.get("duplicate_hits", 0.0))
+    missing_field_hits = _coerce_nonnegative_float(values.get("missing_field_hits", 0.0))
+    dead_end = _coerce_nonnegative_float(values.get("dead_end", 0.0))
+    qualified_rate = kept / processed
+    visible_email_rate = visible_email_hits / processed
+    stale_rate = stale_hits / processed
+    duplicate_rate = duplicate_hits / processed
+    missing_field_rate = missing_field_hits / processed
+    dead_end_rate = dead_end / processed
+    score = (
+        50.0
+        + 35.0 * qualified_rate
+        + 10.0 * visible_email_rate
+        - 12.0 * stale_rate
+        - 15.0 * duplicate_rate
+        - 18.0 * missing_field_rate
+        - 20.0 * dead_end_rate
+    )
+    return round(max(0.0, min(100.0, score)), 2)
+
+
+def _increment_email_only_source_penalty_stats(
+    stats_map: Dict[str, Dict[str, float]],
+    key: str,
+    *,
+    visible_email_hit: bool,
+    kept: bool,
+    dead_end: bool,
+    stale_hit: bool,
+    duplicate_hit: bool,
+    missing_field_hit: bool,
+) -> None:
+    normalized_key = str(key or "").strip()
+    if not normalized_key:
+        return
+    entry = stats_map.setdefault(
+        normalized_key,
+        {stat_key: 0.0 for stat_key in EMAIL_ONLY_SOURCE_PENALTY_STAT_KEYS},
+    )
+    entry["processed"] += 1.0
+    if dead_end:
+        entry["dead_end"] += 1.0
+    if visible_email_hit:
+        entry["visible_email_hits"] += 1.0
+    if kept:
+        entry["kept"] += 1.0
+    if stale_hit:
+        entry["stale_hits"] += 1.0
+    if duplicate_hit:
+        entry["duplicate_hits"] += 1.0
+    if missing_field_hit:
+        entry["missing_field_hits"] += 1.0
+
+
+def _decay_email_only_source_penalty_stats(
+    stats_map: Dict[str, Dict[str, float]],
+    *,
+    decay_factor: float,
+) -> Dict[str, Dict[str, float]]:
+    decayed: Dict[str, Dict[str, float]] = {}
+    factor = min(1.0, max(0.0, decay_factor))
+    for key, values in stats_map.items():
+        entry = {
+            stat_key: round(_coerce_nonnegative_float(values.get(stat_key, 0.0)) * factor, 4)
+            for stat_key in EMAIL_ONLY_SOURCE_PENALTY_STAT_KEYS
+        }
+        if any(value >= 0.05 for value in entry.values()):
+            decayed[key] = entry
+    return decayed
+
+
+def _build_email_only_penalty_map(stats_map: Dict[str, Dict[str, float]]) -> Dict[str, int]:
+    penalties: Dict[str, int] = {}
+    for key, values in stats_map.items():
+        processed = _coerce_nonnegative_float(values.get("processed", 0.0))
+        dead_end = _coerce_nonnegative_float(values.get("dead_end", 0.0))
+        visible_email_hits = _coerce_nonnegative_float(values.get("visible_email_hits", 0.0))
+        kept = _coerce_nonnegative_float(values.get("kept", 0.0))
+        stale_hits = _coerce_nonnegative_float(values.get("stale_hits", 0.0))
+        duplicate_hits = _coerce_nonnegative_float(values.get("duplicate_hits", 0.0))
+        missing_field_hits = _coerce_nonnegative_float(values.get("missing_field_hits", 0.0))
+        if processed < 3.0 or dead_end < 2.0:
+            continue
+        dead_end_rate = dead_end / processed if processed else 0.0
+        visible_email_rate = visible_email_hits / processed if processed else 0.0
+        kept_rate = kept / processed if processed else 0.0
+        stale_rate = stale_hits / processed if processed else 0.0
+        duplicate_rate = duplicate_hits / processed if processed else 0.0
+        missing_field_rate = missing_field_hits / processed if processed else 0.0
+        penalty = 0
+        if (
+            dead_end_rate >= 0.85
+            and visible_email_rate <= 0.15
+            and kept_rate <= 0.1
+            and max(stale_rate, duplicate_rate, missing_field_rate) >= 0.2
+        ):
+            penalty = 6
+        elif (
+            dead_end_rate >= 0.7
+            and visible_email_rate <= 0.25
+            and kept_rate <= 0.15
+            and max(stale_rate, duplicate_rate, missing_field_rate) >= 0.15
+        ):
+            penalty = 4
+        elif (
+            dead_end_rate >= 0.55
+            and visible_email_rate <= 0.35
+            and kept_rate <= 0.25
+            and max(stale_rate, duplicate_rate, missing_field_rate) >= 0.1
+        ):
+            penalty = 2
+        if penalty:
+            penalties[key] = penalty
+    return penalties
+
+
+def build_email_only_source_penalty_feedback(
+    candidate_outcome_records: List[Dict[str, object]],
+    *,
+    existing_feedback: Dict[str, object] | None = None,
+    decay_factor: float = EMAIL_ONLY_SOURCE_PENALTY_DECAY_FACTOR,
+    run_was_stale: bool = False,
+) -> Dict[str, object]:
+    normalized = normalize_email_only_source_penalty_feedback(existing_feedback)
+    effective_decay_factor = min(
+        1.0,
+        max(0.0, _coerce_nonnegative_float(decay_factor) or EMAIL_ONLY_SOURCE_PENALTY_DECAY_FACTOR),
+    )
+    query_stats = _decay_email_only_source_penalty_stats(
+        dict(normalized.get("query_stats", {}) or {}),
+        decay_factor=effective_decay_factor,
+    )
+    source_type_stats = _decay_email_only_source_penalty_stats(
+        dict(normalized.get("source_type_stats", {}) or {}),
+        decay_factor=effective_decay_factor,
+    )
+    source_domain_stats = _decay_email_only_source_penalty_stats(
+        dict(normalized.get("source_domain_stats", {}) or {}),
+        decay_factor=effective_decay_factor,
+    )
+    failure_reasons: Counter[str] = Counter()
+
+    for record in candidate_outcome_records:
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url) or "unknown"
+        source_query = (
+            str(record.get("source_query", "") or "").strip()
+            or str(record.get("query_effective", "") or "").strip()
+            or str(record.get("query_original", "") or "").strip()
+            or "<unknown>"
+        )
+        visible_email_hit = bool(str(record.get("email", "") or "").strip())
+        kept = bool(record.get("kept", False))
+        stable_reason = map_stable_fail_reason(str(record.get("reject_reason", "") or ""))
+        failure_reason = classify_email_only_source_penalty_reason(record)
+        dead_end = bool(failure_reason)
+        stale_hit = run_was_stale or int(record.get("stale_run_counter", 0) or 0) > 0
+        duplicate_hit = stable_reason == "duplicate_lead"
+        missing_field_hit = record_has_missing_email_only_fields(record)
+
+        _increment_email_only_source_penalty_stats(
+            query_stats,
+            source_query,
+            visible_email_hit=visible_email_hit,
+            kept=kept,
+            dead_end=dead_end,
+            stale_hit=stale_hit,
+            duplicate_hit=duplicate_hit,
+            missing_field_hit=missing_field_hit,
+        )
+        _increment_email_only_source_penalty_stats(
+            source_type_stats,
+            infer_source_family(source_type, source_url),
+            visible_email_hit=visible_email_hit,
+            kept=kept,
+            dead_end=dead_end,
+            stale_hit=stale_hit,
+            duplicate_hit=duplicate_hit,
+            missing_field_hit=missing_field_hit,
+        )
+        if source_domain:
+            _increment_email_only_source_penalty_stats(
+                source_domain_stats,
+                source_domain,
+                visible_email_hit=visible_email_hit,
+                kept=kept,
+                dead_end=dead_end,
+                stale_hit=stale_hit,
+                duplicate_hit=duplicate_hit,
+                missing_field_hit=missing_field_hit,
+            )
+        if failure_reason:
+            failure_reasons[failure_reason] += 1
+
+    query_penalties = _build_email_only_penalty_map(query_stats)
+    source_type_penalties = _build_email_only_penalty_map(source_type_stats)
+    source_domain_penalties = _build_email_only_penalty_map(source_domain_stats)
+    return {
+        "schema_version": EMAIL_ONLY_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION,
+        "updated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "decay_factor": round(effective_decay_factor, 4),
+        "run_count": int(normalized.get("run_count", 0) or 0) + 1,
+        "query_stats": query_stats,
+        "source_type_stats": source_type_stats,
+        "source_domain_stats": source_domain_stats,
+        "query_penalties": query_penalties,
+        "source_type_penalties": source_type_penalties,
+        "source_domain_penalties": source_domain_penalties,
+        "top_failure_reasons": dict(failure_reasons.most_common(10)),
+        "query_scores": {key: compute_email_only_source_score(value) for key, value in query_stats.items()},
+        "source_type_scores": {key: compute_email_only_source_score(value) for key, value in source_type_stats.items()},
+        "source_domain_scores": {key: compute_email_only_source_score(value) for key, value in source_domain_stats.items()},
+        "penalized_queries": [{"query": key, "penalty": value} for key, value in sorted(query_penalties.items())],
+        "penalized_source_types": [{"source": key, "penalty": value} for key, value in sorted(source_type_penalties.items())],
+        "penalized_source_domains": [{"domain": key, "penalty": value} for key, value in sorted(source_domain_penalties.items())],
+    }
+
+
+def summarize_email_only_source_penalty_feedback(feedback: Dict[str, object] | None) -> Dict[str, object]:
+    normalized = normalize_email_only_source_penalty_feedback(feedback)
+    query_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict((feedback or {}).get("query_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    source_type_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict((feedback or {}).get("source_type_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    source_domain_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict((feedback or {}).get("source_domain_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    source_type_scores = {
+        str(key): float(value or 0.0)
+        for key, value in dict((feedback or {}).get("source_type_scores", normalized.get("source_type_scores", {})) or {}).items()
+    }
+    source_domain_scores = {
+        str(key): float(value or 0.0)
+        for key, value in dict((feedback or {}).get("source_domain_scores", normalized.get("source_domain_scores", {})) or {}).items()
+    }
+    return {
+        "schema_version": EMAIL_ONLY_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION,
+        "run_count": int((feedback or {}).get("run_count", normalized.get("run_count", 0)) or 0),
+        "decay_factor": round(
+            _coerce_nonnegative_float((feedback or {}).get("decay_factor", normalized.get("decay_factor", 0.0))),
+            4,
+        ),
+        "tracked_queries": len(dict(normalized.get("query_stats", {}) or {})),
+        "tracked_source_types": len(dict(normalized.get("source_type_stats", {}) or {})),
+        "tracked_source_domains": len(dict(normalized.get("source_domain_stats", {}) or {})),
+        "top_failure_reasons": dict((feedback or {}).get("top_failure_reasons", {}) or {}),
+        "penalized_queries": [{"query": key, "penalty": value} for key, value in sorted(query_penalties.items())[:10]],
+        "penalized_source_types": [{"source": key, "penalty": value} for key, value in sorted(source_type_penalties.items())[:10]],
+        "penalized_source_domains": [{"domain": key, "penalty": value} for key, value in sorted(source_domain_penalties.items())[:10]],
+        "strongest_source_types": [
+            {"source": key, "score": round(value, 2)}
+            for key, value in sorted(source_type_scores.items(), key=lambda item: (item[1], item[0]), reverse=True)[:10]
+        ],
+        "weakest_source_types": [
+            {"source": key, "score": round(value, 2)}
+            for key, value in sorted(source_type_scores.items(), key=lambda item: (item[1], item[0]))[:10]
+        ],
+        "strongest_source_domains": [
+            {"domain": key, "score": round(value, 2)}
+            for key, value in sorted(source_domain_scores.items(), key=lambda item: (item[1], item[0]), reverse=True)[:10]
+        ],
+        "weakest_source_domains": [
+            {"domain": key, "score": round(value, 2)}
+            for key, value in sorted(source_domain_scores.items(), key=lambda item: (item[1], item[0]))[:10]
+        ],
+    }
+
+
+def lookup_email_only_source_memory(
+    feedback: Dict[str, object] | None,
+    *,
+    source_query: str,
+    source_type: str,
+    source_url: str,
+) -> Dict[str, float]:
+    normalized = normalize_email_only_source_penalty_feedback(feedback)
+    source_domain = registrable_domain(source_url)
+    family = infer_source_family(source_type, source_url)
+    query_penalty = int(dict(normalized.get("query_penalties", {}) or {}).get(source_query, 0) or 0)
+    source_type_penalty = int(dict(normalized.get("source_type_penalties", {}) or {}).get(family, 0) or 0)
+    source_domain_penalty = int(dict(normalized.get("source_domain_penalties", {}) or {}).get(source_domain, 0) or 0)
+    source_score = float(dict(normalized.get("source_domain_scores", {}) or {}).get(source_domain, 50.0) or 50.0)
+    family_score = float(dict(normalized.get("source_type_scores", {}) or {}).get(family, 50.0) or 50.0)
+    query_score = float(dict(normalized.get("query_scores", {}) or {}).get(source_query, 50.0) or 50.0)
+    cross_run_score = round((source_score + family_score + query_score) / 3.0, 2)
+    return {
+        "source_score": round(source_score, 2),
+        "cross_run_score": cross_run_score,
+        "query_penalty": float(query_penalty),
+        "source_type_penalty": float(source_type_penalty),
+        "source_domain_penalty": float(source_domain_penalty),
+        "total_penalty": float(min(12, query_penalty + source_type_penalty + source_domain_penalty)),
+        "source_family": family,
+    }
+
+
+def annotate_candidate_outcome_records_with_source_memory(
+    candidate_outcome_records: List[Dict[str, object]],
+    feedback: Dict[str, object] | None,
+) -> List[Dict[str, object]]:
+    annotated: List[Dict[str, object]] = []
+    for record in candidate_outcome_records:
+        source_query = str(record.get("source_query", "") or record.get("query_effective", "") or "<unknown>").strip() or "<unknown>"
+        source_type = str(record.get("source_type", "") or "").strip()
+        source_url = str(record.get("source_url", "") or "").strip()
+        memory = lookup_email_only_source_memory(
+            feedback,
+            source_query=source_query,
+            source_type=source_type,
+            source_url=source_url,
+        )
+        enriched = dict(record)
+        enriched["source_family"] = str(record.get("source_family", "") or memory["source_family"])
+        enriched["source_score"] = round(float(memory["source_score"]), 2)
+        enriched["cross_run_score"] = round(float(memory["cross_run_score"]), 2)
+        enriched["validation_state"] = str(record.get("validation_state", "") or record.get("current_state", "") or "")
+        annotated.append(enriched)
+    return annotated
 
 
 def build_candidate_outcome_lookup(candidate_outcome_records: List[Dict[str, object]]) -> Dict[Tuple[str, str], Dict[str, str]]:
@@ -3941,7 +4429,7 @@ def run_logged_command(
     return result
 
 
-def build_rotating_queries(run_idx: int, *, stale_runs: int = 0) -> List[str]:
+def _build_base_rotating_queries(run_idx: int, *, stale_runs: int = 0) -> List[str]:
     base_queries = list(BASE_QUERY_VARIANTS[(max(0, run_idx - 1 + stale_runs)) % len(BASE_QUERY_VARIANTS)])
     current_year = dt.datetime.now(dt.timezone.utc).year
     years = list(range(current_year - 4, current_year + 1))
@@ -3966,11 +4454,223 @@ def build_rotating_queries(run_idx: int, *, stale_runs: int = 0) -> List[str]:
     return deduped
 
 
-def write_queries_file(path: Path, queries: List[str]) -> None:
+def build_rotating_queries(run_idx: int, *, stale_runs: int = 0) -> List[str]:
+    return _build_base_rotating_queries(run_idx, stale_runs=stale_runs)
+
+
+def _normalize_query_text(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip())
+
+
+def _build_query_plan(
+    query_effective: str,
+    *,
+    query_original: str = "",
+    widen_level: int = 0,
+    widen_reason: str = "",
+    stale_run_counter: int = 0,
+) -> Dict[str, object]:
+    effective = _normalize_query_text(query_effective)
+    original = _normalize_query_text(query_original) or effective
+    return {
+        "query_original": original,
+        "query_effective": effective,
+        "widen_level": max(0, int(widen_level or 0)),
+        "widen_reason": str(widen_reason or "").strip(),
+        "stale_run_counter": max(0, int(stale_run_counter or 0)),
+    }
+
+
+def build_email_only_widening_state(
+    *,
+    stale_runs: int,
+    reliability_counters: Dict[str, int] | None = None,
+) -> Dict[str, object]:
+    counters = dict(reliability_counters or {})
+    empty_candidate_runs = int(counters.get("consecutive_empty_candidate_runs", 0) or 0)
+    zero_validated_runs = int(counters.get("consecutive_zero_validated_runs", 0) or 0)
+    consecutive_failures = int(counters.get("consecutive_failures", 0) or 0)
+    level = 0
+    if stale_runs >= 1 or zero_validated_runs >= 1 or empty_candidate_runs >= 1:
+        level = 1
+    if stale_runs >= 2 or zero_validated_runs >= 2:
+        level = 2
+    if stale_runs >= 3 or empty_candidate_runs >= 2:
+        level = 3
+
+    widen_reason = ""
+    if empty_candidate_runs > 0:
+        widen_reason = "empty_candidate_runs"
+    elif zero_validated_runs > 0:
+        widen_reason = "zero_validated_runs"
+    elif stale_runs > 0:
+        widen_reason = "stale_runs"
+    elif consecutive_failures > 0:
+        widen_reason = "consecutive_failures"
+
+    return {
+        "level": level,
+        "widen_reason": widen_reason,
+        "stale_run_counter": max(0, int(stale_runs or 0)),
+    }
+
+
+def _email_only_level_one_variants(query: str) -> List[str]:
+    variants: List[str] = []
+    year_stripped = _normalize_query_text(re.sub(r'"\d{4}"', " ", query, count=1))
+    if year_stripped and year_stripped != query:
+        variants.append(year_stripped)
+        return variants
+    for term in EMAIL_ONLY_WIDEN_LEVEL_ONE_REMOVALS:
+        if term in query:
+            loosened = _normalize_query_text(query.replace(term, " ", 1))
+            if loosened and loosened != query:
+                variants.append(loosened)
+                return variants
+    if '"official website"' in query:
+        variants.append(_normalize_query_text(query.replace('"official website"', '"author website"', 1)))
+    return variants
+
+
+def _email_only_level_two_variants(query: str) -> List[str]:
+    variants: List[str] = []
+    for old, new in EMAIL_ONLY_WIDEN_LEVEL_TWO_REPLACEMENTS:
+        if old not in query:
+            continue
+        variant = _normalize_query_text(query.replace(old, new, 1))
+        if variant and variant != query:
+            variants.append(variant)
+        if len(variants) >= 2:
+            break
+    return variants
+
+
+def _extract_query_genre(query: str) -> str:
+    lowered = query.lower()
+    for genre in QUERY_GENRES:
+        if f'"{genre.lower()}"' in lowered:
+            return genre
+    return ""
+
+
+def _email_only_level_three_variants(query: str) -> List[str]:
+    genre = _extract_query_genre(query)
+    if genre:
+        return [
+            f'"{genre}" "author" "email"',
+            f'"{genre}" "author website"',
+        ]
+    return [
+        '"indie author" "email"',
+        '"author website" "email"',
+    ]
+
+
+def build_rotating_query_plans(
+    run_idx: int,
+    *,
+    validation_profile: str,
+    stale_runs: int = 0,
+    reliability_counters: Dict[str, int] | None = None,
+    email_only_source_penalty_feedback: Dict[str, object] | None = None,
+) -> List[Dict[str, object]]:
+    profile = normalize_validation_profile(validation_profile)
+    base_queries = _build_base_rotating_queries(
+        run_idx,
+        stale_runs=stale_runs if is_agent_hunt_profile(profile) else 0,
+    )
+    if not is_email_only_profile(profile):
+        return [_build_query_plan(query, stale_run_counter=stale_runs) for query in base_queries]
+
+    widening_state = build_email_only_widening_state(
+        stale_runs=stale_runs,
+        reliability_counters=reliability_counters,
+    )
+    widen_level = int(widening_state.get("level", 0) or 0)
+    widen_reason = str(widening_state.get("widen_reason", "") or "")
+    stale_run_counter = int(widening_state.get("stale_run_counter", 0) or 0)
+    query_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict((email_only_source_penalty_feedback or {}).get("query_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    plans: List[Dict[str, object]] = []
+    ordered_base_queries = sorted(
+        enumerate(_build_base_rotating_queries(run_idx, stale_runs=0)),
+        key=lambda item: (query_penalties.get(item[1], 0), item[0]),
+    )
+    for _, query in ordered_base_queries:
+        query_penalty = query_penalties.get(query, 0)
+        max_query_widen_level = widen_level
+        if query_penalty >= 6:
+            max_query_widen_level = min(max_query_widen_level, 1)
+        elif query_penalty >= 4:
+            max_query_widen_level = min(max_query_widen_level, 2)
+        plans.append(_build_query_plan(query, stale_run_counter=stale_run_counter))
+        if max_query_widen_level >= 1:
+            for variant in _email_only_level_one_variants(query):
+                plans.append(
+                    _build_query_plan(
+                        variant,
+                        query_original=query,
+                        widen_level=1,
+                        widen_reason=widen_reason,
+                        stale_run_counter=stale_run_counter,
+                    )
+                )
+        if max_query_widen_level >= 2:
+            for variant in _email_only_level_two_variants(query):
+                plans.append(
+                    _build_query_plan(
+                        variant,
+                        query_original=query,
+                        widen_level=2,
+                        widen_reason=widen_reason,
+                        stale_run_counter=stale_run_counter,
+                    )
+                )
+        if max_query_widen_level >= 3:
+            for variant in _email_only_level_three_variants(query):
+                plans.append(
+                    _build_query_plan(
+                        variant,
+                        query_original=query,
+                        widen_level=3,
+                        widen_reason=widen_reason,
+                        stale_run_counter=stale_run_counter,
+                    )
+                )
+
+    deduped: List[Dict[str, object]] = []
+    seen_queries: set[str] = set()
+    for plan in plans:
+        effective_query = str(plan.get("query_effective", "") or "").strip()
+        if not effective_query or effective_query in seen_queries:
+            continue
+        seen_queries.add(effective_query)
+        deduped.append(plan)
+    return deduped
+
+
+def write_queries_file(path: Path, queries: List[object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
         for query in queries:
-            fh.write(query.strip() + "\n")
+            if isinstance(query, dict):
+                fh.write(
+                    QUERY_PLAN_METADATA_SEPARATOR.join(
+                        [
+                            _normalize_query_text(str(query.get("query_effective", "") or "")),
+                            _normalize_query_text(str(query.get("query_original", "") or "")),
+                            str(int(query.get("widen_level", 0) or 0)),
+                            _normalize_query_text(str(query.get("widen_reason", "") or "")),
+                            str(int(query.get("stale_run_counter", 0) or 0)),
+                        ]
+                    )
+                    + "\n"
+                )
+                continue
+            fh.write(_normalize_query_text(str(query or "")) + "\n")
 
 
 def keep_verified_rows(rows: List[Dict[str, str]], gate: str) -> List[Dict[str, str]]:
@@ -4041,7 +4741,9 @@ def update_reliability_counters(
 
 
 def determine_loop_stop_reason(args: argparse.Namespace, *, stale_runs: int, reliability_counters: Dict[str, int]) -> str:
-    if stale_runs >= max(1, int(getattr(args, "max_stale_runs", 1) or 1)):
+    validation_profile = normalize_validation_profile(getattr(args, "validation_profile", "default"))
+    stale_runs_terminal = not (is_agent_hunt_profile(validation_profile) or is_email_only_profile(validation_profile))
+    if stale_runs_terminal and stale_runs >= max(1, int(getattr(args, "max_stale_runs", 1) or 1)):
         return "stale_runs"
     if int(reliability_counters.get("consecutive_failures", 0) or 0) >= max(
         1,
@@ -4421,6 +5123,14 @@ def main() -> int:
         starting_total = 0
     agent_hunt_listing_feedback: Dict[str, object] = {}
     agent_hunt_source_quality_feedback: Dict[str, object] = {}
+    email_only_source_penalty_memory_path = (
+        json_outputs_dir / EMAIL_ONLY_SOURCE_PENALTY_MEMORY_FILENAME if is_email_only_profile(validation_profile) else None
+    )
+    email_only_source_penalty_feedback: Dict[str, object] = (
+        normalize_email_only_source_penalty_feedback(load_json(email_only_source_penalty_memory_path))
+        if email_only_source_penalty_memory_path is not None
+        else {}
+    )
     write_live_status(
         status="running",
         stage="starting",
@@ -4587,11 +5297,42 @@ def main() -> int:
             str(final_path),
         ]
         effective_queries = args.queries_file
+        email_only_query_widening: Dict[str, object] = {}
         if not effective_queries and not args.disable_auto_queries:
-            rotated = build_rotating_queries(run_idx, stale_runs=stale_runs if is_agent_hunt_profile(validation_profile) else 0)
-            write_queries_file(run_queries_file, rotated)
+            query_plans = build_rotating_query_plans(
+                run_idx,
+                validation_profile=validation_profile,
+                stale_runs=stale_runs,
+                reliability_counters=reliability_counters,
+                email_only_source_penalty_feedback=email_only_source_penalty_feedback if is_email_only_profile(validation_profile) else None,
+            )
+            write_queries_file(run_queries_file, query_plans)
             effective_queries = str(run_queries_file)
-            print(f"[INFO] batch {run_idx}: using {len(rotated)} rotated queries")
+            widened_query_count = sum(1 for plan in query_plans if int(plan.get("widen_level", 0) or 0) > 0)
+            if is_email_only_profile(validation_profile):
+                email_only_query_widening = build_email_only_widening_state(
+                    stale_runs=stale_runs,
+                    reliability_counters=reliability_counters,
+                )
+                email_only_query_widening["query_count"] = len(query_plans)
+                email_only_query_widening["widened_query_count"] = widened_query_count
+                widen_level = int(email_only_query_widening.get("level", 0) or 0)
+                widen_reason = str(email_only_query_widening.get("widen_reason", "") or "")
+                if widened_query_count > 0:
+                    print(
+                        f"[INFO] batch {run_idx}: using {len(query_plans)} rotated queries "
+                        f"({widened_query_count} widened, level {widen_level}, reason {widen_reason or 'n/a'})"
+                    )
+                else:
+                    print(f"[INFO] batch {run_idx}: using {len(query_plans)} rotated queries")
+                penalized_query_count = len(dict((email_only_source_penalty_feedback or {}).get("query_penalties", {}) or {}))
+                if penalized_query_count > 0:
+                    print(
+                        f"[INFO] batch {run_idx}: applying email_only source memory "
+                        f"across {penalized_query_count} penalized query families"
+                    )
+            else:
+                print(f"[INFO] batch {run_idx}: using {len(query_plans)} rotated queries")
         if effective_queries:
             harvest_cmd.extend(["--queries-file", effective_queries])
         if args.brave_api_key:
@@ -4695,6 +5436,7 @@ def main() -> int:
                 validation_profile=validation_profile,
                 agent_hunt_listing_feedback=agent_hunt_listing_feedback if is_agent_hunt_profile(validation_profile) else None,
                 agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback if is_agent_hunt_profile(validation_profile) else None,
+                email_only_source_penalty_feedback=email_only_source_penalty_feedback if is_email_only_profile(validation_profile) else None,
             )
             if is_agent_hunt_profile(validation_profile):
                 filtered_candidate_rows, source_quality_suppression_stats = suppress_agent_hunt_source_quality_candidates(
@@ -4707,6 +5449,7 @@ def main() -> int:
                     validation_profile=validation_profile,
                     agent_hunt_listing_feedback=agent_hunt_listing_feedback,
                     agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
+                    email_only_source_penalty_feedback=None,
                 )
                 filtered_candidate_rows, epic_directory_throttle_stats = throttle_agent_hunt_epic_directory_candidates(
                     filtered_candidate_rows,
@@ -4718,6 +5461,7 @@ def main() -> int:
                     validation_profile=validation_profile,
                     agent_hunt_listing_feedback=agent_hunt_listing_feedback,
                     agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
+                    email_only_source_penalty_feedback=None,
                 )
             write_candidate_rows(filtered_candidates_path, filtered_candidate_rows)
             suppression_message = (
@@ -4941,6 +5685,19 @@ def main() -> int:
             print(f"[WARN] batch {run_idx} failed with exit code {pipeline_exit_code}")
             validator_stats_failed = load_json(validate_stats_path)
             candidate_outcome_records_failed = list(validator_stats_failed.get("candidate_outcome_records", []) or [])
+            if is_email_only_profile(validation_profile) and candidate_outcome_records_failed:
+                email_only_source_penalty_feedback = build_email_only_source_penalty_feedback(
+                    candidate_outcome_records_failed,
+                    existing_feedback=email_only_source_penalty_feedback,
+                )
+                if email_only_source_penalty_memory_path is not None:
+                    write_run_stats(email_only_source_penalty_memory_path, email_only_source_penalty_feedback)
+                candidate_outcome_records_failed = annotate_candidate_outcome_records_with_source_memory(
+                    candidate_outcome_records_failed,
+                    email_only_source_penalty_feedback,
+                )
+                validator_stats_failed["candidate_outcome_records"] = candidate_outcome_records_failed
+                write_run_stats(validate_stats_path, validator_stats_failed)
             if not validated_export_path.exists():
                 write_rows(validated_export_path, read_rows(validated_path))
             if not rejected_rows:
@@ -5002,6 +5759,11 @@ def main() -> int:
             }
             if is_email_only_profile(validation_profile):
                 run_stats["email_only_source_yield"] = build_email_only_source_yield_stats(candidate_outcome_records_failed)
+                run_stats["email_only_source_penalty_memory"] = summarize_email_only_source_penalty_feedback(
+                    email_only_source_penalty_feedback
+                )
+                if email_only_source_penalty_memory_path is not None:
+                    run_stats["email_only_source_penalty_memory_path"] = str(email_only_source_penalty_memory_path)
             if harvest_stats:
                 run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
             write_run_stats(run_stats_path, run_stats)
@@ -5284,7 +6046,22 @@ def main() -> int:
             f"merged {len(master_batch_rows)} to master, queued {len(queue_only_batch_rows)}, "
             f"added {added} new, total {after}/{goal_target}"
         )
+        if is_email_only_profile(validation_profile) and candidate_outcome_records:
+            email_only_source_penalty_feedback = build_email_only_source_penalty_feedback(
+                candidate_outcome_records,
+                existing_feedback=email_only_source_penalty_feedback,
+                run_was_stale=added == 0,
+            )
+            if email_only_source_penalty_memory_path is not None:
+                write_run_stats(email_only_source_penalty_memory_path, email_only_source_penalty_feedback)
+            candidate_outcome_records = annotate_candidate_outcome_records_with_source_memory(
+                candidate_outcome_records,
+                email_only_source_penalty_feedback,
+            )
         validator_stats = load_json(validate_stats_path)
+        if is_email_only_profile(validation_profile):
+            validator_stats["candidate_outcome_records"] = list(candidate_outcome_records)
+            write_run_stats(validate_stats_path, validator_stats)
         run_stats = {
             "run_tag": run_tag,
             "batch_index": run_idx,
@@ -5339,6 +6116,12 @@ def main() -> int:
         }
         if is_email_only_profile(validation_profile):
             run_stats["email_only_source_yield"] = build_email_only_source_yield_stats(candidate_outcome_records)
+            run_stats["email_only_query_widening"] = dict(email_only_query_widening or {})
+            run_stats["email_only_source_penalty_memory"] = summarize_email_only_source_penalty_feedback(
+                email_only_source_penalty_feedback
+            )
+            if email_only_source_penalty_memory_path is not None:
+                run_stats["email_only_source_penalty_memory_path"] = str(email_only_source_penalty_memory_path)
         if agent_hunt_stats:
             run_stats["agent_hunt"] = {
                 "scouted_target": int(agent_hunt_stats.get("scouted_target", 0) or 0),

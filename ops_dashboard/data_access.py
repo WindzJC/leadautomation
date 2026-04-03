@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import datetime as dt
 from collections import Counter
+from io import StringIO
 from pathlib import Path
 from typing import Any, Callable
 
@@ -221,7 +223,10 @@ def _run_has_any_artifact(context: RunContext, run_tag: str) -> bool:
 
 
 def resolve_run_context_and_tag(api_run_id: str, base_dir: Path | None = None) -> tuple[RunContext, str]:
-    context_name, run_tag = parse_api_run_id(api_run_id)
+    try:
+        context_name, run_tag = parse_api_run_id(api_run_id)
+    except ValueError as exc:
+        raise KeyError(api_run_id) from exc
     contexts = {context.name: context for context in discover_run_contexts(base_dir or PROJECT_ROOT)}
     context = contexts.get(context_name)
     if context is None:
@@ -316,38 +321,79 @@ def _dedupe_minimal_lead_rows(rows: list[dict[str, str]]) -> list[dict[str, str]
     return deduped
 
 
+def _quote_lead_copy_csv_field(value: str) -> str:
+    buffer = StringIO()
+    writer = csv.writer(buffer, lineterminator="")
+    writer.writerow([str(value or "")])
+    rendered = buffer.getvalue()
+    if rendered.endswith("\r\n"):
+        return rendered[:-2]
+    if rendered.endswith("\n"):
+        return rendered[:-1]
+    return rendered
+
+
+def render_copy_friendly_lead_output(rows: list[dict[str, str]]) -> str:
+    deduped_rows = _dedupe_minimal_lead_rows(rows)
+    csv_lines = [
+        f"{_quote_lead_copy_csv_field(str(row.get('AuthorName', '') or ''))},{_quote_lead_copy_csv_field(str(row.get('AuthorEmail', '') or ''))}"
+        for row in deduped_rows
+    ]
+    source_lines = [
+        f"{str(row.get('AuthorName', '') or '').strip()} — {str(row.get('SourceURL', '') or '').strip()}"
+        for row in deduped_rows
+    ]
+    fenced_block = "```\n" + "\n".join(csv_lines) + "\n```"
+    if not source_lines:
+        return fenced_block
+    return fenced_block + "\n\n" + "\n".join(source_lines)
+
+
 def load_lead_output(api_run_id: str, base_dir: Path | None = None) -> dict[str, Any]:
     detail = load_run_detail(api_run_id, base_dir=base_dir)
     context = detail["context"]
     bundle = detail["bundle"]
     new_leads_path = bundle.get("paths", {}).get("new_leads")
     if isinstance(new_leads_path, Path) and new_leads_path.is_file():
-        return {"source": "new_leads", "rows": _dedupe_minimal_lead_rows(read_lead_export(new_leads_path))}
+        rows = _dedupe_minimal_lead_rows(read_lead_export(new_leads_path))
+        return {"source": "new_leads", "rows": rows, "copy_text": render_copy_friendly_lead_output(rows)}
     output_paths = context_output_paths(context)
 
     verified_rows = _dedupe_minimal_lead_rows(read_lead_export(output_paths["fully_verified_leads"]))
     if verified_rows:
-        return {"source": "fully_verified_leads", "rows": verified_rows}
+        return {
+            "source": "fully_verified_leads",
+            "rows": verified_rows,
+            "copy_text": render_copy_friendly_lead_output(verified_rows),
+        }
 
     scouted_rows = _dedupe_minimal_lead_rows(read_lead_export(output_paths["scouted_leads"]))
     if scouted_rows:
-        return {"source": "scouted_leads", "rows": scouted_rows}
+        return {"source": "scouted_leads", "rows": scouted_rows, "copy_text": render_copy_friendly_lead_output(scouted_rows)}
 
     lead_export_rows = _dedupe_minimal_lead_rows(read_lead_export(output_paths["lead_export"]))
     if lead_export_rows:
-        return {"source": output_paths["lead_export"].stem, "rows": lead_export_rows}
+        return {
+            "source": output_paths["lead_export"].stem,
+            "rows": lead_export_rows,
+            "copy_text": render_copy_friendly_lead_output(lead_export_rows),
+        }
 
     final_rows = list(bundle.get("final_rows") or [])
     projected_final_rows = _project_minimal_lead_rows(final_rows)
     if projected_final_rows:
-        return {"source": "final", "rows": projected_final_rows}
+        return {"source": "final", "rows": projected_final_rows, "copy_text": render_copy_friendly_lead_output(projected_final_rows)}
 
     validated_rows = list(bundle.get("validated_export_rows") or bundle.get("validated_rows") or [])
     projected_validated_rows = _project_minimal_lead_rows(validated_rows)
     if projected_validated_rows:
-        return {"source": "validated", "rows": projected_validated_rows}
+        return {
+            "source": "validated",
+            "rows": projected_validated_rows,
+            "copy_text": render_copy_friendly_lead_output(projected_validated_rows),
+        }
 
-    return {"source": "final", "rows": []}
+    return {"source": "final", "rows": [], "copy_text": render_copy_friendly_lead_output([])}
 
 
 def load_run_artifact_catalog(api_run_id: str, base_dir: Path | None = None) -> dict[str, dict[str, Any]]:

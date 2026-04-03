@@ -33,3 +33,12 @@ promoted.csv
 queue_enrichment_candidates.csv
 queue_enrichment_validated.csv
 enrich_queue_stats.json
+
+# Generated per-run lead folders and dashboard runtime outputs.
+leads */
+validated_run_*.csv
+rejected_run_*.csv
+dashboard_run.log
+dashboard_run.child.pid
+dashboard_run.exitcode
+dashboard_run.finished_at

@@ -42,6 +42,7 @@ from prospect_validate import (
     resolve_listing_title_oracle,
     resolve_primary_book_title,
     should_track_listing_reject_reason,
+    row_meets_astra_outbound_profile,
     validate_candidates,
 )
 from run_lead_finder import apply_validation_profile_defaults as apply_single_run_profile_defaults
@@ -49,6 +50,8 @@ from run_lead_finder_loop import (
     assess_agent_hunt_row,
     assess_agent_hunt_listing_blocked_record,
     apply_validation_profile_defaults,
+    build_astra_source_penalty_feedback,
+    build_astra_source_yield_stats,
     build_agent_hunt_source_quality_feedback,
     build_agent_hunt_stats,
     build_agent_hunt_listing_feedback,
@@ -939,6 +942,26 @@ def test_dedupe_prefers_stronger_row_for_same_author() -> None:
     assert result[0]["BookTitleStatus"] == "ok"
 
 
+def test_dedupe_normalizes_listing_url_variants() -> None:
+    rows = [
+        {
+            "AuthorName": "Jane Doe",
+            "AuthorEmail": "jane@example.com",
+            "ListingURL": "https://www.amazon.com/dp/B012345678?ref_=abc",
+        },
+        {
+            "AuthorName": "Another Jane",
+            "AuthorEmail": "other@example.com",
+            "ListingURL": "https://www.amazon.com/gp/product/B012345678",
+        },
+    ]
+
+    result = dedupe(rows)
+
+    assert len(result) == 1
+    assert result[0]["AuthorEmail"] == "jane@example.com"
+
+
 def test_row_qualifies_for_master_respects_merge_policy() -> None:
     staged_row = {
         "AuthorName": "Jane Doe",
@@ -967,12 +990,17 @@ def test_row_qualifies_for_master_respects_merge_policy() -> None:
         "AuthorName": "Jane Doe",
         "AuthorWebsite": "https://janedoeauthor.com",
         "ContactPageURL": "https://janedoeauthor.com/contact",
+        "SourceURL": "https://janedoeauthor.com/contact",
         "AuthorEmail": "jane@janedoeauthor.com",
         "AuthorEmailSourceURL": "https://janedoeauthor.com/contact",
         "EmailQuality": "same_domain",
         "Location": "Austin, TX",
+        "LocationProofURL": "https://janedoeauthor.com/about",
         "IndieProofStrength": "onsite",
+        "IndieProofURL": "https://janedoeauthor.com/about",
+        "ListingURL": "https://www.amazon.com/dp/B012345678",
         "ListingStatus": "verified",
+        "RecencyProofURL": "https://janedoeauthor.com/",
         "RecencyStatus": "verified",
         "BookTitle": "",
         "BookTitleStatus": "missing_or_weak",
@@ -997,6 +1025,9 @@ def test_row_qualifies_for_master_respects_merge_policy() -> None:
     assert not row_qualifies_for_master(missing_location_row, policy="strict", validation_profile="strict_interactive")
     assert not row_qualifies_for_master(missing_location_row, policy="strict", validation_profile="strict_full")
     assert row_qualifies_for_master(missing_location_row, policy="strict", validation_profile="verified_no_us")
+    missing_location_proof_row = dict(fully_verified_row)
+    missing_location_proof_row["LocationProofURL"] = ""
+    assert not row_qualifies_for_master(missing_location_proof_row, policy="strict", validation_profile="astra_outbound")
 
 
 def test_agent_hunt_accepts_scoutable_row_that_fails_strict_full() -> None:
@@ -2362,6 +2393,118 @@ def test_build_rotating_query_plans_does_not_widen_non_email_only_profiles() -> 
     assert all(plan["query_original"] == plan["query_effective"] for plan in plans)
 
 
+def test_build_rotating_query_plans_widens_astra_queries_after_stale_runs() -> None:
+    fresh_plans = build_rotating_query_plans(
+        1,
+        validation_profile="astra_outbound",
+        stale_runs=0,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 0,
+            "consecutive_zero_validated_runs": 0,
+        },
+    )
+    widened_plans = build_rotating_query_plans(
+        1,
+        validation_profile="astra_outbound",
+        stale_runs=2,
+        reliability_counters={
+            "consecutive_failures": 0,
+            "consecutive_empty_candidate_runs": 0,
+            "consecutive_zero_validated_runs": 2,
+        },
+    )
+
+    assert all(int(plan["widen_level"]) == 0 for plan in fresh_plans)
+    widened = [plan for plan in widened_plans if int(plan["widen_level"]) > 0]
+    assert widened
+    assert all(plan["widen_reason"] == "zero_validated_runs" for plan in widened)
+    assert all(int(plan["stale_run_counter"]) == 2 for plan in widened)
+
+
+def test_build_astra_source_penalty_feedback_ranks_by_net_new_exported_yield() -> None:
+    query_bad = '"indie author" "official website" "contact"'
+    query_good = '"science fiction" "indie author" "contact"'
+    records = [
+        {
+            "source_url": "https://epicindie.net/authordirectory",
+            "source_type": "epic_directory",
+            "source_query": query_bad,
+            "email": "",
+            "kept": False,
+            "reject_reason": "no_visible_author_email",
+            "exported_new_lead": False,
+        }
+        for _ in range(4)
+    ]
+    records.extend(
+        [
+            {
+                "source_url": "https://janedoeauthor.com/contact",
+                "source_type": "google_cse",
+                "source_query": query_good,
+                "email": "jane@janedoeauthor.com",
+                "kept": True,
+                "reject_reason": "",
+                "best_source_url": "https://janedoeauthor.com/contact",
+                "exported_new_lead": True,
+            }
+            for _ in range(3)
+        ]
+    )
+
+    result = build_astra_source_penalty_feedback(records, decay_factor=1.0)
+
+    assert result["query_penalties"] == {query_bad: 6}
+    assert query_good not in result["query_penalties"]
+    assert result["source_type_penalties"] == {"epic_directory": 6}
+    assert result["source_domain_penalties"] == {"epicindie.net": 6}
+    assert result["top_failure_reasons"] == {"missing_visible_email": 4}
+    assert result["query_scores"][query_good] > result["query_scores"][query_bad]
+
+
+def test_build_astra_source_yield_stats_reports_net_new_exported_rows() -> None:
+    result = build_astra_source_yield_stats(
+        [
+            {
+                "source_url": "https://epicindie.net/authordirectory",
+                "source_type": "epic_directory",
+                "source_query": "epic:author-directory",
+                "email": "",
+                "exported_new_lead": False,
+            },
+            {
+                "source_url": "https://www.google.com/search?q=jane",
+                "source_type": "google_cse",
+                "source_query": '"indie author" "official website"',
+                "email": "jane@example.com",
+                "exported_new_lead": True,
+            },
+            {
+                "source_url": "https://epicindie.net/authordirectory",
+                "source_type": "epic_directory",
+                "source_query": "epic:author-directory",
+                "email": "author@example.com",
+                "exported_new_lead": True,
+            },
+        ]
+    )
+
+    assert result["processed_candidates"] == 3
+    assert result["net_new_exported_rows_by_source_domains"] == [
+        {"domain": "google.com", "count": 1},
+        {"domain": "epicindie.net", "count": 1},
+    ]
+    assert result["net_new_exported_rows_by_source_types"] == [
+        {"source": "google_cse", "count": 1},
+        {"source": "epic_directory", "count": 1},
+    ]
+    assert result["net_new_exported_rows_by_source_queries"] == [
+        {"query": '"indie author" "official website"', "count": 1},
+        {"query": "epic:author-directory", "count": 1},
+    ]
+
+
 def test_build_email_only_source_penalty_feedback_penalizes_repeated_dead_end_patterns() -> None:
     query = '"indie author" "official website" "contact"'
     records = [
@@ -2577,6 +2720,58 @@ def test_astra_outbound_profile_defaults_apply_strict_run_preset() -> None:
     assert args.us_only is True
     assert args.listing_strict is True
     assert args.merge_policy == "strict"
+
+
+def test_astra_outbound_validator_defaults_apply_strict_flags() -> None:
+    args = Namespace(
+        validation_profile="astra_outbound",
+        require_location_proof=False,
+        us_only=False,
+        listing_strict=False,
+        max_fetches_per_domain=0,
+        max_seconds_per_domain=25.0,
+        max_total_runtime=900.0,
+        max_pages_for_title=4,
+        max_pages_for_contact=6,
+        max_total_fetches_per_domain_per_run=14,
+        location_recovery_mode="same_domain",
+        location_recovery_pages=6,
+    )
+
+    apply_validator_profile_defaults(args)
+
+    assert args.validation_profile == "astra_outbound"
+    assert args.require_location_proof is True
+    assert args.us_only is True
+    assert args.listing_strict is True
+
+
+def test_row_meets_astra_outbound_profile_requires_location_proof_url() -> None:
+    ok, reason = row_meets_astra_outbound_profile(
+        author_name="Jane Doe",
+        book_title="Skyfall",
+        book_title_status="ok",
+        book_title_method="listing_title_oracle",
+        author_email="jane@janedoeauthor.com",
+        author_email_quality="same_domain",
+        author_email_record={"visible_text": "true"},
+        author_email_source_url="https://janedoeauthor.com/contact",
+        location="Austin, TX",
+        location_proof_url="",
+        indie_proof_strength="onsite",
+        indie_proof_url="https://janedoeauthor.com/about",
+        listing_url="https://www.amazon.com/dp/B012345678",
+        listing_status="verified",
+        listing_fail_reason="",
+        recency_status="verified",
+        recency_url="https://janedoeauthor.com/",
+        listing_title="Skyfall",
+        location_decision="no_location_signal",
+        best_source_url="https://janedoeauthor.com/contact",
+    )
+
+    assert not ok
+    assert reason == "no_location_signal"
 
 
 def test_strict_interactive_profile_defaults_apply_runtime_preset() -> None:
@@ -4552,6 +4747,22 @@ def test_validate_candidates_fully_verified_accepts_visible_email_and_onsite_pro
     assert rows[0]["ListingStatus"] == "verified"
     assert rows[0]["RecencyStatus"] == "verified"
     assert rows[0]["IndieProofStrength"] in {"onsite", "both"}
+    validation_stats = getattr(args, "_validation_stats")
+    candidate_outcome = validation_stats["candidate_outcome_records"][0]
+    astra_rule_checks = candidate_outcome["astra_rule_checks"]
+    assert candidate_outcome["best_source_url"] == "https://janedoeauthor.com/contact"
+    assert candidate_outcome["normalized_listing_url"] == "amazon:B012345678"
+    assert astra_rule_checks["visible_public_email_only"]["passed"] is True
+    assert astra_rule_checks["u_s_location_proof_required"]["passed"] is True
+    assert astra_rule_checks["indie_self_pub_proof_required"]["passed"] is True
+    assert (
+        astra_rule_checks["amazon_or_barnes_noble_listing_proof_required_with_visible_purchase_evidence"]["passed"]
+        is True
+    )
+    assert astra_rule_checks["non_famous_filter_required"]["passed"] is True
+    assert astra_rule_checks["recency_proof_required"]["passed"] is True
+    assert astra_rule_checks["strict_dedupe_by_author_email_and_normalized_listing_url"]["passed"] is True
+    assert astra_rule_checks["best_source_url_required"]["passed"] is True
 
 
 def test_validate_candidates_email_only_accepts_visible_email_without_strict_proofs(tmp_path) -> None:

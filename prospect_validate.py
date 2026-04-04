@@ -27,9 +27,11 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from lead_utils import (
+    canonical_listing_key,
     domain_matches_blocklist,
     is_allowed_retailer_url,
     is_retailer_url,
+    normalize_person_name,
     registrable_domain,
     strip_tracking_query_params,
     url_matches_blocklist,
@@ -104,6 +106,24 @@ EMAIL_ONLY_LIGHTWEIGHT_RUNTIME = {
     "location_recovery_mode": "off",
     "location_recovery_pages": 0,
 }
+ASTRA_RULE_VISIBLE_PUBLIC_EMAIL_ONLY = "visible_public_email_only"
+ASTRA_RULE_US_LOCATION_PROOF_REQUIRED = "u_s_location_proof_required"
+ASTRA_RULE_INDIE_SELF_PUB_PROOF_REQUIRED = "indie_self_pub_proof_required"
+ASTRA_RULE_LISTING_PROOF_REQUIRED = "amazon_or_barnes_noble_listing_proof_required_with_visible_purchase_evidence"
+ASTRA_RULE_NON_FAMOUS_FILTER_REQUIRED = "non_famous_filter_required"
+ASTRA_RULE_RECENCY_PROOF_REQUIRED = "recency_proof_required"
+ASTRA_RULE_STRICT_DEDUPE_REQUIRED = "strict_dedupe_by_author_email_and_normalized_listing_url"
+ASTRA_RULE_BEST_SOURCE_URL_REQUIRED = "best_source_url_required"
+ASTRA_RULE_KEYS = (
+    ASTRA_RULE_VISIBLE_PUBLIC_EMAIL_ONLY,
+    ASTRA_RULE_US_LOCATION_PROOF_REQUIRED,
+    ASTRA_RULE_INDIE_SELF_PUB_PROOF_REQUIRED,
+    ASTRA_RULE_LISTING_PROOF_REQUIRED,
+    ASTRA_RULE_NON_FAMOUS_FILTER_REQUIRED,
+    ASTRA_RULE_RECENCY_PROOF_REQUIRED,
+    ASTRA_RULE_STRICT_DEDUPE_REQUIRED,
+    ASTRA_RULE_BEST_SOURCE_URL_REQUIRED,
+)
 STRICT_VERIFIED_PROFILES = {
     "fully_verified",
     ASTRA_OUTBOUND_PROFILE,
@@ -123,6 +143,10 @@ LOCATION_REJECT_REASONS = {
 
 def normalize_validation_profile(value: str) -> str:
     return str(value or "default").strip().lower()
+
+
+def is_astra_outbound_profile(value: str) -> bool:
+    return normalize_validation_profile(value) == ASTRA_OUTBOUND_PROFILE
 
 
 def cli_flag_present(args: argparse.Namespace, *flags: str) -> bool:
@@ -205,6 +229,12 @@ def apply_validation_profile_defaults(args: argparse.Namespace) -> None:
             args.max_seconds_per_domain = 25.0
         if float(getattr(args, "max_total_runtime", 900.0) or 0.0) == 900.0:
             args.max_total_runtime = 900.0
+        return
+    if profile != ASTRA_OUTBOUND_PROFILE:
+        return
+    apply_profile_setting(args, "require_location_proof", True, "--require-location-proof")
+    apply_profile_setting(args, "us_only", True, "--us-only")
+    apply_profile_setting(args, "listing_strict", True, "--listing-strict")
 
 
 @dataclass
@@ -291,6 +321,9 @@ class CandidateBudgetMetrics:
     recency_source_url: str = ""
     recency_value: str = ""
     book_url: str = ""
+    best_source_url: str = ""
+    normalized_listing_url: str = ""
+    astra_rule_checks: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -311,6 +344,7 @@ class CandidateProofLedger:
     best_indie_source_url: str = ""
     reject_reason_if_any: str = ""
     action_history: List[str] = field(default_factory=list)
+    astra_rule_checks: Dict[str, object] = field(default_factory=dict)
 
 
 CANDIDATE_WORKING_STATES = {
@@ -1778,6 +1812,7 @@ def serialize_candidate_proof_ledger(ledger: CandidateProofLedger) -> Dict[str, 
         "best_indie_source_url": ledger.best_indie_source_url,
         "reject_reason_if_any": ledger.reject_reason_if_any,
         "action_history": list(ledger.action_history or []),
+        "astra_rule_checks": dict(ledger.astra_rule_checks or {}),
     }
 
 
@@ -1805,10 +1840,12 @@ def map_stable_fail_reason(reject_reason: str) -> str:
         return "non_us_author"
     if reason in {"no_location_signal", "location_ambiguous", "publisher_location_only", "weak_us_signal"}:
         return "missing_us_proof"
-    if reason == "no_indie_proof":
+    if reason in {"no_indie_proof", "no_onsite_indie_proof"}:
         return "missing_indie_proof"
     if reason in {"no_recency_proof", "no_on_page_date"}:
         return "stale_publication"
+    if reason == "missing_best_source_url":
+        return "missing_best_source_url"
     if reason == "no_contact_or_subscribe_path":
         return "missing_contact_path"
     if reason.startswith("listing_"):
@@ -1875,6 +1912,9 @@ def serialize_candidate_outcome(metrics: CandidateBudgetMetrics) -> Dict[str, ob
         "indie_proof_value": metrics.indie_proof_value or metrics.indie_snippet,
         "retailer_listing_url": metrics.retailer_listing_url or metrics.book_url,
         "retailer_listing_status": metrics.retailer_listing_status,
+        "best_source_url": metrics.best_source_url,
+        "normalized_listing_url": metrics.normalized_listing_url,
+        "astra_rule_checks": dict(metrics.astra_rule_checks or {}),
         "recency_source_url": metrics.recency_source_url,
         "recency_value": metrics.recency_value,
         "source_family": metrics.source_family or infer_source_family(metrics.source_type, metrics.source_url),
@@ -3394,6 +3434,8 @@ def row_meets_fully_verified_profile(
     listing_title: str,
     require_us_location: bool = True,
     location_decision: str = "",
+    best_source_url: str = "",
+    require_best_source_url: bool = False,
 ) -> Tuple[bool, str]:
     if not is_plausible_author_name(author_name):
         return False, "bad_author_name"
@@ -3420,6 +3462,8 @@ def row_meets_fully_verified_profile(
         return False, "no_recency_proof"
     if listing_title and not title_keys_match(book_title, listing_title):
         return False, "listing_title_mismatch"
+    if require_best_source_url and not (best_source_url or "").strip():
+        return False, "missing_best_source_url"
     return True, ""
 
 
@@ -3437,6 +3481,242 @@ def row_meets_email_only_profile(
     if not (source_url or "").strip():
         return False, "missing_source_url"
     return True, ""
+
+
+def row_meets_astra_outbound_profile(
+    *,
+    author_name: str,
+    book_title: str,
+    book_title_status: str,
+    book_title_method: str,
+    author_email: str,
+    author_email_quality: str,
+    author_email_record: Dict[str, str],
+    author_email_source_url: str,
+    location: str,
+    location_proof_url: str,
+    indie_proof_strength: str,
+    indie_proof_url: str,
+    listing_url: str,
+    listing_status: str,
+    listing_fail_reason: str,
+    recency_status: str,
+    recency_url: str,
+    listing_title: str,
+    location_decision: str,
+    best_source_url: str,
+    require_us_location: bool = True,
+) -> Tuple[bool, str]:
+    ok, reason = row_meets_fully_verified_profile(
+        author_name=author_name,
+        book_title=book_title,
+        book_title_status=book_title_status,
+        book_title_method=book_title_method,
+        author_email=author_email,
+        author_email_quality=author_email_quality,
+        author_email_record=author_email_record,
+        location=location,
+        indie_proof_strength=indie_proof_strength,
+        listing_status=listing_status,
+        listing_fail_reason=listing_fail_reason,
+        recency_status=recency_status,
+        listing_title=listing_title,
+        require_us_location=require_us_location,
+        location_decision=location_decision,
+        best_source_url=best_source_url,
+        require_best_source_url=True,
+    )
+    if not ok:
+        return ok, reason
+    if not (author_email_source_url or "").strip():
+        return False, "no_visible_author_email"
+    if require_us_location and not (location_proof_url or "").strip():
+        return False, location_decision or "no_location_signal"
+    if not (indie_proof_url or "").strip():
+        return False, "no_onsite_indie_proof"
+    normalized_listing_url = normalize_astra_listing_url(listing_url)
+    if not normalized_listing_url or not is_allowed_retailer_url(listing_url):
+        return False, normalize_listing_fail_reason(
+            listing_status=listing_status,
+            listing_fail_reason=listing_fail_reason,
+            book_title=book_title,
+            listing_title=listing_title,
+        )
+    if not (recency_url or "").strip():
+        return False, "no_recency_proof"
+    return True, ""
+
+
+def normalize_astra_listing_url(value: str) -> str:
+    normalized = canonical_listing_key((value or "").strip())
+    if normalized:
+        return normalized
+    return normalize_url(strip_tracking_query_params(value))
+
+
+def choose_best_astra_source_url(*values: str) -> str:
+    for value in values:
+        normalized = normalize_url(value)
+        if normalized:
+            return normalized
+    return ""
+
+
+def _astra_rule_check(
+    *,
+    passed: bool,
+    reason: str = "",
+    source_url: str = "",
+    snippet: str = "",
+    value: str = "",
+) -> Dict[str, object]:
+    return {
+        "passed": bool(passed),
+        "reason": str(reason or "").strip(),
+        "source_url": str(source_url or "").strip(),
+        "snippet": str(snippet or "").strip(),
+        "value": str(value or "").strip(),
+    }
+
+
+def build_astra_rule_checks(
+    *,
+    author_name: str,
+    author_email: str,
+    author_email_record: Dict[str, str],
+    author_email_source_url: str,
+    author_email_proof_snippet: str,
+    location: str,
+    location_decision: str,
+    location_proof_url: str,
+    location_proof_snippet: str,
+    indie_proof_strength: str,
+    indie_proof_url: str,
+    indie_proof_snippet: str,
+    listing_url: str,
+    listing_status: str,
+    listing_fail_reason: str,
+    listing_title: str,
+    listing_snippet: str,
+    book_title: str,
+    recency_status: str,
+    recency_url: str,
+    recency_proof_snippet: str,
+    source_url: str,
+    contact_page_url: str,
+    author_website: str,
+    reject_reason: str,
+) -> Dict[str, Dict[str, object]]:
+    normalized_listing_url = normalize_astra_listing_url(listing_url)
+    listing_url_normalized = normalize_url(listing_url)
+    listing_reason = ""
+    if (listing_status or "").strip().lower() != "verified":
+        listing_reason = normalize_listing_fail_reason(
+            listing_status=listing_status,
+            listing_fail_reason=listing_fail_reason,
+            book_title=book_title,
+            listing_title=listing_title,
+        )
+    listing_passed = bool(
+        normalized_listing_url
+        and listing_url_normalized
+        and is_allowed_retailer_url(listing_url_normalized)
+        and (listing_status or "").strip().lower() == "verified"
+    )
+    best_source_url = choose_best_astra_source_url(
+        author_email_source_url,
+        contact_page_url,
+        author_website,
+        source_url,
+        location_proof_url,
+        indie_proof_url,
+        recency_url,
+        listing_url,
+    )
+    visible_public_email_passed = bool(
+        (author_email or "").strip()
+        and email_record_is_visible_text(author_email_record)
+        and (author_email_source_url or "").strip()
+    )
+    us_location_passed = bool(
+        (location or "").strip()
+        and (location or "").strip().lower() not in {"unknown", "n/a", "na"}
+        and is_us_location(location)
+        and (location_proof_url or "").strip()
+    )
+    indie_passed = bool((indie_proof_strength or "").strip().lower() in {"onsite", "both"} and (indie_proof_url or "").strip())
+    recency_passed = bool((recency_status or "").strip().lower() == "verified" and (recency_url or "").strip())
+    non_famous_passed = (reject_reason or "").strip() not in {"enterprise_or_famous", "famous_signal", "wikipedia_signal"}
+    strict_dedupe_passed = bool(
+        is_plausible_author_name(author_name)
+        and (author_email or "").strip()
+        and normalized_listing_url
+    )
+
+    return {
+        ASTRA_RULE_VISIBLE_PUBLIC_EMAIL_ONLY: _astra_rule_check(
+            passed=visible_public_email_passed,
+            reason="" if visible_public_email_passed else "no_visible_author_email",
+            source_url=author_email_source_url,
+            snippet=author_email_proof_snippet,
+            value=(author_email or "").strip().lower(),
+        ),
+        ASTRA_RULE_US_LOCATION_PROOF_REQUIRED: _astra_rule_check(
+            passed=us_location_passed,
+            reason="" if us_location_passed else str(location_decision or "no_location_signal"),
+            source_url=location_proof_url,
+            snippet=location_proof_snippet,
+            value=location,
+        ),
+        ASTRA_RULE_INDIE_SELF_PUB_PROOF_REQUIRED: _astra_rule_check(
+            passed=indie_passed,
+            reason="" if indie_passed else "no_onsite_indie_proof",
+            source_url=indie_proof_url,
+            snippet=indie_proof_snippet,
+            value=indie_proof_strength,
+        ),
+        ASTRA_RULE_LISTING_PROOF_REQUIRED: _astra_rule_check(
+            passed=listing_passed,
+            reason="" if listing_passed else (listing_reason or "listing_not_buyable"),
+            source_url=listing_url,
+            snippet=listing_snippet,
+            value=normalized_listing_url,
+        ),
+        ASTRA_RULE_NON_FAMOUS_FILTER_REQUIRED: _astra_rule_check(
+            passed=non_famous_passed,
+            reason="" if non_famous_passed else ((reject_reason or "").strip() or "enterprise_or_famous"),
+            source_url=source_url,
+            snippet="",
+            value=(author_name or "").strip(),
+        ),
+        ASTRA_RULE_RECENCY_PROOF_REQUIRED: _astra_rule_check(
+            passed=recency_passed,
+            reason="" if recency_passed else "no_recency_proof",
+            source_url=recency_url,
+            snippet=recency_proof_snippet,
+            value=recency_status,
+        ),
+        ASTRA_RULE_STRICT_DEDUPE_REQUIRED: _astra_rule_check(
+            passed=strict_dedupe_passed,
+            reason="" if strict_dedupe_passed else "missing_dedupe_identity",
+            source_url=listing_url,
+            snippet="",
+            value="|".join(
+                [
+                    normalize_person_name(author_name),
+                    (author_email or "").strip().lower(),
+                    normalized_listing_url,
+                ]
+            ).strip("|"),
+        ),
+        ASTRA_RULE_BEST_SOURCE_URL_REQUIRED: _astra_rule_check(
+            passed=bool(best_source_url),
+            reason="" if best_source_url else "missing_best_source_url",
+            source_url=best_source_url,
+            snippet="",
+            value=best_source_url,
+        ),
+    }
 
 
 def extract_author_name(soup: BeautifulSoup, text: str) -> str:
@@ -5503,6 +5783,7 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
     now = dt.datetime.now(dt.timezone.utc)
     validation_profile = str(getattr(args, "validation_profile", "default") or "default").strip().lower()
     strict_verified_mode = validation_profile in STRICT_VERIFIED_PROFILES
+    astra_outbound_mode = is_astra_outbound_profile(validation_profile)
     email_only_mode = validation_profile == EMAIL_ONLY_PROFILE
     require_us_location = validation_profile in US_STRICT_VERIFIED_PROFILES
     if not strict_verified_mode and not str(getattr(args, "near_miss_location_output", "") or "").strip():
@@ -5768,9 +6049,53 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                 current_candidate_metrics.recency_value
                 or current_candidate_ledger.best_recency_snippet
             )
+            if astra_outbound_mode:
+                current_candidate_ledger.astra_rule_checks = build_astra_rule_checks(
+                    author_name=current_candidate_metrics.author_name or author_name,
+                    author_email=current_candidate_metrics.email or current_candidate_email or author_email,
+                    author_email_record=best_email,
+                    author_email_source_url=current_candidate_metrics.email_source_url or author_email_source_url,
+                    author_email_proof_snippet=current_candidate_metrics.email_snippet or author_email_proof_snippet,
+                    location=current_candidate_metrics.location_value or location,
+                    location_decision=location_decision,
+                    location_proof_url=current_candidate_metrics.location_source_url or location_proof_url,
+                    location_proof_snippet=current_candidate_metrics.us_snippet or location_proof_snippet,
+                    indie_proof_strength=indie_proof_strength,
+                    indie_proof_url=current_candidate_metrics.indie_proof_url or indie_proof_url,
+                    indie_proof_snippet=current_candidate_metrics.indie_snippet or indie_proof_snippet,
+                    listing_url=current_candidate_metrics.retailer_listing_url or valid_listing_url or row_listing_url,
+                    listing_status=listing_status,
+                    listing_fail_reason=listing_fail_reason,
+                    listing_title=listing_title,
+                    listing_snippet=current_candidate_metrics.listing_snippet or current_candidate_listing_snippet,
+                    book_title=current_candidate_metrics.book_title or book_title,
+                    recency_status=recency_status,
+                    recency_url=current_candidate_metrics.recency_source_url or recency_url,
+                    recency_proof_snippet=current_candidate_metrics.recency_value or recency_proof,
+                    source_url=current_candidate_metrics.source_url or candidate_source_url,
+                    contact_page_url=contact_page,
+                    author_website=author_website,
+                    reject_reason=reason,
+                )
             candidate_ledger_records.append(serialize_candidate_proof_ledger(current_candidate_ledger))
         current_candidate_metrics.email = (current_candidate_email or current_candidate_metrics.email).strip().lower()
         current_candidate_metrics.book_url = current_candidate_book_url or current_candidate_metrics.book_url
+        if astra_outbound_mode:
+            current_candidate_metrics.best_source_url = choose_best_astra_source_url(
+                current_candidate_metrics.email_source_url or author_email_source_url,
+                contact_page,
+                author_website,
+                current_candidate_metrics.source_url or candidate_source_url,
+                current_candidate_metrics.location_source_url or location_proof_url,
+                current_candidate_metrics.indie_proof_url or indie_proof_url,
+                current_candidate_metrics.recency_source_url or recency_url,
+                current_candidate_metrics.retailer_listing_url or valid_listing_url or row_listing_url,
+            )
+            current_candidate_metrics.normalized_listing_url = normalize_astra_listing_url(
+                current_candidate_metrics.retailer_listing_url or valid_listing_url or row_listing_url
+            )
+            if current_candidate_ledger is not None:
+                current_candidate_metrics.astra_rule_checks = dict(current_candidate_ledger.astra_rule_checks or {})
         candidate_outcome_records.append(serialize_candidate_outcome(current_candidate_metrics))
         candidate_budget_records.append(current_candidate_metrics)
         current_candidate_metrics = None
@@ -5871,6 +6196,29 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
         current_candidate_indie_snippet = ""
         current_candidate_listing_snippet = ""
         current_candidate_book_url = ""
+        author_name = ""
+        author_name_source_url = ""
+        author_email = ""
+        author_email_source_url = ""
+        author_email_proof_snippet = ""
+        email_quality = ""
+        best_email: Dict[str, str] = {}
+        author_website = ""
+        contact_page = ""
+        location = ""
+        location_proof_url = ""
+        location_proof_snippet = ""
+        indie_proof_strength = ""
+        indie_proof_url = ""
+        indie_proof_snippet = ""
+        row_listing_url = ""
+        valid_listing_url = ""
+        listing_status = ""
+        listing_fail_reason = ""
+        listing_title = ""
+        recency_url = ""
+        recency_proof = ""
+        recency_status = ""
         current_candidate_metrics = CandidateBudgetMetrics(
             candidate_url=normalize_url(candidate_url) or candidate_url,
             candidate_domain=candidate_domain,
@@ -7137,26 +7485,18 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
             listing_title = compact_text(str(listing_title_resolution.get("title", "") or ""))
 
         if strict_verified_mode:
-            fully_verified_ok, fully_verified_reason = row_meets_fully_verified_profile(
-                author_name=author_name,
-                book_title=book_title,
-                book_title_status=book_title_status,
-                book_title_method=book_title_method,
-                author_email=author_email,
-                author_email_quality=email_quality,
-                author_email_record=best_email,
-                location=location,
-                indie_proof_strength=indie_proof_strength,
-                listing_status=listing_status,
-                listing_fail_reason=listing_fail_reason,
-                recency_status=recency_status,
-                listing_title=listing_title,
-                require_us_location=require_us_location,
-                location_decision=location_decision,
+            strict_best_source_url = choose_best_astra_source_url(
+                author_email_source_url,
+                contact_page,
+                author_website,
+                candidate_source_url,
+                location_proof_url,
+                indie_proof_url,
+                recency_url,
+                valid_listing_url or row_listing_url,
             )
-            location_exempt_ok = False
-            if require_us_location and fully_verified_reason in LOCATION_REJECT_REASONS:
-                location_exempt_ok, _ = row_meets_fully_verified_profile(
+            if astra_outbound_mode:
+                fully_verified_ok, fully_verified_reason = row_meets_astra_outbound_profile(
                     author_name=author_name,
                     book_title=book_title,
                     book_title_status=book_title_status,
@@ -7164,15 +7504,87 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                     author_email=author_email,
                     author_email_quality=email_quality,
                     author_email_record=best_email,
-                    location=location or "Unknown",
+                    author_email_source_url=author_email_source_url,
+                    location=location,
+                    location_proof_url=location_proof_url,
+                    indie_proof_strength=indie_proof_strength,
+                    indie_proof_url=indie_proof_url,
+                    listing_url=valid_listing_url or row_listing_url,
+                    listing_status=listing_status,
+                    listing_fail_reason=listing_fail_reason,
+                    recency_status=recency_status,
+                    recency_url=recency_url,
+                    listing_title=listing_title,
+                    location_decision=location_decision,
+                    best_source_url=strict_best_source_url,
+                    require_us_location=require_us_location,
+                )
+            else:
+                fully_verified_ok, fully_verified_reason = row_meets_fully_verified_profile(
+                    author_name=author_name,
+                    book_title=book_title,
+                    book_title_status=book_title_status,
+                    book_title_method=book_title_method,
+                    author_email=author_email,
+                    author_email_quality=email_quality,
+                    author_email_record=best_email,
+                    location=location,
                     indie_proof_strength=indie_proof_strength,
                     listing_status=listing_status,
                     listing_fail_reason=listing_fail_reason,
                     recency_status=recency_status,
                     listing_title=listing_title,
-                    require_us_location=False,
-                    location_decision="",
+                    require_us_location=require_us_location,
+                    location_decision=location_decision,
+                    best_source_url=strict_best_source_url,
+                    require_best_source_url=False,
                 )
+            location_exempt_ok = False
+            if require_us_location and fully_verified_reason in LOCATION_REJECT_REASONS:
+                if astra_outbound_mode:
+                    location_exempt_ok, _ = row_meets_astra_outbound_profile(
+                        author_name=author_name,
+                        book_title=book_title,
+                        book_title_status=book_title_status,
+                        book_title_method=book_title_method,
+                        author_email=author_email,
+                        author_email_quality=email_quality,
+                        author_email_record=best_email,
+                        author_email_source_url=author_email_source_url,
+                        location=location or "Unknown",
+                        location_proof_url=location_proof_url,
+                        indie_proof_strength=indie_proof_strength,
+                        indie_proof_url=indie_proof_url,
+                        listing_url=valid_listing_url or row_listing_url,
+                        listing_status=listing_status,
+                        listing_fail_reason=listing_fail_reason,
+                        recency_status=recency_status,
+                        recency_url=recency_url,
+                        listing_title=listing_title,
+                        location_decision="",
+                        best_source_url=strict_best_source_url,
+                        require_us_location=False,
+                    )
+                else:
+                    location_exempt_ok, _ = row_meets_fully_verified_profile(
+                        author_name=author_name,
+                        book_title=book_title,
+                        book_title_status=book_title_status,
+                        book_title_method=book_title_method,
+                        author_email=author_email,
+                        author_email_quality=email_quality,
+                        author_email_record=best_email,
+                        location=location or "Unknown",
+                        indie_proof_strength=indie_proof_strength,
+                        listing_status=listing_status,
+                        listing_fail_reason=listing_fail_reason,
+                        recency_status=recency_status,
+                        listing_title=listing_title,
+                        require_us_location=False,
+                        location_decision="",
+                        best_source_url=strict_best_source_url,
+                        require_best_source_url=False,
+                    )
                 location_planner = candidate_planner_decision(reject_reason=fully_verified_reason)
                 if (
                     location_exempt_ok
@@ -7204,23 +7616,60 @@ def validate_candidates(args: argparse.Namespace) -> Tuple[List[Dict[str, str]],
                         (location_assessment.get("snippet", "") or "").strip()
                         or (location_proof_snippet or "").strip()
                     )
-                    fully_verified_ok, fully_verified_reason = row_meets_fully_verified_profile(
-                        author_name=author_name,
-                        book_title=book_title,
-                        book_title_status=book_title_status,
-                        book_title_method=book_title_method,
-                        author_email=author_email,
-                        author_email_quality=email_quality,
-                        author_email_record=best_email,
-                        location=location,
-                        indie_proof_strength=indie_proof_strength,
-                        listing_status=listing_status,
-                        listing_fail_reason=listing_fail_reason,
-                        recency_status=recency_status,
-                        listing_title=listing_title,
-                        require_us_location=require_us_location,
-                        location_decision=location_decision,
+                    strict_best_source_url = choose_best_astra_source_url(
+                        author_email_source_url,
+                        contact_page,
+                        author_website,
+                        candidate_source_url,
+                        location_proof_url,
+                        indie_proof_url,
+                        recency_url,
+                        valid_listing_url or row_listing_url,
                     )
+                    if astra_outbound_mode:
+                        fully_verified_ok, fully_verified_reason = row_meets_astra_outbound_profile(
+                            author_name=author_name,
+                            book_title=book_title,
+                            book_title_status=book_title_status,
+                            book_title_method=book_title_method,
+                            author_email=author_email,
+                            author_email_quality=email_quality,
+                            author_email_record=best_email,
+                            author_email_source_url=author_email_source_url,
+                            location=location,
+                            location_proof_url=location_proof_url,
+                            indie_proof_strength=indie_proof_strength,
+                            indie_proof_url=indie_proof_url,
+                            listing_url=valid_listing_url or row_listing_url,
+                            listing_status=listing_status,
+                            listing_fail_reason=listing_fail_reason,
+                            recency_status=recency_status,
+                            recency_url=recency_url,
+                            listing_title=listing_title,
+                            location_decision=location_decision,
+                            best_source_url=strict_best_source_url,
+                            require_us_location=require_us_location,
+                        )
+                    else:
+                        fully_verified_ok, fully_verified_reason = row_meets_fully_verified_profile(
+                            author_name=author_name,
+                            book_title=book_title,
+                            book_title_status=book_title_status,
+                            book_title_method=book_title_method,
+                            author_email=author_email,
+                            author_email_quality=email_quality,
+                            author_email_record=best_email,
+                            location=location,
+                            indie_proof_strength=indie_proof_strength,
+                            listing_status=listing_status,
+                            listing_fail_reason=listing_fail_reason,
+                            recency_status=recency_status,
+                            listing_title=listing_title,
+                            require_us_location=require_us_location,
+                            location_decision=location_decision,
+                            best_source_url=strict_best_source_url,
+                            require_best_source_url=False,
+                        )
                 elif location_exempt_ok and location_planner.get("action") != "try_location_proof":
                     location_recovery_skipped_reason = (
                         location_recovery_skipped_reason
@@ -7529,22 +7978,56 @@ def main() -> int:
             "fully_verified_rows": sum(
                 1
                 for row in rows
-                if row_meets_fully_verified_profile(
-                    author_name=(row.get("AuthorName", "") or "").strip(),
-                    book_title=(row.get("BookTitle", "") or "").strip(),
-                    book_title_status=(row.get("BookTitleStatus", "") or "").strip(),
-                    book_title_method=(row.get("BookTitleMethod", "") or "").strip(),
-                    author_email=(row.get("AuthorEmail", "") or "").strip(),
-                    author_email_quality=(row.get("EmailQuality", "") or "").strip(),
-                    author_email_record={"visible_text": "true" if (row.get("AuthorEmailSourceURL", "") or "").strip() else "false"},
-                    location=(row.get("Location", "") or "").strip(),
-                    indie_proof_strength=(row.get("IndieProofStrength", "") or "").strip(),
-                    listing_status=(row.get("ListingStatus", "") or "").strip(),
-                    listing_fail_reason=(row.get("ListingFailReason", "") or "").strip(),
-                    recency_status=(row.get("RecencyStatus", "") or "").strip(),
-                    listing_title="",
-                    require_us_location=validation_profile in US_STRICT_VERIFIED_PROFILES,
-                )[0]
+                if (
+                    row_meets_astra_outbound_profile(
+                        author_name=(row.get("AuthorName", "") or "").strip(),
+                        book_title=(row.get("BookTitle", "") or "").strip(),
+                        book_title_status=(row.get("BookTitleStatus", "") or "").strip(),
+                        book_title_method=(row.get("BookTitleMethod", "") or "").strip(),
+                        author_email=(row.get("AuthorEmail", "") or "").strip(),
+                        author_email_quality=(row.get("EmailQuality", "") or "").strip(),
+                        author_email_record={"visible_text": "true" if (row.get("AuthorEmailSourceURL", "") or "").strip() else "false"},
+                        author_email_source_url=(row.get("AuthorEmailSourceURL", "") or "").strip(),
+                        location=(row.get("Location", "") or "").strip(),
+                        location_proof_url=(row.get("LocationProofURL", "") or "").strip(),
+                        indie_proof_strength=(row.get("IndieProofStrength", "") or "").strip(),
+                        indie_proof_url=(row.get("IndieProofURL", "") or "").strip(),
+                        listing_url=(row.get("ListingURL", "") or "").strip(),
+                        listing_status=(row.get("ListingStatus", "") or "").strip(),
+                        listing_fail_reason=(row.get("ListingFailReason", "") or "").strip(),
+                        recency_status=(row.get("RecencyStatus", "") or "").strip(),
+                        recency_url=(row.get("RecencyProofURL", "") or "").strip(),
+                        listing_title="",
+                        location_decision="",
+                        best_source_url=choose_best_astra_source_url(
+                            (row.get("AuthorEmailSourceURL", "") or "").strip(),
+                            (row.get("ContactPageURL", "") or "").strip(),
+                            (row.get("AuthorWebsite", "") or "").strip(),
+                            (row.get("SourceURL", "") or "").strip(),
+                            (row.get("LocationProofURL", "") or "").strip(),
+                            (row.get("IndieProofURL", "") or "").strip(),
+                            (row.get("RecencyProofURL", "") or "").strip(),
+                            (row.get("ListingURL", "") or "").strip(),
+                        ),
+                    )[0]
+                    if is_astra_outbound_profile(validation_profile)
+                    else row_meets_fully_verified_profile(
+                        author_name=(row.get("AuthorName", "") or "").strip(),
+                        book_title=(row.get("BookTitle", "") or "").strip(),
+                        book_title_status=(row.get("BookTitleStatus", "") or "").strip(),
+                        book_title_method=(row.get("BookTitleMethod", "") or "").strip(),
+                        author_email=(row.get("AuthorEmail", "") or "").strip(),
+                        author_email_quality=(row.get("EmailQuality", "") or "").strip(),
+                        author_email_record={"visible_text": "true" if (row.get("AuthorEmailSourceURL", "") or "").strip() else "false"},
+                        location=(row.get("Location", "") or "").strip(),
+                        indie_proof_strength=(row.get("IndieProofStrength", "") or "").strip(),
+                        listing_status=(row.get("ListingStatus", "") or "").strip(),
+                        listing_fail_reason=(row.get("ListingFailReason", "") or "").strip(),
+                        recency_status=(row.get("RecencyStatus", "") or "").strip(),
+                        listing_title="",
+                        require_us_location=validation_profile in US_STRICT_VERIFIED_PROFILES,
+                    )[0]
+                )
             ),
         }
         stats.update(runtime_stats)

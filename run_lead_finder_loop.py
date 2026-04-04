@@ -233,6 +233,22 @@ EMAIL_ONLY_SOURCE_PENALTY_STAT_KEYS = (
     "duplicate_hits",
     "missing_field_hits",
 )
+ASTRA_SOURCE_PENALTY_MEMORY_FILENAME = "astra_source_penalty_memory.json"
+ASTRA_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION = 1
+ASTRA_SOURCE_PENALTY_DECAY_FACTOR = 0.85
+ASTRA_SOURCE_PENALTY_STAT_KEYS = (
+    "processed",
+    "visible_email_hits",
+    "net_new_exported",
+    "duplicate_hits",
+    "hard_failures",
+)
+ASTRA_STALE_QUERY_TEMPLATES = (
+    '"{genre}" "indie author" "contact" "amazon.com/dp"',
+    '"{genre}" "self-published author" "about the author" "barnesandnoble.com/w/"',
+    '"{genre}" "independent author" "new release" "contact"',
+    '"{genre}" "author website" "United States" "buy on Amazon"',
+)
 AUTHOR_PATH_RE = re.compile(r"/(?:author|authors|about|bio)/([^/?#]+)", flags=re.IGNORECASE)
 SECRET_FLAGS = {"--google-api-key", "--brave-api-key"}
 ROLE_EMAIL_LOCALS = {"admin", "contact", "hello", "help", "hi", "info", "mail", "office", "sales", "support", "team"}
@@ -437,6 +453,10 @@ def is_email_only_profile(value: str) -> bool:
     return normalize_validation_profile(value) == EMAIL_ONLY_PROFILE
 
 
+def is_astra_outbound_profile(value: str) -> bool:
+    return normalize_validation_profile(value) == ASTRA_OUTBOUND_PROFILE
+
+
 def cli_flag_present(args: argparse.Namespace, *flags: str) -> bool:
     cli_flags = set(getattr(args, "_cli_flags", ()) or ())
     return any(flag in cli_flags for flag in flags)
@@ -589,11 +609,13 @@ def score_candidate_intake(
     agent_hunt_listing_feedback: Dict[str, object] | None = None,
     agent_hunt_source_quality_feedback: Dict[str, object] | None = None,
     email_only_source_penalty_feedback: Dict[str, object] | None = None,
+    astra_source_penalty_feedback: Dict[str, object] | None = None,
 ) -> Dict[str, object]:
     require_us_location = profile_requires_us_location(validation_profile)
     strict_verified = is_fully_verified_profile(validation_profile)
     scout_mode = is_agent_hunt_profile(validation_profile)
     email_only_mode = is_email_only_profile(validation_profile)
+    astra_mode = is_astra_outbound_profile(validation_profile)
     candidate_url = row.get("CandidateURL", "") or ""
     source_type = (row.get("SourceType", "") or "").strip().lower()
     source_query = (row.get("SourceQuery", "") or "").strip().lower()
@@ -714,6 +736,20 @@ def score_candidate_intake(
         score_delta = int(round((cross_run_score - 50.0) / 10.0))
         if score_delta:
             add_component("cross_run_source_score", score_delta)
+    if astra_mode and astra_source_penalty_feedback:
+        source_memory = lookup_astra_source_memory(
+            astra_source_penalty_feedback,
+            source_query=source_query or "<unknown>",
+            source_type=source_type,
+            source_url=source_url,
+        )
+        total_penalty = int(source_memory.get("total_penalty", 0) or 0)
+        cross_run_score = float(source_memory.get("cross_run_score", 50.0) or 50.0)
+        if total_penalty:
+            add_component("astra_cross_run_source_penalty", -total_penalty)
+        score_delta = int(round((cross_run_score - 50.0) / 10.0))
+        if score_delta:
+            add_component("astra_cross_run_source_score", score_delta)
 
     positive_features = [
         {"feature": name, "contribution": value}
@@ -747,6 +783,7 @@ def order_candidates_for_strict_validation(
     agent_hunt_listing_feedback: Dict[str, object] | None = None,
     agent_hunt_source_quality_feedback: Dict[str, object] | None = None,
     email_only_source_penalty_feedback: Dict[str, object] | None = None,
+    astra_source_penalty_feedback: Dict[str, object] | None = None,
 ) -> Tuple[List[Dict[str, str]], Dict[str, object]]:
     scored_rows: List[Tuple[int, int, Dict[str, str], Dict[str, object]]] = []
     score_map: Dict[str, Dict[str, object]] = {}
@@ -766,6 +803,7 @@ def order_candidates_for_strict_validation(
             agent_hunt_listing_feedback=agent_hunt_listing_feedback,
             agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
             email_only_source_penalty_feedback=email_only_source_penalty_feedback,
+            astra_source_penalty_feedback=astra_source_penalty_feedback,
         )
         score = int(scored["score"])
         scored_rows.append((score, index, row, scored))
@@ -815,6 +853,9 @@ def order_candidates_for_strict_validation(
         },
         "email_only_source_memory_applied": summarize_email_only_source_penalty_feedback(email_only_source_penalty_feedback)
         if is_email_only_profile(validation_profile)
+        else {},
+        "astra_source_memory_applied": summarize_astra_source_penalty_feedback(astra_source_penalty_feedback)
+        if is_astra_outbound_profile(validation_profile)
         else {},
     }
 
@@ -1640,7 +1681,16 @@ def write_minimal_rows(
 
 
 def best_verified_source_url(row: Dict[str, str]) -> str:
-    for field in ("AuthorEmailSourceURL", "ContactPageURL", "AuthorWebsite", "SourceURL"):
+    for field in (
+        "AuthorEmailSourceURL",
+        "ContactPageURL",
+        "AuthorWebsite",
+        "SourceURL",
+        "LocationProofURL",
+        "IndieProofURL",
+        "RecencyProofURL",
+        "ListingURL",
+    ):
         value = (row.get(field, "") or "").strip()
         if value:
             return value
@@ -2442,6 +2492,23 @@ def row_is_fully_verified(row: Dict[str, str], require_us_location: bool = True)
     return bool(best_verified_source_url(row))
 
 
+def row_is_astra_outbound_qualified(row: Dict[str, str]) -> bool:
+    if not row_is_fully_verified(row, require_us_location=True):
+        return False
+    if not (row.get("LocationProofURL", "") or "").strip():
+        return False
+    if not (row.get("IndieProofURL", "") or "").strip():
+        return False
+    if not (row.get("RecencyProofURL", "") or "").strip():
+        return False
+    listing_url = (row.get("ListingURL", "") or "").strip()
+    if not listing_url or not canonical_listing_key(listing_url):
+        return False
+    if not best_verified_source_url(row):
+        return False
+    return True
+
+
 def row_is_email_only_qualified(row: Dict[str, str]) -> bool:
     author_name = (row.get("AuthorName", "") or "").strip()
     if not row_has_clean_author_name(row):
@@ -2462,10 +2529,21 @@ def count_goal_rows(rows: List[Dict[str, str]], validation_profile: str, policy:
         return sum(1 for row in rows if row_is_email_only_qualified(row))
     if is_agent_hunt_profile(validation_profile):
         return sum(1 for row in rows if row_is_agent_hunt_qualified(row))
+    if is_astra_outbound_profile(validation_profile):
+        return sum(1 for row in rows if row_is_astra_outbound_qualified(row))
     if is_fully_verified_profile(validation_profile):
         require_us_location = profile_requires_us_location(validation_profile)
         return sum(1 for row in rows if row_is_fully_verified(row, require_us_location=require_us_location))
     return len(rows)
+
+
+def verified_rows_for_profile(rows: List[Dict[str, str]], validation_profile: str) -> List[Dict[str, str]]:
+    if is_astra_outbound_profile(validation_profile):
+        return [row for row in rows if row_is_astra_outbound_qualified(row)]
+    if is_fully_verified_profile(validation_profile):
+        require_us_location = profile_requires_us_location(validation_profile)
+        return [row for row in rows if row_is_fully_verified(row, require_us_location=require_us_location)]
+    return []
 
 
 def row_qualifies_for_master(row: Dict[str, str], policy: str, validation_profile: str = "default") -> bool:
@@ -2473,6 +2551,8 @@ def row_qualifies_for_master(row: Dict[str, str], policy: str, validation_profil
         return row_is_email_only_qualified(row)
     if is_agent_hunt_profile(validation_profile):
         return row_is_agent_hunt_qualified(row)
+    if is_astra_outbound_profile(validation_profile):
+        return row_is_astra_outbound_qualified(row)
     if is_fully_verified_profile(validation_profile):
         return row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
     if policy == "open":
@@ -2601,6 +2681,386 @@ def build_email_only_source_yield_stats(candidate_outcome_records: List[Dict[str
             source_query_visible_email_hits,
             label="query",
         ),
+    }
+
+
+def build_astra_source_yield_stats(candidate_outcome_records: List[Dict[str, object]]) -> Dict[str, object]:
+    source_domain_totals: Counter[str] = Counter()
+    source_domain_visible_email_hits: Counter[str] = Counter()
+    source_domain_net_new_exported: Counter[str] = Counter()
+    source_type_totals: Counter[str] = Counter()
+    source_type_visible_email_hits: Counter[str] = Counter()
+    source_type_net_new_exported: Counter[str] = Counter()
+    source_query_totals: Counter[str] = Counter()
+    source_query_visible_email_hits: Counter[str] = Counter()
+    source_query_net_new_exported: Counter[str] = Counter()
+
+    for record in candidate_outcome_records:
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url) or "unknown"
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url) or "unknown"
+        source_query = str(record.get("source_query", "") or "").strip() or "<unknown>"
+        visible_email_hit = bool(str(record.get("email", "") or "").strip())
+        exported = bool(record.get("exported_new_lead", False))
+
+        source_domain_totals[source_domain] += 1
+        source_type_totals[source_type] += 1
+        source_query_totals[source_query] += 1
+        if visible_email_hit:
+            source_domain_visible_email_hits[source_domain] += 1
+            source_type_visible_email_hits[source_type] += 1
+            source_query_visible_email_hits[source_query] += 1
+        if exported:
+            source_domain_net_new_exported[source_domain] += 1
+            source_type_net_new_exported[source_type] += 1
+            source_query_net_new_exported[source_query] += 1
+
+    return {
+        "processed_candidates": len(candidate_outcome_records),
+        "net_new_exported_rows_by_source_domains": summarize_counter(source_domain_net_new_exported, key_name="domain"),
+        "net_new_exported_rows_by_source_types": summarize_counter(source_type_net_new_exported, key_name="source"),
+        "net_new_exported_rows_by_source_queries": summarize_counter(source_query_net_new_exported, key_name="query"),
+        "visible_email_hit_rate_by_source_domains": summarize_hit_rate(
+            source_domain_totals,
+            source_domain_visible_email_hits,
+            label="domain",
+        ),
+        "visible_email_hit_rate_by_source_types": summarize_hit_rate(
+            source_type_totals,
+            source_type_visible_email_hits,
+            label="source",
+        ),
+        "visible_email_hit_rate_by_source_queries": summarize_hit_rate(
+            source_query_totals,
+            source_query_visible_email_hits,
+            label="query",
+        ),
+    }
+
+
+def _normalize_astra_source_penalty_stats_map(raw_stats: object) -> Dict[str, Dict[str, float]]:
+    stats_map: Dict[str, Dict[str, float]] = {}
+    if not isinstance(raw_stats, dict):
+        return stats_map
+    for raw_key, raw_values in raw_stats.items():
+        key = str(raw_key or "").strip()
+        if not key or not isinstance(raw_values, dict):
+            continue
+        entry = {
+            stat_key: round(_coerce_nonnegative_float(raw_values.get(stat_key, 0.0)), 4)
+            for stat_key in ASTRA_SOURCE_PENALTY_STAT_KEYS
+        }
+        if any(value > 0.0 for value in entry.values()):
+            stats_map[key] = entry
+    return stats_map
+
+
+def compute_astra_source_score(stats: Dict[str, float] | None) -> float:
+    values = dict(stats or {})
+    processed = _coerce_nonnegative_float(values.get("processed", 0.0))
+    if processed <= 0.0:
+        return 50.0
+    visible_email_hits = _coerce_nonnegative_float(values.get("visible_email_hits", 0.0))
+    net_new_exported = _coerce_nonnegative_float(values.get("net_new_exported", 0.0))
+    duplicate_hits = _coerce_nonnegative_float(values.get("duplicate_hits", 0.0))
+    hard_failures = _coerce_nonnegative_float(values.get("hard_failures", 0.0))
+    score = (
+        50.0
+        + 40.0 * (net_new_exported / processed)
+        + 10.0 * (visible_email_hits / processed)
+        - 18.0 * (duplicate_hits / processed)
+        - 22.0 * (hard_failures / processed)
+    )
+    return round(max(0.0, min(100.0, score)), 2)
+
+
+def _decay_astra_source_penalty_stats(
+    stats_map: Dict[str, Dict[str, float]],
+    *,
+    decay_factor: float,
+) -> Dict[str, Dict[str, float]]:
+    decayed: Dict[str, Dict[str, float]] = {}
+    factor = min(1.0, max(0.0, decay_factor))
+    for key, values in stats_map.items():
+        entry = {
+            stat_key: round(_coerce_nonnegative_float(values.get(stat_key, 0.0)) * factor, 4)
+            for stat_key in ASTRA_SOURCE_PENALTY_STAT_KEYS
+        }
+        if any(value >= 0.05 for value in entry.values()):
+            decayed[key] = entry
+    return decayed
+
+
+def _increment_astra_source_penalty_stats(
+    stats_map: Dict[str, Dict[str, float]],
+    key: str,
+    *,
+    visible_email_hit: bool,
+    net_new_exported: bool,
+    duplicate_hit: bool,
+    hard_failure: bool,
+) -> None:
+    normalized_key = str(key or "").strip()
+    if not normalized_key:
+        return
+    entry = stats_map.setdefault(
+        normalized_key,
+        {stat_key: 0.0 for stat_key in ASTRA_SOURCE_PENALTY_STAT_KEYS},
+    )
+    entry["processed"] += 1.0
+    if visible_email_hit:
+        entry["visible_email_hits"] += 1.0
+    if net_new_exported:
+        entry["net_new_exported"] += 1.0
+    if duplicate_hit:
+        entry["duplicate_hits"] += 1.0
+    if hard_failure:
+        entry["hard_failures"] += 1.0
+
+
+def _build_astra_penalty_map(stats_map: Dict[str, Dict[str, float]]) -> Dict[str, int]:
+    penalties: Dict[str, int] = {}
+    for key, values in stats_map.items():
+        processed = _coerce_nonnegative_float(values.get("processed", 0.0))
+        net_new_exported = _coerce_nonnegative_float(values.get("net_new_exported", 0.0))
+        duplicate_hits = _coerce_nonnegative_float(values.get("duplicate_hits", 0.0))
+        hard_failures = _coerce_nonnegative_float(values.get("hard_failures", 0.0))
+        if processed < 3.0:
+            continue
+        export_rate = net_new_exported / processed if processed else 0.0
+        duplicate_rate = duplicate_hits / processed if processed else 0.0
+        hard_failure_rate = hard_failures / processed if processed else 0.0
+        penalty = 0
+        if export_rate <= 0.05 and max(duplicate_rate, hard_failure_rate) >= 0.7:
+            penalty = 6
+        elif export_rate <= 0.1 and max(duplicate_rate, hard_failure_rate) >= 0.55:
+            penalty = 4
+        elif export_rate <= 0.2 and max(duplicate_rate, hard_failure_rate) >= 0.4:
+            penalty = 2
+        if penalty:
+            penalties[key] = penalty
+    return penalties
+
+
+def normalize_astra_source_penalty_feedback(feedback: Dict[str, object] | None) -> Dict[str, object]:
+    payload = dict(feedback or {})
+    normalized = {
+        "schema_version": ASTRA_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION,
+        "decay_factor": round(
+            _coerce_nonnegative_float(payload.get("decay_factor", ASTRA_SOURCE_PENALTY_DECAY_FACTOR))
+            or ASTRA_SOURCE_PENALTY_DECAY_FACTOR,
+            4,
+        ),
+        "run_count": max(0, int(payload.get("run_count", 0) or 0)),
+        "query_stats": _normalize_astra_source_penalty_stats_map(payload.get("query_stats", {})),
+        "source_type_stats": _normalize_astra_source_penalty_stats_map(payload.get("source_type_stats", {})),
+        "source_domain_stats": _normalize_astra_source_penalty_stats_map(payload.get("source_domain_stats", {})),
+    }
+    normalized["query_penalties"] = _build_astra_penalty_map(dict(normalized.get("query_stats", {}) or {}))
+    normalized["source_type_penalties"] = _build_astra_penalty_map(dict(normalized.get("source_type_stats", {}) or {}))
+    normalized["source_domain_penalties"] = _build_astra_penalty_map(dict(normalized.get("source_domain_stats", {}) or {}))
+    normalized["query_scores"] = {
+        key: compute_astra_source_score(value) for key, value in dict(normalized.get("query_stats", {}) or {}).items()
+    }
+    normalized["source_type_scores"] = {
+        key: compute_astra_source_score(value) for key, value in dict(normalized.get("source_type_stats", {}) or {}).items()
+    }
+    normalized["source_domain_scores"] = {
+        key: compute_astra_source_score(value) for key, value in dict(normalized.get("source_domain_stats", {}) or {}).items()
+    }
+    normalized["top_failure_reasons"] = dict(payload.get("top_failure_reasons", {}) or {})
+    if str(payload.get("updated_at_utc", "") or "").strip():
+        normalized["updated_at_utc"] = str(payload.get("updated_at_utc", "") or "").strip()
+    return normalized
+
+
+def annotate_candidate_outcomes_with_exported_yield(
+    candidate_outcome_records: List[Dict[str, object]],
+    exported_rows: List[Dict[str, str]],
+) -> List[Dict[str, object]]:
+    exported_keys = {
+        (
+            normalize_person_name((row.get("AuthorName", "") or "").strip()),
+            (row.get("AuthorEmail", "") or "").strip().lower(),
+            normalize_url((row.get("SourceURL", "") or "").strip()),
+        )
+        for row in exported_rows
+        if (row.get("AuthorName", "") or "").strip()
+        and (row.get("AuthorEmail", "") or "").strip()
+        and (row.get("SourceURL", "") or "").strip()
+    }
+    annotated: List[Dict[str, object]] = []
+    for record in candidate_outcome_records:
+        author_key = normalize_person_name(str(record.get("author_name", "") or "").strip())
+        email_key = str(record.get("email", "") or record.get("email_value", "") or "").strip().lower()
+        source_key = normalize_url(str(record.get("best_source_url", "") or record.get("source_url", "") or "").strip())
+        enriched = dict(record)
+        enriched["exported_new_lead"] = (author_key, email_key, source_key) in exported_keys
+        annotated.append(enriched)
+    return annotated
+
+
+def build_astra_source_penalty_feedback(
+    candidate_outcome_records: List[Dict[str, object]],
+    *,
+    existing_feedback: Dict[str, object] | None = None,
+    decay_factor: float = ASTRA_SOURCE_PENALTY_DECAY_FACTOR,
+) -> Dict[str, object]:
+    normalized = normalize_astra_source_penalty_feedback(existing_feedback)
+    effective_decay_factor = min(
+        1.0,
+        max(0.0, _coerce_nonnegative_float(decay_factor) or ASTRA_SOURCE_PENALTY_DECAY_FACTOR),
+    )
+    query_stats = _decay_astra_source_penalty_stats(
+        dict(normalized.get("query_stats", {}) or {}),
+        decay_factor=effective_decay_factor,
+    )
+    source_type_stats = _decay_astra_source_penalty_stats(
+        dict(normalized.get("source_type_stats", {}) or {}),
+        decay_factor=effective_decay_factor,
+    )
+    source_domain_stats = _decay_astra_source_penalty_stats(
+        dict(normalized.get("source_domain_stats", {}) or {}),
+        decay_factor=effective_decay_factor,
+    )
+    failure_reasons: Counter[str] = Counter()
+
+    for record in candidate_outcome_records:
+        source_url = str(record.get("source_url", "") or "").strip()
+        source_domain = registrable_domain(source_url)
+        source_type = str(record.get("source_type", "") or "").strip() or infer_source_type_from_source_url(source_url) or "unknown"
+        source_query = (
+            str(record.get("source_query", "") or "").strip()
+            or str(record.get("query_effective", "") or "").strip()
+            or str(record.get("query_original", "") or "").strip()
+            or "<unknown>"
+        )
+        stable_reason = map_stable_fail_reason(str(record.get("reject_reason", "") or ""))
+        visible_email_hit = bool(str(record.get("email", "") or record.get("email_value", "") or "").strip())
+        net_new_exported = bool(record.get("exported_new_lead", False))
+        duplicate_hit = stable_reason == "duplicate_lead" or (bool(record.get("kept", False)) and not net_new_exported)
+        hard_failure = bool(stable_reason and stable_reason != "duplicate_lead" and not bool(record.get("kept", False)))
+
+        _increment_astra_source_penalty_stats(
+            query_stats,
+            source_query,
+            visible_email_hit=visible_email_hit,
+            net_new_exported=net_new_exported,
+            duplicate_hit=duplicate_hit,
+            hard_failure=hard_failure,
+        )
+        _increment_astra_source_penalty_stats(
+            source_type_stats,
+            infer_source_family(source_type, source_url),
+            visible_email_hit=visible_email_hit,
+            net_new_exported=net_new_exported,
+            duplicate_hit=duplicate_hit,
+            hard_failure=hard_failure,
+        )
+        if source_domain:
+            _increment_astra_source_penalty_stats(
+                source_domain_stats,
+                source_domain,
+                visible_email_hit=visible_email_hit,
+                net_new_exported=net_new_exported,
+                duplicate_hit=duplicate_hit,
+                hard_failure=hard_failure,
+            )
+        if hard_failure and stable_reason:
+            failure_reasons[stable_reason] += 1
+
+    query_penalties = _build_astra_penalty_map(query_stats)
+    source_type_penalties = _build_astra_penalty_map(source_type_stats)
+    source_domain_penalties = _build_astra_penalty_map(source_domain_stats)
+    return {
+        "schema_version": ASTRA_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION,
+        "updated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "decay_factor": round(effective_decay_factor, 4),
+        "run_count": int(normalized.get("run_count", 0) or 0) + 1,
+        "query_stats": query_stats,
+        "source_type_stats": source_type_stats,
+        "source_domain_stats": source_domain_stats,
+        "query_penalties": query_penalties,
+        "source_type_penalties": source_type_penalties,
+        "source_domain_penalties": source_domain_penalties,
+        "top_failure_reasons": dict(failure_reasons.most_common(10)),
+        "query_scores": {key: compute_astra_source_score(value) for key, value in query_stats.items()},
+        "source_type_scores": {key: compute_astra_source_score(value) for key, value in source_type_stats.items()},
+        "source_domain_scores": {key: compute_astra_source_score(value) for key, value in source_domain_stats.items()},
+    }
+
+
+def summarize_astra_source_penalty_feedback(feedback: Dict[str, object] | None) -> Dict[str, object]:
+    normalized = normalize_astra_source_penalty_feedback(feedback)
+    query_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict(normalized.get("query_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    source_type_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict(normalized.get("source_type_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    source_domain_penalties = {
+        str(key): int(value or 0)
+        for key, value in dict(normalized.get("source_domain_penalties", {}) or {}).items()
+        if int(value or 0) > 0
+    }
+    return {
+        "schema_version": ASTRA_SOURCE_PENALTY_MEMORY_SCHEMA_VERSION,
+        "run_count": int(normalized.get("run_count", 0) or 0),
+        "decay_factor": round(_coerce_nonnegative_float(normalized.get("decay_factor", 0.0)), 4),
+        "tracked_queries": len(dict(normalized.get("query_stats", {}) or {})),
+        "tracked_source_types": len(dict(normalized.get("source_type_stats", {}) or {})),
+        "tracked_source_domains": len(dict(normalized.get("source_domain_stats", {}) or {})),
+        "top_failure_reasons": dict(normalized.get("top_failure_reasons", {}) or {}),
+        "penalized_queries": [{"query": key, "penalty": value} for key, value in sorted(query_penalties.items())[:10]],
+        "penalized_source_types": [{"source": key, "penalty": value} for key, value in sorted(source_type_penalties.items())[:10]],
+        "penalized_source_domains": [{"domain": key, "penalty": value} for key, value in sorted(source_domain_penalties.items())[:10]],
+        "strongest_queries": [
+            {"query": key, "score": round(value, 2)}
+            for key, value in sorted(
+                dict(normalized.get("query_scores", {}) or {}).items(),
+                key=lambda item: (item[1], item[0]),
+                reverse=True,
+            )[:10]
+        ],
+        "strongest_source_domains": [
+            {"domain": key, "score": round(value, 2)}
+            for key, value in sorted(
+                dict(normalized.get("source_domain_scores", {}) or {}).items(),
+                key=lambda item: (item[1], item[0]),
+                reverse=True,
+            )[:10]
+        ],
+    }
+
+
+def lookup_astra_source_memory(
+    feedback: Dict[str, object] | None,
+    *,
+    source_query: str,
+    source_type: str,
+    source_url: str,
+) -> Dict[str, float]:
+    normalized = normalize_astra_source_penalty_feedback(feedback)
+    source_domain = registrable_domain(source_url)
+    family = infer_source_family(source_type, source_url)
+    query_penalty = int(dict(normalized.get("query_penalties", {}) or {}).get(source_query, 0) or 0)
+    source_type_penalty = int(dict(normalized.get("source_type_penalties", {}) or {}).get(family, 0) or 0)
+    source_domain_penalty = int(dict(normalized.get("source_domain_penalties", {}) or {}).get(source_domain, 0) or 0)
+    source_score = float(dict(normalized.get("source_domain_scores", {}) or {}).get(source_domain, 50.0) or 50.0)
+    family_score = float(dict(normalized.get("source_type_scores", {}) or {}).get(family, 50.0) or 50.0)
+    query_score = float(dict(normalized.get("query_scores", {}) or {}).get(source_query, 50.0) or 50.0)
+    return {
+        "source_score": round(source_score, 2),
+        "cross_run_score": round((source_score + family_score + query_score) / 3.0, 2),
+        "query_penalty": float(query_penalty),
+        "source_type_penalty": float(source_type_penalty),
+        "source_domain_penalty": float(source_domain_penalty),
+        "total_penalty": float(min(12, query_penalty + source_type_penalty + source_domain_penalty)),
+        "source_family": family,
     }
 
 
@@ -4566,6 +5026,59 @@ def _email_only_level_three_variants(query: str) -> List[str]:
     ]
 
 
+def build_astra_widening_state(
+    *,
+    stale_runs: int,
+    reliability_counters: Dict[str, int] | None = None,
+) -> Dict[str, object]:
+    counters = dict(reliability_counters or {})
+    zero_validated_runs = int(counters.get("consecutive_zero_validated_runs", 0) or 0)
+    empty_candidate_runs = int(counters.get("consecutive_empty_candidate_runs", 0) or 0)
+    level = 0
+    if stale_runs >= 1 or zero_validated_runs >= 1 or empty_candidate_runs >= 1:
+        level = 1
+    if stale_runs >= 2 or zero_validated_runs >= 2 or empty_candidate_runs >= 2:
+        level = 2
+    widen_reason = ""
+    if zero_validated_runs > 0:
+        widen_reason = "zero_validated_runs"
+    elif empty_candidate_runs > 0:
+        widen_reason = "empty_candidate_runs"
+    elif stale_runs > 0:
+        widen_reason = "stale_runs"
+    return {
+        "level": level,
+        "widen_reason": widen_reason,
+        "stale_run_counter": max(0, int(stale_runs or 0)),
+    }
+
+
+def _astra_level_one_variants(query: str) -> List[str]:
+    genre = _extract_query_genre(query)
+    if genre:
+        return [
+            template.format(genre=genre)
+            for template in ASTRA_STALE_QUERY_TEMPLATES[:2]
+        ]
+    return [
+        '"indie author" "contact" "amazon.com/dp"',
+        '"self-published author" "about the author" "barnesandnoble.com/w/"',
+    ]
+
+
+def _astra_level_two_variants(query: str) -> List[str]:
+    genre = _extract_query_genre(query)
+    if genre:
+        return [
+            template.format(genre=genre)
+            for template in ASTRA_STALE_QUERY_TEMPLATES[2:]
+        ]
+    return [
+        '"independent author" "new release" "contact"',
+        '"author website" "United States" "buy on Amazon"',
+    ]
+
+
 def build_rotating_query_plans(
     run_idx: int,
     *,
@@ -4573,12 +5086,69 @@ def build_rotating_query_plans(
     stale_runs: int = 0,
     reliability_counters: Dict[str, int] | None = None,
     email_only_source_penalty_feedback: Dict[str, object] | None = None,
+    astra_source_penalty_feedback: Dict[str, object] | None = None,
 ) -> List[Dict[str, object]]:
     profile = normalize_validation_profile(validation_profile)
     base_queries = _build_base_rotating_queries(
         run_idx,
         stale_runs=stale_runs if is_agent_hunt_profile(profile) else 0,
     )
+    if is_astra_outbound_profile(profile):
+        widening_state = build_astra_widening_state(
+            stale_runs=stale_runs,
+            reliability_counters=reliability_counters,
+        )
+        widen_level = int(widening_state.get("level", 0) or 0)
+        widen_reason = str(widening_state.get("widen_reason", "") or "")
+        stale_run_counter = int(widening_state.get("stale_run_counter", 0) or 0)
+        normalized_feedback = normalize_astra_source_penalty_feedback(astra_source_penalty_feedback)
+        query_penalties = {
+            str(key): int(value or 0)
+            for key, value in dict(normalized_feedback.get("query_penalties", {}) or {}).items()
+            if int(value or 0) > 0
+        }
+        query_scores = {
+            str(key): float(value or 50.0)
+            for key, value in dict(normalized_feedback.get("query_scores", {}) or {}).items()
+        }
+        ordered_base_queries = sorted(
+            _build_base_rotating_queries(run_idx, stale_runs=stale_runs),
+            key=lambda query: (query_penalties.get(query, 0), -query_scores.get(query, 50.0), query),
+        )
+        plans = [_build_query_plan(query, stale_run_counter=stale_run_counter) for query in ordered_base_queries]
+        if widen_level >= 1:
+            for query in ordered_base_queries:
+                for variant in _astra_level_one_variants(query):
+                    plans.append(
+                        _build_query_plan(
+                            variant,
+                            query_original=query,
+                            widen_level=1,
+                            widen_reason=widen_reason,
+                            stale_run_counter=stale_run_counter,
+                        )
+                    )
+        if widen_level >= 2:
+            for query in ordered_base_queries:
+                for variant in _astra_level_two_variants(query):
+                    plans.append(
+                        _build_query_plan(
+                            variant,
+                            query_original=query,
+                            widen_level=2,
+                            widen_reason=widen_reason,
+                            stale_run_counter=stale_run_counter,
+                        )
+                    )
+        deduped: List[Dict[str, object]] = []
+        seen_queries: set[str] = set()
+        for plan in plans:
+            effective_query = str(plan.get("query_effective", "") or "").strip()
+            if not effective_query or effective_query in seen_queries:
+                continue
+            seen_queries.add(effective_query)
+            deduped.append(plan)
+        return deduped
     if not is_email_only_profile(profile):
         return [_build_query_plan(query, stale_run_counter=stale_runs) for query in base_queries]
 
@@ -5123,6 +5693,14 @@ def main() -> int:
         starting_total = 0
     agent_hunt_listing_feedback: Dict[str, object] = {}
     agent_hunt_source_quality_feedback: Dict[str, object] = {}
+    astra_source_penalty_memory_path = (
+        json_outputs_dir / ASTRA_SOURCE_PENALTY_MEMORY_FILENAME if is_astra_outbound_profile(validation_profile) else None
+    )
+    astra_source_penalty_feedback: Dict[str, object] = (
+        normalize_astra_source_penalty_feedback(load_json(astra_source_penalty_memory_path))
+        if astra_source_penalty_memory_path is not None
+        else {}
+    )
     email_only_source_penalty_memory_path = (
         json_outputs_dir / EMAIL_ONLY_SOURCE_PENALTY_MEMORY_FILENAME if is_email_only_profile(validation_profile) else None
     )
@@ -5298,6 +5876,7 @@ def main() -> int:
         ]
         effective_queries = args.queries_file
         email_only_query_widening: Dict[str, object] = {}
+        astra_query_widening: Dict[str, object] = {}
         if not effective_queries and not args.disable_auto_queries:
             query_plans = build_rotating_query_plans(
                 run_idx,
@@ -5305,6 +5884,7 @@ def main() -> int:
                 stale_runs=stale_runs,
                 reliability_counters=reliability_counters,
                 email_only_source_penalty_feedback=email_only_source_penalty_feedback if is_email_only_profile(validation_profile) else None,
+                astra_source_penalty_feedback=astra_source_penalty_feedback if is_astra_outbound_profile(validation_profile) else None,
             )
             write_queries_file(run_queries_file, query_plans)
             effective_queries = str(run_queries_file)
@@ -5329,6 +5909,28 @@ def main() -> int:
                 if penalized_query_count > 0:
                     print(
                         f"[INFO] batch {run_idx}: applying email_only source memory "
+                        f"across {penalized_query_count} penalized query families"
+                    )
+            elif is_astra_outbound_profile(validation_profile):
+                astra_query_widening = build_astra_widening_state(
+                    stale_runs=stale_runs,
+                    reliability_counters=reliability_counters,
+                )
+                astra_query_widening["query_count"] = len(query_plans)
+                astra_query_widening["widened_query_count"] = widened_query_count
+                widen_level = int(astra_query_widening.get("level", 0) or 0)
+                widen_reason = str(astra_query_widening.get("widen_reason", "") or "")
+                if widened_query_count > 0:
+                    print(
+                        f"[INFO] batch {run_idx}: using {len(query_plans)} Astra rotated queries "
+                        f"({widened_query_count} widened, level {widen_level}, reason {widen_reason or 'n/a'})"
+                    )
+                else:
+                    print(f"[INFO] batch {run_idx}: using {len(query_plans)} Astra rotated queries")
+                penalized_query_count = len(dict((astra_source_penalty_feedback or {}).get("query_penalties", {}) or {}))
+                if penalized_query_count > 0:
+                    print(
+                        f"[INFO] batch {run_idx}: applying Astra source memory "
                         f"across {penalized_query_count} penalized query families"
                     )
             else:
@@ -5437,6 +6039,7 @@ def main() -> int:
                 agent_hunt_listing_feedback=agent_hunt_listing_feedback if is_agent_hunt_profile(validation_profile) else None,
                 agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback if is_agent_hunt_profile(validation_profile) else None,
                 email_only_source_penalty_feedback=email_only_source_penalty_feedback if is_email_only_profile(validation_profile) else None,
+                astra_source_penalty_feedback=astra_source_penalty_feedback if is_astra_outbound_profile(validation_profile) else None,
             )
             if is_agent_hunt_profile(validation_profile):
                 filtered_candidate_rows, source_quality_suppression_stats = suppress_agent_hunt_source_quality_candidates(
@@ -5450,6 +6053,7 @@ def main() -> int:
                     agent_hunt_listing_feedback=agent_hunt_listing_feedback,
                     agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
                     email_only_source_penalty_feedback=None,
+                    astra_source_penalty_feedback=None,
                 )
                 filtered_candidate_rows, epic_directory_throttle_stats = throttle_agent_hunt_epic_directory_candidates(
                     filtered_candidate_rows,
@@ -5462,6 +6066,7 @@ def main() -> int:
                     agent_hunt_listing_feedback=agent_hunt_listing_feedback,
                     agent_hunt_source_quality_feedback=agent_hunt_source_quality_feedback,
                     email_only_source_penalty_feedback=None,
+                    astra_source_penalty_feedback=None,
                 )
             write_candidate_rows(filtered_candidates_path, filtered_candidate_rows)
             suppression_message = (
@@ -5685,6 +6290,13 @@ def main() -> int:
             print(f"[WARN] batch {run_idx} failed with exit code {pipeline_exit_code}")
             validator_stats_failed = load_json(validate_stats_path)
             candidate_outcome_records_failed = list(validator_stats_failed.get("candidate_outcome_records", []) or [])
+            if is_astra_outbound_profile(validation_profile) and candidate_outcome_records_failed:
+                astra_source_penalty_feedback = build_astra_source_penalty_feedback(
+                    candidate_outcome_records_failed,
+                    existing_feedback=astra_source_penalty_feedback,
+                )
+                if astra_source_penalty_memory_path is not None:
+                    write_run_stats(astra_source_penalty_memory_path, astra_source_penalty_feedback)
             if is_email_only_profile(validation_profile) and candidate_outcome_records_failed:
                 email_only_source_penalty_feedback = build_email_only_source_penalty_feedback(
                     candidate_outcome_records_failed,
@@ -5764,6 +6376,14 @@ def main() -> int:
                 )
                 if email_only_source_penalty_memory_path is not None:
                     run_stats["email_only_source_penalty_memory_path"] = str(email_only_source_penalty_memory_path)
+            if is_astra_outbound_profile(validation_profile):
+                run_stats["astra_source_yield"] = build_astra_source_yield_stats(candidate_outcome_records_failed)
+                run_stats["astra_query_widening"] = dict(astra_query_widening or {})
+                run_stats["astra_source_penalty_memory"] = summarize_astra_source_penalty_feedback(
+                    astra_source_penalty_feedback
+                )
+                if astra_source_penalty_memory_path is not None:
+                    run_stats["astra_source_penalty_memory_path"] = str(astra_source_penalty_memory_path)
             if harvest_stats:
                 run_stats["google_cse_status"] = harvest_stats.get("google_cse_status", "")
             write_run_stats(run_stats_path, run_stats)
@@ -6000,15 +6620,9 @@ def main() -> int:
                 verified_output_count = write_verified_rows(Path(args.verified_output), strict_rows)
                 print(f"[INFO] wrote {verified_output_count} rows -> {args.verified_output}")
         elif is_fully_verified_profile(validation_profile) and not args.no_verified_output:
-            verified_rows = [
-                row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
-            ]
+            verified_rows = verified_rows_for_profile(master_rows, validation_profile)
             existing_export_rows = build_projected_lead_export_rows(
-                [
-                    row
-                    for row in existing_master_rows
-                    if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
-                ],
+                verified_rows_for_profile(existing_master_rows, validation_profile),
                 source_url_getter=best_verified_source_url,
             )
             current_export_rows = build_projected_lead_export_rows(
@@ -6031,6 +6645,17 @@ def main() -> int:
             new_export_rows = build_new_lead_export_rows(current_export_rows, existing_export_rows)
         new_leads_count = write_projected_lead_export_rows(new_leads_path, new_export_rows)
         print(f"[INFO] wrote {new_leads_count} rows -> {new_leads_path}")
+        if is_astra_outbound_profile(validation_profile) and candidate_outcome_records:
+            candidate_outcome_records = annotate_candidate_outcomes_with_exported_yield(
+                candidate_outcome_records,
+                new_export_rows,
+            )
+            astra_source_penalty_feedback = build_astra_source_penalty_feedback(
+                candidate_outcome_records,
+                existing_feedback=astra_source_penalty_feedback,
+            )
+            if astra_source_penalty_memory_path is not None:
+                write_run_stats(astra_source_penalty_memory_path, astra_source_penalty_feedback)
         if not args.no_contact_queue_output:
             contact_queue_count = write_contact_queue_rows(
                 contact_queue_path,
@@ -6059,7 +6684,7 @@ def main() -> int:
                 email_only_source_penalty_feedback,
             )
         validator_stats = load_json(validate_stats_path)
-        if is_email_only_profile(validation_profile):
+        if is_email_only_profile(validation_profile) or is_astra_outbound_profile(validation_profile):
             validator_stats["candidate_outcome_records"] = list(candidate_outcome_records)
             write_run_stats(validate_stats_path, validator_stats)
         run_stats = {
@@ -6122,6 +6747,14 @@ def main() -> int:
             )
             if email_only_source_penalty_memory_path is not None:
                 run_stats["email_only_source_penalty_memory_path"] = str(email_only_source_penalty_memory_path)
+        if is_astra_outbound_profile(validation_profile):
+            run_stats["astra_source_yield"] = build_astra_source_yield_stats(candidate_outcome_records)
+            run_stats["astra_query_widening"] = dict(astra_query_widening or {})
+            run_stats["astra_source_penalty_memory"] = summarize_astra_source_penalty_feedback(
+                astra_source_penalty_feedback
+            )
+            if astra_source_penalty_memory_path is not None:
+                run_stats["astra_source_penalty_memory_path"] = str(astra_source_penalty_memory_path)
         if agent_hunt_stats:
             run_stats["agent_hunt"] = {
                 "scouted_target": int(agent_hunt_stats.get("scouted_target", 0) or 0),
@@ -6325,9 +6958,7 @@ def main() -> int:
             verified_output_count = write_verified_rows(Path(args.verified_output), strict_rows)
             print(f"[OK] wrote {verified_output_count} rows -> {args.verified_output}")
     elif is_fully_verified_profile(validation_profile) and not args.no_verified_output:
-        verified_rows = [
-            row for row in master_rows if row_is_fully_verified(row, require_us_location=profile_requires_us_location(validation_profile))
-        ]
+        verified_rows = verified_rows_for_profile(master_rows, validation_profile)
         verified_output_count = write_verified_rows(Path(args.verified_output), verified_rows)
         print(f"[OK] wrote {verified_output_count} rows -> {args.verified_output}")
     if not args.no_contact_queue_output:

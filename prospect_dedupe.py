@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
+from lead_utils import canonical_listing_key
 from pipeline_paths import csv_output, ensure_parent
 
 OUTPUT_COLUMNS = [
@@ -70,6 +71,11 @@ def normalize_text(value: str) -> str:
     return re.sub(r"\W+", "", (value or "").lower())
 
 
+def normalize_listing_identity(value: str) -> str:
+    normalized = canonical_listing_key((value or "").strip())
+    return normalized.strip().lower()
+
+
 def row_quality_score(row: Dict[str, str]) -> int:
     score = 0
     if (row.get("AuthorEmail", "") or "").strip():
@@ -116,7 +122,7 @@ def dedupe(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
     for _, row in ranked_rows:
         author = normalize_text(row.get("AuthorName", ""))
         email = (row.get("AuthorEmail", "") or "").strip().lower()
-        listing = row.get("ListingURL", "").strip().lower()
+        listing = normalize_listing_identity(row.get("ListingURL", ""))
 
         if email and email in seen_email:
             continue

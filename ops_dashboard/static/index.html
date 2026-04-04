@@ -154,13 +154,14 @@
         <div class="panel-header">
           <div>
             <p class="panel-label">Results</p>
-            <h2>Lead Output</h2>
+            <h2>Saved Leads</h2>
           </div>
           <span id="lead-output-count" class="panel-meta">0 leads</span>
         </div>
-        <div id="lead-output-source" class="panel-meta panel-submeta">No accepted leads are available for the selected run.</div>
+        <div id="lead-output-source" class="panel-meta panel-submeta">No saved leads are available for the selected run.</div>
+        <div id="lead-output-latest-added" class="panel-meta panel-submeta">Latest run added: —</div>
         <div class="lead-toolbar">
-          <div id="lead-output-selection" class="panel-meta">Select a run to review accepted leads.</div>
+          <div id="lead-output-selection" class="panel-meta">Select a run to review saved leads.</div>
           <div class="lead-toolbar-actions">
             <button id="lead-output-copy-button" type="button" class="button-secondary">Copy Leads</button>
             <button id="lead-output-export-button" type="button" class="button-secondary">Export CSV</button>
@@ -168,7 +169,7 @@
           </div>
         </div>
         <div id="lead-output-empty" class="lead-empty-state">
-          No lead rows yet. Start a run or pick a previous run from diagnostics.
+          No saved leads yet. Start a run or pick a previous run from diagnostics.
         </div>
         <div id="lead-output-table-wrap" class="table-wrap hidden">
           <table>

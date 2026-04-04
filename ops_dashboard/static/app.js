@@ -641,7 +641,7 @@ function renderSelectedRows(rejectedRows, validatedRows) {
 function renderLeadSelection() {
   const label = document.getElementById("lead-output-selection");
   if (!state.leadRows.length || state.selectedLeadIndex < 0) {
-    label.textContent = "Select a run to review accepted leads.";
+    label.textContent = "Select a run to review saved leads.";
     return;
   }
   const row = state.leadRows[state.selectedLeadIndex] || {};
@@ -700,6 +700,16 @@ function renderLeadOutput(payload) {
   const rows = payload.rows || [];
   const source = payload.source || "final";
   const selectedRun = state.selectedManifest || {};
+  const latestRun = state.runs[0] || {};
+  const selectedIsLatest = Boolean(state.selectedRunId && latestRun.api_run_id && latestRun.api_run_id === state.selectedRunId);
+  const latestAddedLabel = document.getElementById("lead-output-latest-added");
+  const selectedCounts = selectedRun.counts || {};
+  const latestCounts = latestRun.counts || {};
+  const hasLatestRun = Boolean(latestRun.api_run_id || selectedRun.run_id);
+  const addedCount = selectedIsLatest
+    ? Number(selectedCounts.added_to_master || 0)
+    : Number(latestCounts.added_to_master || 0);
+  const addedPrefix = selectedIsLatest ? "Latest run added" : "Selected run added";
 
   state.leadRows = rows;
   state.leadSource = source;
@@ -713,7 +723,10 @@ function renderLeadOutput(payload) {
   document.getElementById("lead-output-count").textContent = `${rows.length} ${rows.length === 1 ? "lead" : "leads"}`;
   document.getElementById("lead-output-source").textContent = rows.length
     ? `${selectedRun.run_id || "Selected run"} • ${prettifyLabel(source)} output • full SourceURL audit remains in run artifacts.`
-    : "No accepted leads are available for the selected run.";
+    : "No saved leads are available for the selected run.";
+  latestAddedLabel.textContent = hasLatestRun
+    ? `${addedPrefix}: ${formatNumber(addedCount)} new ${addedCount === 1 ? "lead" : "leads"}`
+    : "Latest run added: —";
 
   renderLeadTableRows();
   updateLeadCopyUi();
